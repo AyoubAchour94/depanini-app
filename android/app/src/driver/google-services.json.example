@@ -1,0 +1,25 @@
+{
+  "_comment": "TEMPLATE ONLY — do NOT put real values here and do NOT rename this file. Running `flutterfire configure` (or downloading from the Firebase console) generates the REAL google-services.json. Place the real file next to this one at android/app/src/driver/google-services.json (it is git-ignored). The package_name below MUST be com.depanini.driver for the DRIVER flavor.",
+  "project_info": {
+    "project_number": "REPLACE_WITH_PROJECT_NUMBER",
+    "project_id": "REPLACE_WITH_FIREBASE_PROJECT_ID",
+    "storage_bucket": "REPLACE_WITH_PROJECT_ID.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "REPLACE_WITH_APP_ID",
+        "android_client_info": {
+          "package_name": "com.depanini.driver"
+        }
+      },
+      "api_key": [
+        { "current_key": "REPLACE_WITH_ANDROID_API_KEY" }
+      ],
+      "services": {
+        "appinvite_service": { "other_platform_oauth_client": [] }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

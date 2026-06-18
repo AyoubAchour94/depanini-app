@@ -1,0 +1,13 @@
+# Compiled TypeScript output
+lib/
+
+# Dependencies
+node_modules/
+
+# Firebase runtime config / emulator artifacts
+.runtimeconfig.json
+*.local
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+.firebase/

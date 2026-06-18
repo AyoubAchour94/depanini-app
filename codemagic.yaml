@@ -1,0 +1,327 @@
+# ============================================================================
+# Depanini — CodeMagic CI/CD
+# ============================================================================
+# FOUR workflows, all triggered by a push to the `develop` branch:
+#
+#   user-app-android-dev    → builds USER flavor   → Firebase App Distribution
+#   driver-app-android-dev  → builds DRIVER flavor → Firebase App Distribution
+#   user-app-ios-dev        → builds USER flavor   → TestFlight (internal)
+#   driver-app-ios-dev      → builds DRIVER flavor → TestFlight (internal)
+#
+# New to CodeMagic? Read top-to-bottom. The `definitions:` block below defines
+# reusable snippets with YAML *anchors* (the `&name` labels). Workflows then
+# reference them with `*name` so we don't repeat ourselves. Everything is
+# heavily commented.
+#
+# SECRETS: nothing secret lives in this file. Values are read from environment
+# variables you create in the CodeMagic UI (Teams/App settings → Environment
+# variables), grouped under `depanini_secrets`. The exact variable names are
+# listed in CI.md. Add them there before running a build.
+# ============================================================================
+
+definitions:
+  # --- Trigger: only run on a push to `develop` ----------------------------
+  # We intentionally avoid `main` so production isn't built on every commit
+  # during early development. (Production workflows are stubbed at the bottom.)
+  triggering: &develop_trigger
+    events:
+      - push
+    branch_patterns:
+      - pattern: develop
+        include: true
+        source: true
+
+  # --- Dependency cache: speeds up subsequent builds -----------------------
+  cache: &dependency_cache
+    cache_paths:
+      - $HOME/.pub-cache               # Dart/Flutter packages
+      - $HOME/Library/Caches/CocoaPods # iOS pods (ignored on Linux Android runs)
+
+  # --- Reusable scripts ----------------------------------------------------
+  scripts:
+    # Fetch Flutter packages.
+    pub_get: &pub_get
+      name: Flutter pub get
+      script: flutter packages pub get
+
+    # Static analysis + unit/widget tests. Fails the build on any issue.
+    analyze_and_test: &analyze_and_test
+      name: Analyze and test
+      script: |
+        flutter analyze
+        flutter test
+
+workflows:
+  # ==========================================================================
+  # (a) USER APP — ANDROID — dev
+  # ==========================================================================
+  user-app-android-dev:
+    name: User App · Android · dev
+    # Linux instances build Android and are cheaper than Mac instances.
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      groups:
+        - depanini_secrets   # MAPBOX_ACCESS_TOKEN, FIREBASE_*, ANDROID_GOOGLE_SERVICES_*
+      vars:
+        FLAVOR: user
+        ENTRYPOINT: lib/main_user.dart
+    triggering: *develop_trigger
+    cache: *dependency_cache
+    scripts:
+      - *pub_get
+      - *analyze_and_test
+      # Firebase needs google-services.json, which is git-ignored. We inject it
+      # from a base64-encoded env var into the USER flavor's source folder.
+      # Create it with:  base64 -i google-services.json | pbcopy   (mac)
+      #               or  base64 -w0 google-services.json          (linux)
+      - name: Inject google-services.json (user flavor)
+        script: |
+          mkdir -p android/app/src/user
+          echo "$ANDROID_GOOGLE_SERVICES_USER" | base64 --decode > android/app/src/user/google-services.json
+      - name: Build APK (user, debug)
+        # Debug signing is fine for internal distribution. Switch to --release
+        # once you add a release keystore + signing config in build.gradle.kts.
+        script: |
+          flutter build apk \
+            --flavor user \
+            -t lib/main_user.dart \
+            --debug \
+            --dart-define=MAPBOX_ACCESS_TOKEN=$MAPBOX_ACCESS_TOKEN \
+            --dart-define=ENVIRONMENT=dev
+    artifacts:
+      - build/**/outputs/**/*.apk
+    publishing:
+      # Distributes the APK to the "internal-testers" group in Firebase App
+      # Distribution. FIREBASE_SERVICE_ACCOUNT_JSON = the full service-account
+      # JSON (with Firebase App Distribution Admin role).
+      firebase:
+        firebase_service_account: $FIREBASE_SERVICE_ACCOUNT_JSON
+        android:
+          # Firebase Android App ID for the USER app (looks like 1:NNN:android:HEX).
+          app_id: $FIREBASE_ANDROID_APP_ID_USER
+          groups:
+            - internal-testers
+
+  # ==========================================================================
+  # (b) DRIVER APP — ANDROID — dev
+  # ==========================================================================
+  driver-app-android-dev:
+    name: Driver App · Android · dev
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      groups:
+        - depanini_secrets
+      vars:
+        FLAVOR: driver
+        ENTRYPOINT: lib/main_driver.dart
+    triggering: *develop_trigger
+    cache: *dependency_cache
+    scripts:
+      - *pub_get
+      - *analyze_and_test
+      - name: Inject google-services.json (driver flavor)
+        script: |
+          mkdir -p android/app/src/driver
+          echo "$ANDROID_GOOGLE_SERVICES_DRIVER" | base64 --decode > android/app/src/driver/google-services.json
+      - name: Build APK (driver, debug)
+        script: |
+          flutter build apk \
+            --flavor driver \
+            -t lib/main_driver.dart \
+            --debug \
+            --dart-define=MAPBOX_ACCESS_TOKEN=$MAPBOX_ACCESS_TOKEN \
+            --dart-define=ENVIRONMENT=dev
+    artifacts:
+      - build/**/outputs/**/*.apk
+    publishing:
+      firebase:
+        firebase_service_account: $FIREBASE_SERVICE_ACCOUNT_JSON
+        android:
+          app_id: $FIREBASE_ANDROID_APP_ID_DRIVER
+          groups:
+            - internal-testers
+
+  # ==========================================================================
+  # (c) USER APP — iOS — dev → TestFlight (internal)
+  # ==========================================================================
+  user-app-ios-dev:
+    name: User App · iOS · dev
+    # iOS builds require a Mac instance.
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      groups:
+        - depanini_secrets
+      # AUTOMATIC code signing via the App Store Connect API.
+      # ▸ You must create this integration in CodeMagic first:
+      #     Team settings → Integrations → App Store Connect → add a key.
+      #   Name it EXACTLY "app_store_connect" so the line below matches.
+      #   Setup guide: https://docs.codemagic.io/yaml-code-signing/signing-ios/
+      integrations:
+        app_store_connect: app_store_connect
+      ios_signing:
+        distribution_type: app_store      # App Store / TestFlight distribution
+        bundle_identifier: com.depanini.app
+      vars:
+        FLAVOR: user
+        ENTRYPOINT: lib/main_user.dart
+    triggering: *develop_trigger
+    cache: *dependency_cache
+    scripts:
+      - *pub_get
+      - *analyze_and_test
+      # iOS Firebase config (git-ignored) injected from base64 env var into the
+      # USER flavor folder. A Run Script build phase copies it into the bundle
+      # (see README → "iOS flavors → Firebase per flavor").
+      - name: Inject GoogleService-Info.plist (user flavor)
+        script: |
+          mkdir -p ios/config/user
+          echo "$IOS_GOOGLE_SERVICE_INFO_USER" | base64 --decode > ios/config/user/GoogleService-Info.plist
+      - name: Pod install
+        script: |
+          find . -name "Podfile" -execdir pod install \;
+      # Applies the provisioning profiles fetched via the App Store Connect
+      # integration and generates the export options plist.
+      - name: Set up code signing (automatic)
+        script: xcode-project use-profiles
+      - name: Build IPA (user, release)
+        # NOTE: `--flavor user` requires an Xcode SCHEME named exactly "user".
+        # Create it in Xcode (see README → "iOS flavors"); CI cannot create it.
+        script: |
+          flutter build ipa \
+            --flavor user \
+            -t lib/main_user.dart \
+            --release \
+            --dart-define=MAPBOX_ACCESS_TOKEN=$MAPBOX_ACCESS_TOKEN \
+            --dart-define=ENVIRONMENT=dev \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      # Uploads to TestFlight for INTERNAL testing. Internal testers do NOT go
+      # through Apple beta review. (To add EXTERNAL testers later, list them
+      # under `beta_groups:` — those require review.)
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+    # ┌────────────────────────────────────────────────────────────────────┐
+    # │ ALTERNATIVE (Option B): ad-hoc + Firebase App Distribution instead  │
+    # │ of TestFlight. If you registered your iPhone's UDID with Apple,     │
+    # │ change `ios_signing.distribution_type` to `ad_hoc`, drop the        │
+    # │ app_store_connect publishing block, and publish via the `firebase:` │
+    # │ block (like the Android workflows) using an iOS app_id.             │
+    # │ Guide: https://docs.codemagic.io/yaml-code-signing/signing-ios/     │
+    # │ (section "Ad Hoc"). Your device UDID must be in the provisioning    │
+    # │ profile or the app won't install.                                  │
+    # └────────────────────────────────────────────────────────────────────┘
+
+  # ==========================================================================
+  # (d) DRIVER APP — iOS — dev → TestFlight (internal)
+  # ==========================================================================
+  driver-app-ios-dev:
+    name: Driver App · iOS · dev
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      groups:
+        - depanini_secrets
+      integrations:
+        app_store_connect: app_store_connect
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.depanini.driver
+      vars:
+        FLAVOR: driver
+        ENTRYPOINT: lib/main_driver.dart
+    triggering: *develop_trigger
+    cache: *dependency_cache
+    scripts:
+      - *pub_get
+      - *analyze_and_test
+      - name: Inject GoogleService-Info.plist (driver flavor)
+        script: |
+          mkdir -p ios/config/driver
+          echo "$IOS_GOOGLE_SERVICE_INFO_DRIVER" | base64 --decode > ios/config/driver/GoogleService-Info.plist
+      - name: Pod install
+        script: |
+          find . -name "Podfile" -execdir pod install \;
+      - name: Set up code signing (automatic)
+        script: xcode-project use-profiles
+      - name: Build IPA (driver, release)
+        # Requires an Xcode SCHEME named exactly "driver".
+        script: |
+          flutter build ipa \
+            --flavor driver \
+            -t lib/main_driver.dart \
+            --release \
+            --dart-define=MAPBOX_ACCESS_TOKEN=$MAPBOX_ACCESS_TOKEN \
+            --dart-define=ENVIRONMENT=dev \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+
+# ============================================================================
+# PRODUCTION workflows (STUBS — intentionally commented out).
+# Enable these later to build signed RELEASE artifacts from the `main` branch.
+# They mirror the dev workflows but: trigger on `main`, build --release with a
+# real keystore (Android), and promote to a production track / external testers.
+# ----------------------------------------------------------------------------
+#  user-app-android-prod:
+#    name: User App · Android · PROD
+#    instance_type: linux_x2
+#    environment:
+#      flutter: stable
+#      groups: [depanini_secrets]
+#      android_signing:
+#        - depanini_user_keystore   # upload keystore in CodeMagic UI
+#    triggering:
+#      events: [push]
+#      branch_patterns:
+#        - pattern: main
+#          include: true
+#    scripts:
+#      - { name: pub get, script: flutter packages pub get }
+#      - { name: analyze+test, script: "flutter analyze && flutter test" }
+#      - name: Build App Bundle (release)
+#        script: |
+#          flutter build appbundle --flavor user -t lib/main_user.dart --release \
+#            --dart-define=MAPBOX_ACCESS_TOKEN=$MAPBOX_ACCESS_TOKEN --dart-define=ENVIRONMENT=prod
+#    artifacts: [build/**/outputs/**/*.aab]
+#    publishing:
+#      google_play:
+#        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+#        track: internal     # promote to production manually after QA
+#
+#  user-app-ios-prod:
+#    name: User App · iOS · PROD
+#    instance_type: mac_mini_m2
+#    environment:
+#      flutter: stable
+#      xcode: latest
+#      integrations: { app_store_connect: app_store_connect }
+#      ios_signing: { distribution_type: app_store, bundle_identifier: com.depanini.app }
+#    triggering:
+#      events: [push]
+#      branch_patterns:
+#        - pattern: main
+#          include: true
+#    publishing:
+#      app_store_connect:
+#        auth: integration
+#        submit_to_testflight: true
+#        # submit_to_app_store: true   # uncomment to push for App Store review
+# ============================================================================

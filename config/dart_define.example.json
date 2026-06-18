@@ -1,0 +1,8 @@
+{
+  "_comment_1": "ENV CONFIG TEMPLATE. Copy this file to dart_define.json (git-ignored) and fill in real values. Pass it to Flutter with --dart-define-from-file=config/dart_define.json. These values are read in Dart via String.fromEnvironment in lib/core/env/env.dart. NEVER commit the real file — Mapbox tokens are secrets.",
+  "_comment_2": "Locally:  flutter run --flavor user --dart-define-from-file=config/dart_define.json -t lib/main_user.dart",
+  "_comment_3": "In CodeMagic the value comes from the MAPBOX_ACCESS_TOKEN environment variable instead of this file — see codemagic.yaml.",
+
+  "MAPBOX_ACCESS_TOKEN": "pk.REPLACE_WITH_YOUR_MAPBOX_PUBLIC_TOKEN",
+  "ENVIRONMENT": "dev"
+}
