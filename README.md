@@ -31,18 +31,21 @@ apps/
 │   ├── .env.example              # EXPO_PUBLIC_* template
 │   ├── firebase/<variant>/       # Firebase native config (git-ignored, see §3)
 │   └── src/
-│       ├── app/                  # Expo Router routes (_layout.tsx, index.tsx)
+│       ├── app/                  # Expo Router routes; _layout.tsx guards signed-in/out screens
 │       ├── variant/              # variants.json + typed accessors (replaces flavors)
 │       ├── config/env.ts         # validated EXPO_PUBLIC_* values
 │       ├── theme/                # light/dark palette tinted per variant
 │       ├── firebase/             # init status + current ID token
-│       ├── api/                  # API client (attaches ID token) + queries
-│       └── features/             # one folder per feature (map/, status/ for now)
+│       ├── auth/                 # session (AuthProvider), Firebase Auth calls, error messages
+│       ├── api/                  # API client (attaches ID token) + queries (health, me)
+│       ├── ui/                   # shared form components (TextField, Button)
+│       └── features/             # one folder per feature (auth/, account/, map/, status/)
 ├── api/                        # NestJS (Fastify adapter), ESM
 │   ├── src/
 │   │   ├── config/               # zod-validated env, fails fast at boot
 │   │   ├── db/                   # Drizzle + pg pool, schema.ts
 │   │   ├── auth/                 # FirebaseAuthGuard (verifies ID tokens)
+│   │   ├── accounts/             # GET /me (creates the account on first sign-in)
 │   │   └── health/               # GET /health
 │   ├── drizzle/                  # SQL migrations (0000 enables PostGIS)
 │   ├── test/                     # e2e tests (supertest over Fastify)
@@ -131,6 +134,25 @@ pnpm --filter @depanini/api start:dev       # http://localhost:3000/health
 
 `GET /health` returns `{ status, timestamp, db }`: 200 when the database is
 reachable, 503 (`status: "degraded"`) when it is not.
+
+### Firebase Auth emulator (local sign-in)
+
+Sign-in can run against a local Firebase Auth emulator instead of the real
+project: no console setup, throwaway accounts, and reset emails are printed
+instead of sent.
+
+```bash
+pnpm emulators                              # Auth on :9099, UI on http://127.0.0.1:4000
+```
+
+Then point both sides at it (both lines are in the `.env.example` files):
+
+- API: `FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099` in `apps/api/.env`. The API
+  refuses to start with it when `NODE_ENV=production`.
+- Mobile: `EXPO_PUBLIC_AUTH_EMULATOR_URL` (Android emulator: `http://10.0.2.2:9099`)
+  and `EXPO_PUBLIC_WEB_AUTH_EMULATOR_URL` (`http://localhost:9099`) in `apps/mobile/.env`.
+
+Remove those lines to use the real `depanini-dev` project.
 
 ### Mobile
 

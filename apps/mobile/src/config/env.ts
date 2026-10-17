@@ -16,6 +16,8 @@ const envSchema = z.object({
   mapboxAccessToken: z.string().startsWith('pk.').optional().catch(undefined),
   apiUrl: z.url().optional().catch(undefined),
   environment: z.enum(['dev', 'staging', 'prod']).catch('dev'),
+  /** Firebase Auth emulator (e.g. `http://localhost:9099`); unset to use the real project. */
+  authEmulatorUrl: z.url().optional().catch(undefined),
 });
 
 export const env = envSchema.parse({
@@ -27,4 +29,9 @@ export const env = envSchema.parse({
       ? (process.env.EXPO_PUBLIC_WEB_API_URL ?? process.env.EXPO_PUBLIC_API_URL)
       : process.env.EXPO_PUBLIC_API_URL,
   environment: process.env.EXPO_PUBLIC_ENVIRONMENT,
+  // Same host split as the API URL.
+  authEmulatorUrl:
+    Platform.OS === 'web'
+      ? (process.env.EXPO_PUBLIC_WEB_AUTH_EMULATOR_URL ?? process.env.EXPO_PUBLIC_AUTH_EMULATOR_URL)
+      : process.env.EXPO_PUBLIC_AUTH_EMULATOR_URL,
 });
