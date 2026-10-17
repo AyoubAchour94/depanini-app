@@ -48,7 +48,7 @@
     "web:user": "cross-env APP_VARIANT=user expo start --web",
     "web:driver": "cross-env APP_VARIANT=driver expo start --web",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "expo customize tsconfig.json && tsc --noEmit",
     "test": "jest"
   },
   "private": true,

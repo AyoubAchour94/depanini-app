@@ -1,0 +1,129 @@
+import * as SplashScreen from 'expo-splash-screen';
+import { Text } from 'react-native';
+import { act, fireEvent, renderRouter, screen, waitFor } from 'expo-router/testing-library';
+
+import type { AuthUser } from '@/auth/firebase-auth';
+import * as firebaseAuth from '@/auth/firebase-auth';
+import SignIn from '@/app/sign-in';
+import RootLayout from '@/app/_layout';
+
+jest.mock('expo-splash-screen', () => ({
+  preventAutoHideAsync: jest.fn(async () => true),
+  hideAsync: jest.fn(async () => {}),
+}));
+
+jest.mock('@/firebase/firebase', () => ({
+  getFirebaseStatus: () => ({ configured: true }),
+  getCurrentIdToken: async () => 'id-token',
+}));
+
+// The auth listener is driven by the test through `mockEmitUser`.
+let mockEmitUser: (user: AuthUser | null) => void = () => {};
+jest.mock('@/auth/firebase-auth', () => ({
+  subscribeToAuth: jest.fn((listener: (user: AuthUser | null) => void) => {
+    mockEmitUser = listener;
+    return () => {};
+  }),
+  signIn: jest.fn(async () => {}),
+  signUp: jest.fn(async () => {}),
+  sendPasswordReset: jest.fn(async () => {}),
+  signOut: jest.fn(async () => {}),
+}));
+
+jest.mock('@/config/env', () => ({
+  env: { mapboxAccessToken: undefined, apiUrl: 'http://api.test', environment: 'dev' },
+}));
+
+/** Reports a session change from Firebase, as the real listener would. */
+async function emitSession(user: AuthUser | null) {
+  await act(async () => mockEmitUser(user));
+}
+
+const me = { id: '7b0f1a52-3c43-4c1e-9d0e-2f6b1d8f5a10', email: 'ali@example.com' };
+
+/** The real root layout and sign-in screen; the app screens are stand-ins. */
+function renderApp() {
+  return renderRouter({
+    _layout: RootLayout,
+    index: () => <Text>Home</Text>,
+    account: () => <Text>Account</Text>,
+    'sign-in': SignIn,
+    'sign-up': () => <Text>Sign up</Text>,
+    'forgot-password': () => <Text>Forgot password</Text>,
+  });
+}
+
+describe('root navigation', () => {
+  beforeEach(() => {
+    jest
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async () =>
+        Response.json({ ...me, customerProfile: null, driverProfile: null }),
+      );
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    jest.mocked(SplashScreen.hideAsync).mockClear();
+  });
+
+  it('keeps the splash screen up until Firebase reports the session', async () => {
+    await renderApp();
+    expect(SplashScreen.hideAsync).not.toHaveBeenCalled();
+
+    await emitSession(null);
+    await waitFor(() => expect(SplashScreen.hideAsync).toHaveBeenCalled());
+  });
+
+  it('sends a signed-out user to sign-in', async () => {
+    const router = await renderApp();
+    await emitSession(null);
+
+    expect(await screen.findByText('Sign in to continue.')).toBeOnTheScreen();
+    expect(router.getPathname()).toBe('/sign-in');
+  });
+
+  it('shows the app to a signed-in user and loads their account', async () => {
+    const router = await renderApp();
+    await emitSession({ uid: 'u1', email: me.email });
+
+    expect(await screen.findByText('Home')).toBeOnTheScreen();
+    expect(router.getPathname()).toBe('/');
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(new URL('/me', 'http://api.test'), expect.anything()),
+    );
+  });
+
+  it('leaves sign-in once the user signs in, and returns on sign-out', async () => {
+    const router = await renderApp();
+    await emitSession(null);
+
+    await fireEvent.changeText(await screen.findByLabelText('Email'), ' ali@example.com ');
+    await fireEvent.changeText(screen.getByLabelText('Password'), 'secret1');
+    await fireEvent.press(screen.getByRole('button', { name: 'Sign in' }));
+    await waitFor(() =>
+      expect(firebaseAuth.signIn).toHaveBeenCalledWith('ali@example.com', 'secret1'),
+    );
+
+    await emitSession({ uid: 'u1', email: me.email });
+    expect(await screen.findByText('Home')).toBeOnTheScreen();
+
+    await emitSession(null);
+    expect(await screen.findByText('Sign in to continue.')).toBeOnTheScreen();
+    expect(router.getPathname()).toBe('/sign-in');
+  });
+
+  it('shows a readable message when sign-in fails', async () => {
+    jest
+      .mocked(firebaseAuth.signIn)
+      .mockRejectedValueOnce(Object.assign(new Error(), { code: 'auth/invalid-credential' }));
+    await renderApp();
+    await emitSession(null);
+
+    await fireEvent.changeText(await screen.findByLabelText('Email'), 'ali@example.com');
+    await fireEvent.changeText(screen.getByLabelText('Password'), 'wrong');
+    await fireEvent.press(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect(await screen.findByText('Email or password is incorrect.')).toBeOnTheScreen();
+  });
+});

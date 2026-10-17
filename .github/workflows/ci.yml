@@ -16,6 +16,23 @@ jobs:
   checks:
     name: Lint, typecheck, test
     runs-on: ubuntu-latest
+    # The API e2e tests run against real Postgres + PostGIS (same image as docker-compose.yml).
+    services:
+      db:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_USER: depanini
+          POSTGRES_PASSWORD: depanini
+          POSTGRES_DB: depanini
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U depanini -d depanini"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://depanini:depanini@localhost:5432/depanini_test
     steps:
       - uses: actions/checkout@v7
 
