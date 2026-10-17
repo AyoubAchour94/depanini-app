@@ -18,6 +18,16 @@ describe('parseEnv', () => {
     ).toEqual(['http://a.test', 'http://b.test']);
   });
 
+  it('refuses the Auth emulator in production', () => {
+    const emulator = { ...valid, FIREBASE_AUTH_EMULATOR_HOST: '127.0.0.1:9099' };
+    expect(parseEnv({ ...emulator, NODE_ENV: 'development' }).FIREBASE_AUTH_EMULATOR_HOST).toBe(
+      '127.0.0.1:9099',
+    );
+    expect(() => parseEnv({ ...emulator, NODE_ENV: 'production' })).toThrow(
+      /FIREBASE_AUTH_EMULATOR_HOST/,
+    );
+  });
+
   it('fails fast with the offending variable named', () => {
     expect(() => parseEnv({ FIREBASE_PROJECT_ID: 'depanini-dev' })).toThrow(/DATABASE_URL/);
   });
