@@ -1,6 +1,0 @@
-#include "Generated.xcconfig"
-
-// Default display name used by the base (non-flavored) Release config so the
-// app name is never blank before you wire up the per-flavor configs in Xcode.
-// The flavor-*.xcconfig files override this for the user/driver schemes.
-APP_DISPLAY_NAME = Depanini

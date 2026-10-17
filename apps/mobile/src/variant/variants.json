@@ -1,0 +1,18 @@
+{
+  "user": {
+    "variant": "user",
+    "appName": "Depanini",
+    "bundleId": "com.depanini.app",
+    "scheme": "depanini",
+    "brandColor": "#1565C0",
+    "isDriverApp": false
+  },
+  "driver": {
+    "variant": "driver",
+    "appName": "Depanini Driver",
+    "bundleId": "com.depanini.driver",
+    "scheme": "depanini-driver",
+    "brandColor": "#F9A825",
+    "isDriverApp": true
+  }
+}

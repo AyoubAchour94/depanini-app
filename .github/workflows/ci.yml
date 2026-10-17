@@ -1,0 +1,34 @@
+# Quality gates for the whole monorepo: lint, typecheck and tests for the
+# mobile app, the API and the shared package. Runs on every pull request, and
+# on pushes to `develop` through eas-build.yml, which calls it and only queues
+# the mobile builds once it passes.
+name: CI
+
+on:
+  pull_request:
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Lint, typecheck, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Reads the pnpm version from `packageManager` in package.json.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm format:check
+
+      - run: pnpm turbo run lint typecheck test

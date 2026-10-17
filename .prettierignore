@@ -1,0 +1,9 @@
+pnpm-lock.yaml
+dist/
+.expo/
+apps/mobile/android/
+apps/mobile/ios/
+apps/mobile/expo-env.d.ts
+apps/api/drizzle/meta/
+README.md
+CI.md

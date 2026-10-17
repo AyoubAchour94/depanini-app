@@ -1,0 +1,25 @@
+{
+  "name": "@depanini/shared",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Types and zod schemas shared by the mobile app and the API.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.12"
+  },
+  "type": "commonjs"
+}

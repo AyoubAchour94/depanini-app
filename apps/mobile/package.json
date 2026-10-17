@@ -1,0 +1,61 @@
+{
+  "name": "@depanini/mobile",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "dependencies": {
+    "@depanini/shared": "workspace:*",
+    "@expo/metro-runtime": "~58.0.14",
+    "@react-native-firebase/app": "^26.4.0",
+    "@react-native-firebase/auth": "^26.4.0",
+    "@react-native-firebase/messaging": "^26.4.0",
+    "@rnmapbox/maps": "^10.3.8",
+    "@tanstack/react-query": "^5.104.3",
+    "expo": "~58.0.14",
+    "expo-build-properties": "~58.0.11",
+    "expo-constants": "~58.0.12",
+    "expo-dev-client": "~58.0.14",
+    "expo-linking": "~58.0.13",
+    "expo-router": "~58.0.23",
+    "expo-splash-screen": "~58.0.10",
+    "expo-status-bar": "~58.0.3",
+    "expo-system-ui": "~58.0.6",
+    "firebase": "^13.0.0",
+    "mapbox-gl": "^3.33.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-native": "0.88.0",
+    "react-native-safe-area-context": "~5.10.1",
+    "react-native-screens": "~4.30.0",
+    "react-native-web": "^0.21.4",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@testing-library/react-native": "^14.1.0",
+    "@types/jest": "^30.0.0",
+    "@types/react": "~19.3.0",
+    "cross-env": "^10.1.0",
+    "jest": "^30.5.2",
+    "jest-expo": "^58.0.11",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start:user": "cross-env APP_VARIANT=user expo start",
+    "start:driver": "cross-env APP_VARIANT=driver expo start",
+    "android:user": "cross-env APP_VARIANT=user expo run:android",
+    "android:driver": "cross-env APP_VARIANT=driver expo run:android",
+    "ios:user": "cross-env APP_VARIANT=user expo run:ios",
+    "ios:driver": "cross-env APP_VARIANT=driver expo run:ios",
+    "web:user": "cross-env APP_VARIANT=user expo start --web",
+    "web:driver": "cross-env APP_VARIANT=driver expo start --web",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "jest"
+  },
+  "private": true,
+  "jest": {
+    "preset": "jest-expo",
+    "setupFiles": [
+      "./jest.setup.ts"
+    ]
+  }
+}

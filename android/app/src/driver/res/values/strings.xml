@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Launcher name for the DRIVER flavor (referenced by android:label in the manifest). -->
-    <string name="app_name">Depanini Driver</string>
-</resources>

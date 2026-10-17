@@ -1,0 +1,67 @@
+# Mobile dev builds on EAS, the equivalent of the four former CodeMagic workflows:
+#
+#   user-android-dev    → USER app   APK → EAS internal distribution (install link/QR)
+#   driver-android-dev  → DRIVER app APK → EAS internal distribution
+#   user-ios-dev        → USER app   IPA → TestFlight (EAS Submit)
+#   driver-ios-dev      → DRIVER app IPA → TestFlight (EAS Submit)
+#
+# The builds themselves run on Expo's servers; this job only queues them
+# (`--no-wait`), so it finishes in about a minute. Follow progress on expo.dev.
+# Required secret: EXPO_TOKEN. Everything else lives in EAS (see CI.md).
+name: EAS build
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+concurrency:
+  group: eas-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    name: ${{ matrix.profile }}
+    needs: ci
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { profile: user-android-dev, platform: android }
+          - { profile: driver-android-dev, platform: android }
+          - { profile: user-ios-dev, platform: ios }
+          - { profile: driver-ios-dev, platform: ios }
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - uses: expo/expo-github-action@v9
+        with:
+          eas-version: latest
+          packager: pnpm
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # EAS evaluates app.config.ts locally before uploading, so deps are needed.
+      - run: pnpm install --frozen-lockfile
+
+      - name: Queue build
+        run: >
+          eas build
+          --profile ${{ matrix.profile }}
+          --platform ${{ matrix.platform }}
+          --non-interactive
+          --no-wait
+          ${{ matrix.platform == 'ios' && '--auto-submit' || '' }}
