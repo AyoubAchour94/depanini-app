@@ -1,20 +1,23 @@
 # Depanini
 
-On-demand towing marketplace for Tunisia (Uber/Bolt-style). One Flutter
-codebase, **two flavors** that ship as two separate apps:
+On-demand towing marketplace for Tunisia (Uber/Bolt-style). A TypeScript
+monorepo: one React Native (Expo) codebase that ships as **two apps**, plus a
+Node.js API.
 
+| Variant  | App name        | Bundle ID             | Audience          | Brand |
+| -------- | --------------- | --------------------- | ----------------- | ----- |
+| `user`   | Depanini        | `com.depanini.app`    | Customers         | blue  |
+| `driver` | Depanini Driver | `com.depanini.driver` | Tow-truck drivers | amber |
 
-| Flavor   | App name        | Bundle ID             | Audience          |
-| -------- | --------------- | --------------------- | ----------------- |
-| `user`   | Depanini        | `com.depanini.app`    | Customers         |
-| `driver` | Depanini Driver | `com.depanini.driver` | Tow-truck drivers |
+> **Phase 1 = scaffolding only.** No feature logic yet. Both variants open a
+> placeholder map of Tunis with an API health indicator, to prove the
+> toolchain is wired up end to end.
+>
+> The previous Flutter implementation of Phase 1 is tagged `flutter-phase1`.
 
-
-> **Phase 1 = scaffolding only.** No feature logic yet. Both flavors currently
-> open a placeholder map of Tunis to prove the toolchain is wired up.
-
-**Stack:** Flutter (stable) · Firebase (Auth/Firestore/Functions/Messaging/
-Storage) · Mapbox (`flutter_map` + Directions API) · CodeMagic CI/CD.
+**Stack:** Expo (React Native, Expo Router, TanStack Query) · NestJS on Fastify ·
+PostgreSQL + PostGIS (Drizzle ORM) · Firebase (Auth, Cloud Messaging) · Mapbox
+(`@rnmapbox/maps`) · EAS Build/Submit · GitHub Actions · pnpm + Turborepo.
 
 ---
 
@@ -22,35 +25,37 @@ Storage) · Mapbox (`flutter_map` + Directions API) · CodeMagic CI/CD.
 
 ```
 apps/
-├── lib/
-│   ├── main_user.dart          # entry point → USER flavor
-│   ├── main_driver.dart        # entry point → DRIVER flavor
-│   ├── app.dart                # shared MaterialApp shell (both flavors)
-│   ├── flavors/                # flavor config, feature flags
-│   │   ├── flavor.dart           # enum Flavor { user, driver }
-│   │   ├── flavor_config.dart    # appName, bundleId, brandColor, features
-│   │   └── feature_flags.dart    # isDriverApp, ...
-│   ├── core/                   # infrastructure (no business logic)
-│   │   ├── constants/            # app_constants.dart (Tunis coords)
-│   │   ├── theme/                # app_theme.dart (Material 3, per-flavor seed)
-│   │   ├── env/                  # env.dart (reads --dart-define)
-│   │   ├── firebase/             # firebase_initializer.dart
-│   │   ├── maps/                 # map_config.dart (Mapbox, token from env)
-│   │   ├── error/                # app_exception.dart
-│   │   └── utils/                # (empty – helpers later)
-│   ├── features/               # one folder per feature (READMEs inside)
-│   │   ├── auth/  trips/  profile/   # placeholders for later phases
-│   │   └── map/                  # map_test_screen.dart (Phase 1 placeholder)
-│   └── shared/                 # cross-feature widgets/ + models/
-├── functions/                  # Cloud Functions (TS) — healthCheck stub
-├── config/                     # dart_define.example.json (env template)
-├── android/                    # product flavors in app/build.gradle.kts
-├── ios/                        # flavor xcconfigs in ios/Flutter/
-├── codemagic.yaml              # CI/CD: 4 workflows
-├── firebase.json / .firebaserc # Firebase CLI config
-├── README.md                   # ← you are here
-└── CI.md                       # CI/CD deep-dive
+├── mobile/                     # Expo app, both variants
+│   ├── app.config.ts             # variant → name, bundle id, Firebase files, plugins
+│   ├── eas.json                  # EAS build profiles (dev clients + 4 CI builds)
+│   ├── .env.example              # EXPO_PUBLIC_* template
+│   ├── firebase/<variant>/       # Firebase native config (git-ignored, see §3)
+│   └── src/
+│       ├── app/                  # Expo Router routes (_layout.tsx, index.tsx)
+│       ├── variant/              # variants.json + typed accessors (replaces flavors)
+│       ├── config/env.ts         # validated EXPO_PUBLIC_* values
+│       ├── theme/                # light/dark palette tinted per variant
+│       ├── firebase/             # init status + current ID token
+│       ├── api/                  # API client (attaches ID token) + queries
+│       └── features/             # one folder per feature (map/, status/ for now)
+├── api/                        # NestJS (Fastify adapter), ESM
+│   ├── src/
+│   │   ├── config/               # zod-validated env, fails fast at boot
+│   │   ├── db/                   # Drizzle + pg pool, schema.ts
+│   │   ├── auth/                 # FirebaseAuthGuard (verifies ID tokens)
+│   │   └── health/               # GET /health
+│   ├── drizzle/                  # SQL migrations (0000 enables PostGIS)
+│   ├── test/                     # e2e tests (supertest over Fastify)
+│   └── Dockerfile                # Cloud Run image (build from repo root)
+packages/
+└── shared/                     # zod schemas + types used by app AND API
+docker-compose.yml              # local Postgres + PostGIS
+.github/workflows/              # CI, EAS builds, API deploy stub (see CI.md)
 ```
+
+The shared package is the point of having TypeScript on both ends: the API
+returns a `HealthResponse` and the app validates the response with the very
+same `healthResponseSchema`.
 
 ---
 
@@ -58,222 +63,194 @@ apps/
 
 ### Prerequisites
 
-- Flutter (stable) + Dart — `flutter doctor` should be green
-- For iOS: a Mac with Xcode + CocoaPods
-- Node.js 22 + Firebase CLI (`npm i -g firebase-tools`) for Cloud Functions
-- FlutterFire CLI: `dart pub global activate flutterfire_cli`
+- **Node.js 24** (`.nvmrc`) and **pnpm** (`npm i -g pnpm`; the exact version is pinned in `package.json`)
+- **Docker** (for the local database)
+- For running the app on a device/emulator: **Android Studio** (SDK + emulator)
+  and/or, on a Mac, **Xcode**. Not needed to build in the cloud with EAS.
+- For EAS: an Expo account, then `npx eas-cli@latest login`
 
 ### Steps
 
 ```bash
-# 1. Install Dart/Flutter packages
-flutter pub get
+# 1. Install everything (all workspaces)
+pnpm install
 
-# 2. Create your local env file (NOT committed) from the template
-cp config/dart_define.example.json config/dart_define.json
-#    → edit config/dart_define.json and paste your Mapbox PUBLIC token (pk....)
+# 2. Local env files (NOT committed) from the templates
+cp apps/api/.env.example apps/api/.env
+cp apps/mobile/.env.example apps/mobile/.env
+#    → edit apps/mobile/.env and paste your Mapbox PUBLIC token (pk....)
 
-# 3. Generate Firebase config (see §3) — run flutterfire configure
+# 3. Database: start Postgres+PostGIS and run migrations
+pnpm db:up
+pnpm --filter @depanini/api db:migrate
 
-# 4. Run a flavor (see §4)
+# 4. Firebase config files: see §3
 ```
+
+The EAS project (`@ayoub1994/depanini`) is already linked via `EAS_PROJECT_ID`
+in `app.config.ts`; ask the owner to add you to it on expo.dev.
 
 ---
 
-## 3. Firebase config (FlutterFire)
+## 3. Firebase config (per variant)
 
-Firebase config files contain project keys and are **git-ignored**. You
-generate them with the FlutterFire CLI. Because each flavor has its **own
-bundle ID**, register both apps. Run `flutterfire configure` **once per
-flavor**, pointing each at a separate generated options file:
+Each variant is a separate Firebase app (different bundle IDs), registered in
+the `depanini-dev` project. Their native config files are **git-ignored**.
+Download them with the Firebase CLI (`npm i -g firebase-tools`, `firebase login`):
 
 ```bash
+cd apps/mobile
+
 # USER app (com.depanini.app)
-flutterfire configure \
-  --project=depanini-dev \
-  --android-package-name=com.depanini.app \
-  --ios-bundle-id=com.depanini.app \
-  --out=lib/firebase_options_user.dart \
-  --android-out=android/app/src/user/google-services.json \
-  --ios-out=ios/config/user/GoogleService-Info.plist
+firebase apps:sdkconfig ANDROID 1:849858510710:android:4fe528092e458b30568457 -o firebase/user/google-services.json
+firebase apps:sdkconfig IOS     1:849858510710:ios:6b8982e71464ddbf568457     -o firebase/user/GoogleService-Info.plist
 
 # DRIVER app (com.depanini.driver)
-flutterfire configure \
-  --project=depanini-dev \
-  --android-package-name=com.depanini.driver \
-  --ios-bundle-id=com.depanini.driver \
-  --out=lib/firebase_options_driver.dart \
-  --android-out=android/app/src/driver/google-services.json \
-  --ios-out=ios/config/driver/GoogleService-Info.plist
+firebase apps:sdkconfig ANDROID 1:849858510710:android:7adb45b0fedd299f568457 -o firebase/driver/google-services.json
+firebase apps:sdkconfig IOS     1:849858510710:ios:0524d3b9372f46fa568457     -o firebase/driver/GoogleService-Info.plist
 ```
 
-This produces (all git-ignored):
+`app.config.ts` picks the files for the active variant. **When they are
+missing, the app still builds and runs:** the React Native Firebase config
+plugins are skipped, and in debug builds a small "Firebase not configured"
+banner is shown. Same behavior as the Flutter version.
 
-- `android/app/src/<flavor>/google-services.json` — picked up automatically by
-the Gradle plugin for that flavor.
-- `ios/config/<flavor>/GoogleService-Info.plist` — copied into the iOS bundle
-by a build phase (see §6 "Firebase per flavor").
-- `lib/firebase_options_<flavor>.dart` — Dart options.
-
-**One-line swap to explicit options:** in `main_user.dart` /
-`main_driver.dart`, change:
-
-```dart
-final firebaseInit = await FirebaseInitializer.initialize();
-// →
-final firebaseInit = await FirebaseInitializer.initialize(
-  options: DefaultFirebaseOptions.currentPlatform, // from firebase_options_<flavor>.dart
-);
-```
-
-Until you do this, Firebase reads the native config files directly (which is
-why §6's iOS copy step matters). `FirebaseInitializer` never throws — if config
-is missing the app still launches and shows a small "Firebase not configured"
-banner in debug.
-
-> FlutterFire will also add the Google Services Gradle plugin to
-> `android/app/build.gradle.kts` automatically — don't add it by hand.
+In EAS builds the files come from EAS **file** environment variables instead
+(see CI.md).
 
 ---
 
-## 4. Running each flavor
+## 4. Running
+
+### API
 
 ```bash
-# USER app
-flutter run --flavor user \
-  --dart-define-from-file=config/dart_define.json \
-  -t lib/main_user.dart
-
-# DRIVER app
-flutter run --flavor driver \
-  --dart-define-from-file=config/dart_define.json \
-  -t lib/main_driver.dart
+pnpm db:up                                  # if not running
+pnpm --filter @depanini/api start:dev       # http://localhost:3000/health
 ```
 
-Build artifacts:
+`GET /health` returns `{ status, timestamp, db }`: 200 when the database is
+reachable, 503 (`status: "degraded"`) when it is not.
+
+### Mobile
+
+The app uses native modules (Mapbox, Firebase), so it runs in a **development
+build**, not Expo Go. Build and install one per variant once, then iterate
+with the dev server:
 
 ```bash
-flutter build apk --flavor user   -t lib/main_user.dart   --dart-define-from-file=config/dart_define.json
-flutter build ipa --flavor driver -t lib/main_driver.dart --dart-define-from-file=config/dart_define.json
+cd apps/mobile
+
+# Local native build (needs Android Studio / Xcode):
+pnpm android:user        # or android:driver, ios:user, ios:driver
+
+# ...or build the dev client in the cloud and install it from the link:
+npx eas-cli@latest build --profile development-user --platform android
+
+# Then, for day-to-day work, start Metro for the variant you are running:
+pnpm start:user          # or start:driver
 ```
 
-VS Code users: add launch configs with `"args": ["--flavor","user","--dart-define-from-file","config/dart_define.json"]`
-and `"program": "lib/main_user.dart"`.
+The variant must match on both sides: a driver dev build needs `start:driver`.
+The dev server serves the app config (name, `extra.appVariant`).
+
+### Web (quick UI checks, no emulator)
+
+```bash
+cd apps/mobile
+pnpm web:user            # or web:driver → http://localhost:8081
+```
+
+The web build is a development convenience, not a shipped target. Native-only
+pieces have web stand-ins: `TunisMap.web.tsx` (Mapbox GL JS instead of the
+native SDK) and `firebase.web.ts` (Firebase JS SDK with the project's web app,
+configured by `EXPO_PUBLIC_FIREBASE_WEB_CONFIG`). It calls the API at
+`EXPO_PUBLIC_WEB_API_URL`; the API must allow the origin via `CORS_ORIGINS`
+(already in `apps/api/.env.example`).
+
+**Reaching the API from a device:** `localhost` is the device itself. Use
+`http://10.0.2.2:3000` from the Android emulator, or your computer's LAN IP
+from a physical device, in `EXPO_PUBLIC_API_URL`.
 
 ---
 
 ## 5. Secrets & environment variables
 
+| Where          | Mobile                                                         | API                          |
+| -------------- | -------------------------------------------------------------- | ---------------------------- |
+| **Local**      | `apps/mobile/.env` + `apps/mobile/firebase/<variant>/`          | `apps/api/.env`              |
+| **CI / cloud** | EAS environment variables (plain, secret and file; see CI.md)  | Cloud Run service variables  |
 
-| Where     | How secrets are provided                                              |
-| --------- | --------------------------------------------------------------------- |
-| **Local** | `config/dart_define.json` (git-ignored) via `--dart-define-from-file` |
-| **CI**    | CodeMagic env vars → passed as `--dart-define=KEY=$KEY` (see CI.md)   |
+- Mobile values are read in `src/config/env.ts`. `EXPO_PUBLIC_*` values are
+  **inlined into the app bundle**, so only public values go there (the Mapbox
+  `pk.` token is public by design).
+- The API validates its environment with zod at boot (`src/config/env.ts`) and
+  refuses to start with a readable error if something is missing.
+- `RNMAPBOX_MAPS_DOWNLOAD_TOKEN` (Mapbox **secret** `sk.` token with
+  `DOWNLOADS:READ`) is only needed when building native code: export it in your
+  shell for local native builds; it is an EAS secret for cloud builds.
 
-
-Read in Dart through `lib/core/env/env.dart` (`Env.mapboxAccessToken`, …).
-
-**Never committed** (see `.gitignore`): `google-services.json`,
-`GoogleService-Info.plist`, `config/dart_define.json`, `.env*`, keystores,
-`lib/firebase_options*.dart`. Committed **templates** end in `.example`.
-
----
-
-## 6. Native platform configuration
-
-### Android (both flavors)
-
-`android/app/src/main/AndroidManifest.xml` already declares:
-
-- `INTERNET` (Mapbox tiles, Directions, Firebase)
-- `ACCESS_FINE_LOCATION` + `ACCESS_COARSE_LOCATION`
-
-Product flavors live in `android/app/build.gradle.kts` (`user` / `driver`,
-each with its own `applicationId` and `app_name`).
-
-> **Mapbox note:** `flutter_map` uses Mapbox **raster tiles over HTTPS**, so no
-> native Mapbox SDK key in Gradle is required — the token is the
-> `MAPBOX_ACCESS_TOKEN` passed via `--dart-define`. (If you later switch to the
-> native vector `mapbox_maps_flutter` SDK you'll also add a secret
-> `MAPBOX_DOWNLOADS_TOKEN` to `~/.gradle/gradle.properties` — not needed now.)
-
-### iOS (both targets) — location permissions
-
-`ios/Runner/Info.plist` includes **descriptive** usage strings (iOS crashes
-without these the moment location is requested — important for physical-device
-testing):
-
-- `NSLocationWhenInUseUsageDescription`
-- `NSLocationAlwaysAndWhenInUseUsageDescription`
-
-The display name is `$(APP_DISPLAY_NAME)` (set per flavor by the xcconfigs).
-
-### iOS flavors (manual, Mac + Xcode — required)
-
-Flutter resolves `--flavor user` to an Xcode **scheme** named `user`. These
-must be created in Xcode (CI can't create them). One-time setup:
-
-1. Open `ios/Runner.xcworkspace` in Xcode.
-2. **Project → Info → Configurations:** duplicate each of Debug/Profile/Release
-  into `Debug-user`, `Profile-user`, `Release-user`, `Debug-driver`,
-   `Profile-driver`, `Release-driver`.
-3. Set each new config's xcconfig file (Project → click the config) to include
-  the matching flavor file: `ios/Flutter/flavor-user.xcconfig` for the
-   `*-user` configs, `flavor-driver.xcconfig` for the `*-driver` configs.
-   These set `PRODUCT_BUNDLE_IDENTIFIER` and `APP_DISPLAY_NAME`.
-4. **Product → Scheme → Manage Schemes:** duplicate `Runner` into two shared
-  schemes named exactly `**user`** and `**driver**`. For each, map Run/Profile/
-   Archive/Release to the matching `*-<flavor>` configurations and tick
-   "Shared".
-
-#### Firebase per flavor (iOS)
-
-Because each flavor needs a different `GoogleService-Info.plist`, do **not**
-drop it into `ios/Runner/`. Instead add a **Run Script build phase** (before
-"Compile Sources") that copies the right one:
-
-```bash
-# Selects ios/config/user or ios/config/driver based on the bundle id.
-case "$PRODUCT_BUNDLE_IDENTIFIER" in
-  com.depanini.app)    FLAVOR=user ;;
-  com.depanini.driver) FLAVOR=driver ;;
-  *) echo "Unknown bundle id $PRODUCT_BUNDLE_IDENTIFIER"; exit 1 ;;
-esac
-cp "${SRCROOT}/config/${FLAVOR}/GoogleService-Info.plist" \
-   "${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/GoogleService-Info.plist"
-```
-
-### Where to paste your Mapbox token
-
-Nowhere in native config. Put it in `config/dart_define.json`
-(`MAPBOX_ACCESS_TOKEN`) locally, and in the CodeMagic `MAPBOX_ACCESS_TOKEN` env
-var for CI.
+**Never committed** (see `.gitignore`): `.env` files, `google-services.json`,
+`GoogleService-Info.plist`, service-account keys, keystores and signing files.
+Committed templates end in `.example`.
 
 ---
 
-## 7. Cloud Functions
+## 6. Native configuration
 
-See `functions/README.md`. Quick smoke test of the deploy pipeline:
+There are no `android/` or `ios/` folders in git. Expo generates them
+(Continuous Native Generation) from `app.config.ts` and config plugins at build
+time (`npx expo prebuild` locally, automatically on EAS). Do not edit generated
+native code by hand; change the config instead. This replaces the manual Xcode
+scheme setup the Flutter flavors needed.
+
+Already configured in `app.config.ts`:
+
+- **Variant identity**: name, bundle ID / application ID, URL scheme, splash color.
+- **Location permissions**: Android `ACCESS_FINE_LOCATION` +
+  `ACCESS_COARSE_LOCATION`; iOS `NSLocationWhenInUseUsageDescription` +
+  `NSLocationAlwaysAndWhenInUseUsageDescription` (iOS crashes without these
+  the moment location is requested).
+- **Mapbox**: `@rnmapbox/maps` plugin (native vector SDK). The public token is
+  set at runtime from `EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN`.
+- **Firebase**: `@react-native-firebase/{app,auth,messaging}` plugins, and
+  `expo-build-properties` with `useFrameworks: "dynamic"` on iOS (required by
+  React Native Firebase's Swift Package Manager setup).
+
+---
+
+## 7. Database & migrations
+
+Drizzle ORM over `pg`, Postgres 17 + PostGIS 3.5 locally (`docker-compose.yml`).
 
 ```bash
-cd functions && npm install && npm run build
-firebase deploy --only functions      # deploys healthCheck
+pnpm --filter @depanini/api db:generate   # create a migration from src/db/schema.ts changes
+pnpm --filter @depanini/api db:migrate    # apply pending migrations
 ```
+
+The first migration only enables the `postgis` extension. Tables arrive with
+their features.
 
 ---
 
 ## 8. CI/CD
 
-Four CodeMagic workflows triggered by pushing to `develop`. Full details,
-the env-var checklist, and where artifacts land are in **[CI.md](./CI.md)**.
+GitHub Actions + EAS. Pushing to `develop` runs the quality gates, then queues
+four EAS builds (user/driver × Android/iOS). Android goes to EAS internal
+distribution and iOS to TestFlight. Details, the secrets checklist, and the
+API deploy stub are in **[CI.md](./CI.md)**.
 
 ---
 
 ## 9. Quality gates
 
 ```bash
-flutter analyze    # static analysis (must be clean)
-flutter test       # unit + widget tests
+pnpm lint          # ESLint (one flat config at the root)
+pnpm typecheck     # tsc in every package
+pnpm test          # Jest (mobile), Vitest (API unit + e2e, shared)
+pnpm format:check  # Prettier
 ```
 
-Both are run automatically in every CI workflow.
+All of these run in CI. The API e2e tests swap the database for a fake, so
+they need no Postgres. Turborepo caches results, so unchanged packages are
+skipped.

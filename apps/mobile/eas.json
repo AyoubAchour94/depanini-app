@@ -1,0 +1,78 @@
+{
+  "cli": {
+    "version": ">= 18.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "base-user": {
+      "env": {
+        "APP_VARIANT": "user"
+      },
+      "node": "24.22.0",
+      "pnpm": "12.14.0"
+    },
+    "base-driver": {
+      "env": {
+        "APP_VARIANT": "driver"
+      },
+      "node": "24.22.0",
+      "pnpm": "12.14.0"
+    },
+    "development-user": {
+      "extends": "base-user",
+      "developmentClient": true,
+      "distribution": "internal",
+      "environment": "development"
+    },
+    "development-driver": {
+      "extends": "base-driver",
+      "developmentClient": true,
+      "distribution": "internal",
+      "environment": "development"
+    },
+    "user-android-dev": {
+      "extends": "base-user",
+      "distribution": "internal",
+      "environment": "preview",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "driver-android-dev": {
+      "extends": "base-driver",
+      "distribution": "internal",
+      "environment": "preview",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "user-ios-dev": {
+      "extends": "base-user",
+      "distribution": "store",
+      "environment": "preview",
+      "ios": {
+        "autoIncrement": true
+      }
+    },
+    "driver-ios-dev": {
+      "extends": "base-driver",
+      "distribution": "store",
+      "environment": "preview",
+      "ios": {
+        "autoIncrement": true
+      }
+    }
+  },
+  "submit": {
+    "user-ios-dev": {
+      "ios": {
+        "ascAppId": "REPLACE_WITH_USER_APP_STORE_CONNECT_APP_ID"
+      }
+    },
+    "driver-ios-dev": {
+      "ios": {
+        "ascAppId": "REPLACE_WITH_DRIVER_APP_STORE_CONNECT_APP_ID"
+      }
+    }
+  }
+}

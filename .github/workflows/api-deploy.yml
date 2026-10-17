@@ -1,0 +1,43 @@
+# API deploy to Google Cloud Run (europe-west1). STUB: manual trigger only
+# until Cloud Run, Cloud SQL and Workload Identity Federation are provisioned.
+# The checklist for turning it on is in CI.md ("API deploy").
+name: API deploy
+
+on:
+  workflow_dispatch:
+
+env:
+  REGION: europe-west1
+  SERVICE: depanini-api
+  # Artifact Registry repository, e.g. europe-west1-docker.pkg.dev/<project>/depanini
+  IMAGE_REPO: ${{ vars.GCP_ARTIFACT_REPO }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Workload Identity Federation, so no JSON key in secrets
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Build and push image
+        run: |
+          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+          docker build -f apps/api/Dockerfile -t "${IMAGE_REPO}/${SERVICE}:${GITHUB_SHA}" .
+          docker push "${IMAGE_REPO}/${SERVICE}:${GITHUB_SHA}"
+
+      # Database migrations (`pnpm --filter @depanini/api db:migrate`) are not
+      # wired here yet: they need network access to Cloud SQL (e.g. a Cloud Run
+      # job or the Cloud SQL Auth Proxy). Decide when provisioning.
+
+      - uses: google-github-actions/deploy-cloudrun@v3
+        with:
+          service: ${{ env.SERVICE }}
+          region: ${{ env.REGION }}
+          image: ${{ env.IMAGE_REPO }}/${{ env.SERVICE }}:${{ github.sha }}
