@@ -6,5 +6,7 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['**/*.e2e-spec.ts'],
+    // Creates and migrates the test database (needs Postgres: `pnpm db:up`).
+    globalSetup: ['./test/support/global-setup.ts'],
   },
 });

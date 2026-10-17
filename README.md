@@ -228,8 +228,8 @@ pnpm --filter @depanini/api db:generate   # create a migration from src/db/schem
 pnpm --filter @depanini/api db:migrate    # apply pending migrations
 ```
 
-The first migration only enables the `postgis` extension. Tables arrive with
-their features.
+The first migration enables the `postgis` extension. Tables arrive with their
+features: `users` holds accounts (see `GLOSSARY.md`).
 
 ---
 
@@ -251,6 +251,8 @@ pnpm test          # Jest (mobile), Vitest (API unit + e2e, shared)
 pnpm format:check  # Prettier
 ```
 
-All of these run in CI. The API e2e tests swap the database for a fake, so
-they need no Postgres. Turborepo caches results, so unchanged packages are
-skipped.
+All of these run in CI. The API e2e tests need Postgres: run `pnpm db:up`
+first. They use a separate `depanini_test` database (override with
+`TEST_DATABASE_URL`), which they create and migrate themselves, so dev data is
+never touched. CI runs the same PostGIS image as a service container.
+Turborepo caches results, so unchanged packages are skipped.
