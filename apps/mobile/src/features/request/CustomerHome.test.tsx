@@ -80,6 +80,16 @@ describe('CustomerHome', () => {
     expect(router.getPathname()).toBe('/request/active');
   });
 
+  it('allows a new request right after a trip completed', async () => {
+    mockActive({ ...open, status: 'completed', agreedFare: 60 });
+    const router = await renderHome();
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Request a tow' }));
+
+    expect(router.getPathname()).toBe('/request/pickup');
+    expect(screen.queryByText('Your tow request is open')).toBeNull();
+  });
+
   it('says the driver is on the way once the request is assigned', async () => {
     mockActive({ ...open, status: 'assigned' });
     const router = await renderHome();

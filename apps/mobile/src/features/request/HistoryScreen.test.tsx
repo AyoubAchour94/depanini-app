@@ -89,6 +89,17 @@ describe('HistoryScreen', () => {
     expect(await screen.findByText('Assigned')).toBeOnTheScreen();
   });
 
+  it('shows the agreed fare of a completed request', async () => {
+    mockPages({
+      first: { items: [{ ...row(1, 'completed'), agreedFare: 77 }], nextCursor: null },
+    });
+    await renderHistory();
+
+    expect(await screen.findByText('Completed')).toBeOnTheScreen();
+    expect(screen.getByText('77 TND')).toBeOnTheScreen();
+    expect(screen.queryByText('51 TND')).toBeNull();
+  });
+
   it('shows an empty state', async () => {
     mockPages({ first: { items: [], nextCursor: null } });
     await renderHistory();

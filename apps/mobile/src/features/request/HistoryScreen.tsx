@@ -72,7 +72,13 @@ function HistoryRow({ request }: { request: TowRequest }) {
       <Text style={{ color: theme.text }}>
         {t.routeSummary(request.pickup.address, request.dropoff.address)}
       </Text>
-      <Text style={[styles.fare, { color: theme.text }]}>{t.fareAmount(request.proposedFare)}</Text>
+      <Text style={[styles.fare, { color: theme.text }]}>
+        {t.fareAmount(
+          request.status === 'completed'
+            ? (request.agreedFare ?? request.proposedFare)
+            : request.proposedFare,
+        )}
+      </Text>
     </View>
   );
 }

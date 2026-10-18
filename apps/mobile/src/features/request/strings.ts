@@ -1,3 +1,5 @@
+import type { CustomerCancelReason } from '@depanini/shared';
+
 /** User-facing text of the request flow, in one place until localization (Phase 9). */
 export const requestStrings = {
   requestTow: 'Request a tow',
@@ -109,6 +111,41 @@ export const requestStrings = {
   truckLabel: 'Truck',
   agreedFareLabel: 'Agreed fare',
   callDriver: 'Call',
+
+  etaToPickup: (min: number) => `Arriving in ~${min} min`,
+  etaToDropoff: (min: number) => `${min} min to drop-off`,
+  stageHeadline: {
+    accepted: 'Your driver accepted',
+    en_route: 'Your driver is on the way',
+    arrived: 'Your driver has arrived',
+    towing: 'Towing your vehicle',
+  },
+  timelineTitle: 'Trip',
+  timeline: {
+    accepted: 'Accepted',
+    enRoute: 'On the way',
+    arrived: 'Arrived',
+    towing: 'Towing',
+    completed: 'Completed',
+  },
+  /** Local time of day, e.g. "10:05". */
+  time: (iso: string) =>
+    new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+
+  cancelReasonLabel: 'Why are you cancelling?',
+  cancelReasonRequired: 'Pick a reason to cancel.',
+  cancelReasons: {
+    driver_late: 'Driver is late',
+    problem_solved: 'Problem solved',
+    found_other_help: 'Found other help',
+    other: 'Other',
+  } satisfies Record<CustomerCancelReason, string>,
+  cancelUnavailable: 'The vehicle is on the truck, so this tow can no longer be cancelled here.',
+  cancelConflict: 'This request can no longer be cancelled. We refreshed it.',
+
+  completedTitle: 'Trip complete',
+  completedFare: 'Fare',
+  done: 'Done',
 
   myRequests: 'My requests',
   historyTitle: 'My requests',
