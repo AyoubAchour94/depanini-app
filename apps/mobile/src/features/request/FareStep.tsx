@@ -1,12 +1,13 @@
 import type { TowRequest } from '@depanini/shared';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
 import { useCreateTowRequest, useFareEstimate } from '@/api/towRequests';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
+import { FareStepper } from '@/ui/FareStepper';
 
-import { clampFare, FARE_LONG_STEP, FARE_STEP } from './fare';
+import { clampFare } from './fare';
 import { useRequestFlow } from './RequestFlowContext';
 import { requestStrings as t } from './strings';
 
@@ -52,7 +53,6 @@ export function FareStep({ onCreated, onAlreadyOpen, onNoProfile }: FareStepProp
 
   const { distanceM, suggestedFare, minFare, maxFare } = estimate.data;
   const fare = clampFare(proposedFare ?? suggestedFare, minFare, maxFare);
-  const step = (delta: number) => setProposedFare(clampFare(fare + delta, minFare, maxFare));
 
   const submit = () =>
     create.mutate(
@@ -91,25 +91,7 @@ export function FareStep({ onCreated, onAlreadyOpen, onNoProfile }: FareStepProp
       <Text style={[styles.muted, { color: theme.textMuted }]}>
         {t.suggestedFare(suggestedFare)}
       </Text>
-      <View style={styles.stepper}>
-        <StepButton
-          label={t.decreaseFare}
-          symbol="−"
-          disabled={fare <= minFare}
-          onPress={() => step(-FARE_STEP)}
-          onLongPress={() => step(-FARE_LONG_STEP)}
-        />
-        <Text accessibilityLiveRegion="polite" style={[styles.fare, { color: theme.text }]}>
-          {t.fareAmount(fare)}
-        </Text>
-        <StepButton
-          label={t.increaseFare}
-          symbol="+"
-          disabled={fare >= maxFare}
-          onPress={() => step(FARE_STEP)}
-          onLongPress={() => step(FARE_LONG_STEP)}
-        />
-      </View>
+      <FareStepper fare={fare} min={minFare} max={maxFare} onChange={setProposedFare} />
       <Text style={[styles.muted, { color: theme.textMuted }]}>
         {t.fareRange(minFare, maxFare)}
       </Text>
@@ -125,48 +107,9 @@ function isRedirect(error: unknown): boolean {
   return error instanceof ApiError && (error.status === 403 || error.status === 409);
 }
 
-function StepButton({
-  label,
-  symbol,
-  disabled,
-  onPress,
-  onLongPress,
-}: {
-  label: string;
-  symbol: string;
-  disabled: boolean;
-  onPress: () => void;
-  onLongPress: () => void;
-}) {
-  const theme = useTheme();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled }}
-      disabled={disabled}
-      onPress={onPress}
-      onLongPress={onLongPress}
-      style={[styles.stepButton, { backgroundColor: theme.surface, opacity: disabled ? 0.4 : 1 }]}
-    >
-      <Text style={[styles.stepSymbol, { color: theme.text }]}>{symbol}</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
   form: { padding: 16, gap: 12 },
   muted: { fontSize: 15 },
   error: { fontSize: 14 },
-  stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  stepButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepSymbol: { fontSize: 28, fontWeight: '600' },
-  fare: { fontSize: 36, fontWeight: '700' },
 });

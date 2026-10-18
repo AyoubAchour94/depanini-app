@@ -53,6 +53,8 @@ function mockApi() {
       if (holdOnline && JSON.parse(String(init?.body)).online) await holdOnline;
       return Response.json({ online: JSON.parse(String(init?.body)).online });
     }
+    if (path === '/driver/job') return new Response(null, { status: 204 });
+    if (path === '/driver/offers/active') return Response.json([]);
     return Response.json(nearbyBody);
   });
   return {
@@ -305,7 +307,7 @@ describe('DriverHome nearby list', () => {
     expect(await screen.findByText('Keys inside')).toBeOnTheScreen();
     expect(screen.getByText('La Marsa')).toBeOnTheScreen();
     expect(screen.getByText('Allowed range: 52 to 192 TND')).toBeOnTheScreen();
-    expect(screen.getByText('Offer actions coming soon')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Accept for 60 TND' })).toBeOnTheScreen();
     expect(screen.getByTestId('mapbox-map')).toBeOnTheScreen();
   });
 });
