@@ -90,6 +90,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         imageWidth: 76,
       },
     ],
+    // Location is requested only when a customer starts a tow request.
+    ['expo-location', { locationWhenInUsePermission: locationUsage }],
     // Reads the secret RNMAPBOX_MAPS_DOWNLOAD_TOKEN from the environment at build time.
     '@rnmapbox/maps',
     ...(firebaseConfigured

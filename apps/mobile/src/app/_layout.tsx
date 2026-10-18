@@ -7,6 +7,8 @@ import { useEffect, useState } from 'react';
 import { useMe } from '@/api/me';
 import { AuthProvider, useAuth } from '@/auth/AuthProvider';
 import { hasProfileFor } from '@/features/profile/onboarding';
+import { RequestFlowProvider } from '@/features/request/RequestFlowContext';
+import { requestStrings } from '@/features/request/strings';
 import { getFirebaseStatus } from '@/firebase/firebase';
 import { useTheme } from '@/theme/theme';
 import { variant } from '@/variant/variant';
@@ -24,7 +26,9 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <StatusBar style={theme.onBrand === '#FFFFFF' ? 'light' : 'dark'} />
-        <RootNavigator />
+        <RequestFlowProvider>
+          <RootNavigator />
+        </RequestFlowProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
@@ -65,6 +69,9 @@ function RootNavigator() {
         <Stack.Screen name="account" options={{ title: 'Account' }} />
         <Stack.Screen name="profile" options={{ title: 'Profile' }} />
         <Stack.Screen name="delete-account" options={{ title: 'Delete account' }} />
+      </Stack.Protected>
+      <Stack.Protected guard={onboarded && !variant.isDriverApp}>
+        <Stack.Screen name="request/pickup" options={{ title: requestStrings.pickupTitle }} />
       </Stack.Protected>
       <Stack.Protected guard={Boolean(account) && !onboarded}>
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
