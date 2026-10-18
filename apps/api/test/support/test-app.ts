@@ -5,6 +5,7 @@ import type { DecodedIdToken } from 'firebase-admin/auth';
 import { AppModule } from '../../src/app.module.js';
 import { ID_TOKEN_VERIFIER, type IdTokenVerifier } from '../../src/auth/firebase-auth.guard.js';
 import { ENV } from '../../src/config/env.module.js';
+import { CLOCK } from '../../src/tow-requests/clock.js';
 import { type Database, DB } from '../../src/db/database.module.js';
 import { TEST_DATABASE_URL } from './test-database.js';
 
@@ -21,8 +22,11 @@ const fakeVerifier: IdTokenVerifier = {
  * The whole API over the test database, with Firebase replaced by
  * {@link fakeVerifier}. Close it with `app.close()` after the suite.
  */
-export async function createTestApp(db: Database): Promise<NestFastifyApplication> {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+export async function createTestApp(
+  db: Database,
+  { now }: { now?: () => Date } = {},
+): Promise<NestFastifyApplication> {
+  const builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(ENV)
     .useValue({
       NODE_ENV: 'test',
@@ -34,8 +38,9 @@ export async function createTestApp(db: Database): Promise<NestFastifyApplicatio
     .overrideProvider(DB)
     .useValue(db)
     .overrideProvider(ID_TOKEN_VERIFIER)
-    .useValue(fakeVerifier)
-    .compile();
+    .useValue(fakeVerifier);
+  if (now) builder.overrideProvider(CLOCK).useValue(now);
+  const moduleRef = await builder.compile();
 
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
   await app.init();
