@@ -72,6 +72,13 @@ function RootNavigator() {
       </Stack.Protected>
       <Stack.Protected guard={onboarded && !variant.isDriverApp}>
         <Stack.Screen name="request/pickup" options={{ title: requestStrings.pickupTitle }} />
+        <Stack.Screen name="request/dropoff" options={{ title: requestStrings.dropoffTitle }} />
+        <Stack.Screen name="request/details" options={{ title: requestStrings.detailsTitle }} />
+        <Stack.Screen name="request/fare" options={{ title: requestStrings.fareTitle }} />
+        <Stack.Screen
+          name="request/active"
+          options={{ title: requestStrings.activeTitle, headerBackVisible: false }}
+        />
       </Stack.Protected>
       <Stack.Protected guard={Boolean(account) && !onboarded}>
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
