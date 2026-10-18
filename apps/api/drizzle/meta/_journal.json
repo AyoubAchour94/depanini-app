@@ -36,6 +36,13 @@
       "when": 1792338470901,
       "tag": "0004_tow_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792347521661,
+      "tag": "0005_driver_presence_offers",
+      "breakpoints": true
     }
   ]
 }
