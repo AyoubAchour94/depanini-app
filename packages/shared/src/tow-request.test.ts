@@ -106,7 +106,7 @@ describe('towRequestSchema', () => {
   });
 
   it('rejects an unknown status', () => {
-    expect(towRequestSchema.safeParse({ ...request, status: 'completed' }).success).toBe(false);
+    expect(towRequestSchema.safeParse({ ...request, status: 'finished' }).success).toBe(false);
   });
 });
 
@@ -157,5 +157,88 @@ describe('towRequestSchema, assigned', () => {
         driver: { fullName: 'Ali', phone: '1', truckType: 'rocket', plateNumber: 'x' },
       }).success,
     ).toBe(false);
+  });
+});
+
+describe('towRequestSchema, trip', () => {
+  const base = {
+    id: '7b0c8f2e-5d1a-4c3b-9e6f-2a1b3c4d5e6f',
+    status: 'assigned',
+    pickup,
+    dropoff,
+    vehicleType: 'car',
+    problemType: 'breakdown',
+    distanceM: 12_000,
+    suggestedFare: 64,
+    proposedFare: 60,
+    expiresAt: '2026-01-01T10:15:00.000Z',
+    createdAt: '2026-01-01T10:00:00.000Z',
+  };
+  const seen = '2026-01-01T10:07:00.000Z';
+
+  it('parses a Phase 3/4 payload without any trip field', () => {
+    const parsed = towRequestSchema.parse(base);
+    expect(parsed.tripStage).toBeUndefined();
+    expect(parsed.driverLocation).toBeUndefined();
+    expect(parsed.etaMin).toBeUndefined();
+  });
+
+  it('parses null trip fields', () => {
+    const parsed = towRequestSchema.parse({
+      ...base,
+      tripStage: null,
+      enRouteAt: null,
+      arrivedAt: null,
+      towingAt: null,
+      completedAt: null,
+      cancelledBy: null,
+      cancelReason: null,
+      driverLocation: null,
+      etaMin: null,
+    });
+    expect(parsed.tripStage).toBeNull();
+  });
+
+  it('parses a trip in progress', () => {
+    const parsed = towRequestSchema.parse({
+      ...base,
+      tripStage: 'en_route',
+      enRouteAt: '2026-01-01T10:06:00.000Z',
+      driverLocation: { latitude: 36.81, longitude: 10.19, updatedAt: seen },
+      etaMin: 5,
+    });
+    expect(parsed.tripStage).toBe('en_route');
+    expect(parsed.driverLocation?.latitude).toBe(36.81);
+    expect(parsed.etaMin).toBe(5);
+  });
+
+  it('parses a completed and a cancelled request', () => {
+    const completed = towRequestSchema.parse({
+      ...base,
+      status: 'completed',
+      completedAt: '2026-01-01T11:00:00.000Z',
+    });
+    expect(completed.status).toBe('completed');
+    const cancelled = towRequestSchema.parse({
+      ...base,
+      status: 'cancelled',
+      cancelledBy: 'driver',
+      cancelReason: 'unsafe',
+    });
+    expect(cancelled.cancelledBy).toBe('driver');
+    expect(cancelled.cancelReason).toBe('unsafe');
+  });
+
+  it.each([
+    ['an unknown stage', { tripStage: 'completed' }],
+    ['an unknown canceller', { cancelledBy: 'admin' }],
+    ['a driver location without a time', { driverLocation: { latitude: 36.8, longitude: 10.2 } }],
+    [
+      'a driver location outside Tunisia',
+      { driverLocation: { latitude: 0, longitude: 0, updatedAt: seen } },
+    ],
+    ['a zero ETA', { etaMin: 0 }],
+  ])('rejects %s', (_name, patch) => {
+    expect(towRequestSchema.safeParse({ ...base, ...patch }).success).toBe(false);
   });
 });

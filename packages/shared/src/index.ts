@@ -7,4 +7,6 @@ export * from './nearby';
 export * from './offer';
 export * from './phone';
 export * from './presence';
+export * from './realtime';
 export * from './tow-request';
+export * from './trip';

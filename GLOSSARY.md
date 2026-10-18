@@ -88,7 +88,25 @@ An offer whose fare differs from the customer's proposed fare. It must stay with
 The fare of the accepted offer, in whole dinars. It is fixed when the request is assigned.
 
 **Assigned**:
-The status of a tow request after the customer accepts an offer. It names the driver and the agreed fare, never expires, and either side can still cancel it. Accepting rejects every other pending offer on the request.
+The status of a tow request after the customer accepts an offer. It names the driver and the agreed fare, never expires, and either side can still cancel it until towing starts (see **Cancel reason**). Accepting rejects every other pending offer on the request. It stays assigned through the **trip stages** until the driver drops off the vehicle.
 
 **Job**:
 A tow request that is assigned to a driver, as that driver sees it, with the customer's name and phone. A driver has at most one job at a time.
+
+**Trip stage**:
+Where an assigned tow request is in its trip: **accepted**, **en route**, **arrived**, **towing**, in that order. Only the assigned driver moves it, forward and one step at a time, and each step is timestamped. Dropping off is not a stage: it completes the request.
+
+**En route**:
+The trip stage after the driver taps "Start driving". The customer sees the truck move on the map, with an ETA to the pickup computed as road distance (straight line times 1.3) at 40 km/h.
+
+**Arrived**:
+The trip stage once the driver is at the pickup. A customer can still cancel, but now needs a cancel reason.
+
+**Towing**:
+The trip stage once the vehicle is loaded. The customer sees an ETA to the drop-off. Nobody can cancel any more; the driver completes the trip instead.
+
+**Completed**:
+The status of a tow request after the driver drops off the vehicle, when the stage was towing. Both sides see a short trip summary: route, agreed fare and times.
+
+**Cancel reason**:
+Why someone cancels an assigned request, stored with who cancelled (customer or driver); there are no fees. A customer cancels freely until the driver has arrived (and an open request freely at any time); once arrived, a customer must give a reason: driver late, problem solved, found other help, or other. A driver always gives a reason until towing starts: vehicle not there, customer unreachable, unsafe, truck problem, or other.

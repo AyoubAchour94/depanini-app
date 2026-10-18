@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { truckTypeSchema } from './account';
 import { isInTunisia } from './geo';
+import { latLngSchema } from './presence';
 
 /** The kinds of vehicle a customer can have towed. */
 export const VEHICLE_TYPES = ['car', 'suv_van', 'motorcycle'] as const;
@@ -25,12 +26,32 @@ export const problemTypeSchema = z.enum(PROBLEM_TYPES, 'Choose the problem');
 
 export type ProblemType = z.infer<typeof problemTypeSchema>;
 
-/** The states of a tow request. Trip progress after assigned comes in a later phase. */
-export const TOW_REQUEST_STATUSES = ['open', 'assigned', 'cancelled', 'expired'] as const;
+/** The states of a tow request. Progress within `assigned` is the {@link TRIP_STAGES}. */
+export const TOW_REQUEST_STATUSES = [
+  'open',
+  'assigned',
+  'completed',
+  'cancelled',
+  'expired',
+] as const;
 
 export const towRequestStatusSchema = z.enum(TOW_REQUEST_STATUSES);
 
 export type TowRequestStatus = z.infer<typeof towRequestStatusSchema>;
+
+/** The steps of an assigned request, in order. Dropping off sets the status to `completed`. */
+export const TRIP_STAGES = ['accepted', 'en_route', 'arrived', 'towing'] as const;
+
+export const tripStageSchema = z.enum(TRIP_STAGES);
+
+export type TripStage = z.infer<typeof tripStageSchema>;
+
+/** Who cancelled an assigned request. */
+export const CANCELLED_BY = ['customer', 'driver'] as const;
+
+export const cancelledBySchema = z.enum(CANCELLED_BY);
+
+export type CancelledBy = z.infer<typeof cancelledBySchema>;
 
 /**
  * A pickup or drop-off. The coordinates are the source of truth and must be
@@ -114,6 +135,18 @@ export const towRequestSchema = z.object({
       plateNumber: z.string(),
     })
     .nullish(),
+  /** Where the assigned request is in the trip; null for requests assigned before trips existed. */
+  tripStage: tripStageSchema.nullish(),
+  enRouteAt: z.iso.datetime().nullish(),
+  arrivedAt: z.iso.datetime().nullish(),
+  towingAt: z.iso.datetime().nullish(),
+  completedAt: z.iso.datetime().nullish(),
+  cancelledBy: cancelledBySchema.nullish(),
+  cancelReason: z.string().nullish(),
+  /** The driver's last known position, for the customer while the request is assigned. */
+  driverLocation: latLngSchema.and(z.object({ updatedAt: z.iso.datetime() })).nullish(),
+  /** Minutes until the truck reaches the pickup (before `arrived`) or the drop-off (`towing`). */
+  etaMin: z.number().int().positive().nullish(),
 });
 
 export type TowRequest = z.infer<typeof towRequestSchema>;
