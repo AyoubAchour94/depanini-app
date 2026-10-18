@@ -32,7 +32,11 @@ function PlaceRow({ label, address }: { label: string; address: string }) {
 }
 
 const badgeColor = (status: TowRequestStatus, theme: Theme) =>
-  status === 'open' ? theme.success : status === 'expired' ? theme.warning : theme.textMuted;
+  status === 'open' || status === 'assigned'
+    ? theme.success
+    : status === 'expired'
+      ? theme.warning
+      : theme.textMuted;
 
 /** The state of a request as a small coloured label. */
 export function StatusBadge({ status }: { status: TowRequestStatus }) {

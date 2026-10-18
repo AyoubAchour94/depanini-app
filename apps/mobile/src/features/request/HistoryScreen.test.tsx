@@ -73,7 +73,7 @@ describe('HistoryScreen', () => {
   it('skips a row the app cannot read and keeps the rest', async () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
     mockPages({
-      first: { items: [row(1), { ...row(2), status: 'assigned' }, row(3)], nextCursor: null },
+      first: { items: [row(1), { ...row(2), status: 'completed' }, row(3)], nextCursor: null },
     });
     await renderHistory();
 

@@ -94,6 +94,7 @@ export const requestStrings = {
   loadMore: 'Load more',
   statusLabels: {
     open: 'Open',
+    assigned: 'Assigned',
     cancelled: 'Cancelled',
     expired: 'Expired',
   },
