@@ -31,6 +31,11 @@ function setLastSent(location: LatLng | null) {
   for (const listener of listeners) listener();
 }
 
+/** Forgets the last truck position, for sign-out and a change of user. */
+export const resetTruckLocation = () => {
+  if (lastSent) setLastSent(null);
+};
+
 /** Where the truck last reported from, or null before the first send or after going offline. */
 export function useTruckLocation(): LatLng | null {
   return useSyncExternalStore(

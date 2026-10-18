@@ -54,6 +54,8 @@ export const driverStrings = {
   offerDeclined: 'The customer declined your offer',
 
   jobTitle: 'Job',
+  live: 'Live',
+  reconnecting: 'Reconnecting…',
   jobCard: 'Current job',
   jobCardAction: 'View job',
   jobLoading: 'Loading your job…',
