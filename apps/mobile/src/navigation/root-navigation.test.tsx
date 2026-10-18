@@ -92,6 +92,7 @@ function renderApp() {
     index: () => <Text>Home</Text>,
     account: () => <Text>Account</Text>,
     profile: () => <Text>Profile</Text>,
+    'job-offer/[id]': () => <Text>Job offer</Text>,
     onboarding: Onboarding,
     'loading-account': LoadingAccount,
     'delete-account': DeleteAccount,
@@ -118,6 +119,16 @@ describe('root navigation', () => {
 
     await emitSession(null);
     await waitFor(() => expect(SplashScreen.hideAsync).toHaveBeenCalled());
+  });
+
+  it('keeps the driver-only job offer route out of the customer app', async () => {
+    await renderApp();
+    await emitSession({ uid: 'u1', email: me.email });
+    await screen.findByText('Home');
+
+    await act(async () => router.push({ pathname: '/job-offer/[id]', params: { id: 'abc' } }));
+
+    expect(screen.queryByText('Job offer')).toBeNull();
   });
 
   it('sends a signed-out user to sign-in', async () => {
@@ -218,6 +229,17 @@ describe('root navigation', () => {
 
       expect(await screen.findByText('Home')).toBeOnTheScreen();
       expect(router.getPathname()).toBe('/');
+    });
+
+    it('opens a job offer', async () => {
+      mockApi({ driverProfile });
+      await renderApp();
+      await emitSession({ uid: 'u1', email: me.email });
+      await screen.findByText('Home');
+
+      await act(async () => router.push({ pathname: '/job-offer/[id]', params: { id: 'abc' } }));
+
+      expect(await screen.findByText('Job offer')).toBeOnTheScreen();
     });
 
     it('onboards an account that only has a customer profile', async () => {

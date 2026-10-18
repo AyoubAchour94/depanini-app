@@ -1,7 +1,8 @@
 import { router, Stack } from 'expo-router';
 import { Pressable, Text } from 'react-native';
 
-import { MapScreen } from '@/features/map/MapScreen';
+import { DriverHome } from '@/features/driver/DriverHome';
+import { driverStrings } from '@/features/driver/strings';
 import { CustomerHome } from '@/features/request/CustomerHome';
 import { useTheme } from '@/theme/theme';
 import { variant } from '@/variant/variant';
@@ -12,7 +13,9 @@ export default function Home() {
     <>
       <Stack.Screen
         options={{
-          title: variant.isDriverApp ? `${variant.appName} · Map test (Tunis)` : variant.appName,
+          title: variant.isDriverApp
+            ? `${variant.appName} · ${driverStrings.homeTitle}`
+            : variant.appName,
           headerRight: () => (
             <Pressable
               accessibilityRole="button"
@@ -24,7 +27,7 @@ export default function Home() {
           ),
         }}
       />
-      {variant.isDriverApp ? <MapScreen /> : <CustomerHome />}
+      {variant.isDriverApp ? <DriverHome /> : <CustomerHome />}
     </>
   );
 }
