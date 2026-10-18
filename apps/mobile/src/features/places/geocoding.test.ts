@@ -48,6 +48,12 @@ describe('reverseGeocode', () => {
     expect(place).toMatchObject({ latitude: 36.81, longitude: 10.19 });
   });
 
+  it('cuts addresses to the 200 characters a Place allows', async () => {
+    mockFetch({ features: [{ ...feature, properties: { full_address: 'a'.repeat(250) } }] });
+    const place = await reverseGeocode({ latitude: 36.8, longitude: 10.2 }, 'pk.test');
+    expect(place?.address).toHaveLength(200);
+  });
+
   it('returns null when there is no address at that spot', async () => {
     mockFetch({ features: [] });
     expect(await reverseGeocode({ latitude: 33, longitude: 9 }, 'pk.test')).toBeNull();

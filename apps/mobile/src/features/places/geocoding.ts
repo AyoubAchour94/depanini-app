@@ -45,10 +45,13 @@ async function request(url: URL, signal?: AbortSignal): Promise<Feature[]> {
   return parsed.data.features;
 }
 
+/** The longest address a Place accepts (`placeSchema`). */
+const MAX_ADDRESS_LENGTH = 200;
+
 function addressOf({ properties }: Feature): string | null {
-  if (properties.full_address) return properties.full_address;
   const parts = [properties.name, properties.place_formatted].filter(Boolean);
-  return parts.length > 0 ? parts.join(', ') : null;
+  const address = properties.full_address || parts.join(', ');
+  return address ? address.slice(0, MAX_ADDRESS_LENGTH) : null;
 }
 
 /** The address at a coordinate, as a Place at that same coordinate; null when Mapbox knows none. */
