@@ -11,12 +11,15 @@ import {
   etaMinutes,
   fareBounds,
   isFareAllowed,
+  type JobStageInput,
   NEARBY_RADIUS_M,
+  nextTripStage,
   OFFER_TTL_MS,
   type Offer,
   PRESENCE_STALE_MS,
   ROAD_FACTOR,
   type TowRequest,
+  type TripStage,
 } from '@depanini/shared';
 import { and, asc, desc, eq, gt, ne, sql } from 'drizzle-orm';
 import type { SelectResultFields } from 'drizzle-orm/query-builders/select.types';
@@ -45,6 +48,13 @@ const RECENT_OFFERS_MS = 60 * 60_000;
 
 /** How often an accept is retried after Postgres broke a deadlock by aborting it. */
 const ACCEPT_ATTEMPTS = 3;
+
+/** The timestamp column each stage sets when the driver reaches it. */
+const STAGE_TIMESTAMPS = {
+  en_route: 'enRouteAt',
+  arrived: 'arrivedAt',
+  towing: 'towingAt',
+} as const;
 
 /** The columns of `tow_offers` the apps see. */
 const offerColumns = {
@@ -364,6 +374,7 @@ export class OffersService {
           assignedDriverId: target.driverId,
           agreedFareTnd: offer!.fare,
           assignedAt: now,
+          tripStage: 'accepted',
           updatedAt: now,
         })
         .where(eq(towRequests.id, target.requestId));
@@ -393,7 +404,7 @@ export class OffersService {
         );
 
       const [assigned] = await selectTowRequests(tx).where(eq(towRequests.id, target.requestId));
-      return toTowRequest(assigned!);
+      return toTowRequest(assigned!, now);
     });
   }
 
@@ -417,6 +428,71 @@ export class OffersService {
       assignedAt: request.assignedAt!.toISOString(),
       customer: { fullName: customerFullName, phone: customerPhone },
     };
+  }
+
+  /**
+   * Moves the driver's job to its next trip stage and stamps the time. `404` if the
+   * driver has no job, `409` unless `stage` is the very next one.
+   */
+  async advance(driverId: string, stage: JobStageInput['stage']): Promise<DriverJob> {
+    const now = this.now();
+    await this.db.transaction(async (tx) => {
+      const job = await this.lockJob(tx, driverId);
+      if (nextTripStage(job.tripStage ?? 'accepted') !== stage) {
+        throw new ConflictException('That is not the next step of this trip');
+      }
+      await tx
+        .update(towRequests)
+        .set({ tripStage: stage, [STAGE_TIMESTAMPS[stage]]: now, updatedAt: now })
+        .where(eq(towRequests.id, job.id));
+    });
+    return (await this.job(driverId))!;
+  }
+
+  /** Completes the driver's job (dropped off). `404` if there is none, `409` unless towing. */
+  async complete(driverId: string): Promise<TowRequest> {
+    const now = this.now();
+    return this.db.transaction(async (tx) => {
+      const job = await this.lockJob(tx, driverId);
+      if (job.tripStage !== 'towing') {
+        throw new ConflictException('Complete the trip once the vehicle is on the truck');
+      }
+      await tx
+        .update(towRequests)
+        .set({ status: 'completed', completedAt: now, updatedAt: now })
+        .where(eq(towRequests.id, job.id));
+      const [completed] = await selectTowRequests(tx).where(eq(towRequests.id, job.id));
+      return toTowRequest(completed!);
+    });
+  }
+
+  /**
+   * The driver's assigned request, locked `FOR UPDATE` (the same first lock as accept and
+   * cancel). `404` if there is none, also when it was cancelled while waiting for the lock.
+   */
+  private async lockJob(
+    tx: Pick<Database, 'select'>,
+    driverId: string,
+  ): Promise<{ id: string; tripStage: TripStage | null }> {
+    const [found] = await tx
+      .select({ id: towRequests.id })
+      .from(towRequests)
+      .where(and(eq(towRequests.assignedDriverId, driverId), eq(towRequests.status, 'assigned')));
+    if (!found) throw new NotFoundException('You have no job');
+    const [job] = await tx
+      .select({
+        id: towRequests.id,
+        status: towRequests.status,
+        assignedDriverId: towRequests.assignedDriverId,
+        tripStage: towRequests.tripStage,
+      })
+      .from(towRequests)
+      .where(eq(towRequests.id, found.id))
+      .for('update');
+    if (job?.status !== 'assigned' || job.assignedDriverId !== driverId) {
+      throw new NotFoundException('You have no job');
+    }
+    return job;
   }
 
   /** Whether the driver has an assigned request. `db` may be a transaction. */

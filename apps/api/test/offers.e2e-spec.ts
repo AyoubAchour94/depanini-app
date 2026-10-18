@@ -695,7 +695,9 @@ describe('offers, accept/decline and driver job (e2e)', () => {
     it('lets the assigned driver cancel the job', async () => {
       const req = await assign();
 
-      const res = await api('post', `/tow-requests/${req.id}/cancel`, dan).expect(200);
+      const res = await api('post', `/tow-requests/${req.id}/cancel`, dan)
+        .send({ reason: 'unsafe' })
+        .expect(200);
 
       expect(towRequestSchema.parse(res.body)).toMatchObject({ id: req.id, status: 'cancelled' });
       expect((await requestRow(req.id)).cancelledAt).toEqual(now);
@@ -740,7 +742,9 @@ describe('offers, accept/decline and driver job (e2e)', () => {
 
     it('shows the agreed fare, but no driver, in the history of a cancelled job', async () => {
       const req = await assign();
-      await api('post', `/tow-requests/${req.id}/cancel`, dan).expect(200);
+      await api('post', `/tow-requests/${req.id}/cancel`, dan)
+        .send({ reason: 'unsafe' })
+        .expect(200);
       const res = await api('get', '/tow-requests', alice).expect(200);
       expect(res.body.items[0]).toMatchObject({ status: 'cancelled', agreedFare: suggested });
       expect(res.body.items[0].driver ?? null).toBeNull();

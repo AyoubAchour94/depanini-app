@@ -3,9 +3,11 @@
  * itself is enabled by the first migration in `drizzle/`.
  */
 import type {
+  CancelledBy,
   OfferStatus,
   ProblemType,
   TowRequestStatus,
+  TripStage,
   TruckType,
   VehicleType,
 } from '@depanini/shared';
@@ -108,6 +110,16 @@ export const towRequests = pgTable(
     /** The fare of the accepted offer. */
     agreedFareTnd: integer('agreed_fare_tnd'),
     assignedAt: timestamp('assigned_at', { withTimezone: true }),
+    /** Progress of an assigned request; null until assigned (and for jobs assigned before trips). */
+    tripStage: text('trip_stage').$type<TripStage>(),
+    enRouteAt: timestamp('en_route_at', { withTimezone: true }),
+    arrivedAt: timestamp('arrived_at', { withTimezone: true }),
+    towingAt: timestamp('towing_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    /** Who cancelled an assigned request; null for requests cancelled while open. */
+    cancelledBy: text('cancelled_by').$type<CancelledBy>(),
+    /** Checked by the API against the canceller's reason list. */
+    cancelReason: text('cancel_reason'),
     ...timestamps,
   },
   (table) => [
