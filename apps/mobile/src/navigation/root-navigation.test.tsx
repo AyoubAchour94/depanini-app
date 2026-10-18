@@ -46,8 +46,14 @@ jest.mock('@/variant/variant', () => ({
 }));
 
 jest.mock('@/config/env', () => ({
-  env: { mapboxAccessToken: undefined, apiUrl: 'http://api.test', environment: 'dev' },
+  env: {
+    mapboxAccessToken: undefined,
+    apiUrl: 'http://api.test',
+    environment: 'dev',
+    enableTestLocation: false,
+  },
 }));
+const mockedEnv = jest.requireMock('@/config/env').env as { enableTestLocation: boolean };
 
 /** Reports a session change from Firebase, as the real listener would. */
 async function emitSession(user: AuthUser | null) {
@@ -93,6 +99,7 @@ function renderApp() {
     account: () => <Text>Account</Text>,
     profile: () => <Text>Profile</Text>,
     'job-offer/[id]': () => <Text>Job offer</Text>,
+    'test-location': () => <Text>Test location screen</Text>,
     onboarding: Onboarding,
     'loading-account': LoadingAccount,
     'delete-account': DeleteAccount,
@@ -240,6 +247,48 @@ describe('root navigation', () => {
       await act(async () => router.push({ pathname: '/job-offer/[id]', params: { id: 'abc' } }));
 
       expect(await screen.findByText('Job offer')).toBeOnTheScreen();
+    });
+
+    describe('test location route', () => {
+      afterEach(() => {
+        mockedEnv.enableTestLocation = false;
+      });
+
+      it('is unreachable when the test location flag is off', async () => {
+        mockApi({ driverProfile });
+        await renderApp();
+        await emitSession({ uid: 'u1', email: me.email });
+        await screen.findByText('Home');
+
+        await act(async () => router.push('/test-location'));
+
+        expect(screen.queryByText('Test location screen')).toBeNull();
+      });
+
+      it('is reachable when the flag is on', async () => {
+        mockedEnv.enableTestLocation = true;
+        mockApi({ driverProfile });
+        await renderApp();
+        await emitSession({ uid: 'u1', email: me.email });
+        await screen.findByText('Home');
+
+        await act(async () => router.push('/test-location'));
+
+        expect(await screen.findByText('Test location screen')).toBeOnTheScreen();
+      });
+
+      it('is unreachable in the customer app even with the flag on', async () => {
+        mockedEnv.enableTestLocation = true;
+        mockVariantName = 'user';
+        mockApi({ customerProfile: profile });
+        await renderApp();
+        await emitSession({ uid: 'u1', email: me.email });
+        await screen.findByText('Home');
+
+        await act(async () => router.push('/test-location'));
+
+        expect(screen.queryByText('Test location screen')).toBeNull();
+      });
     });
 
     it('onboards an account that only has a customer profile', async () => {

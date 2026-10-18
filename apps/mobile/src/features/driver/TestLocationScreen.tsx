@@ -1,5 +1,5 @@
 import { isInTunisia, type LatLng, TUNIS_CENTER } from '@depanini/shared';
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -12,13 +12,19 @@ import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
 
 import { driverStrings as t } from './strings';
-import { getTestLocation, setTestLocation } from './testLocation';
+import { getTestLocation, isTestLocationEnabled, setTestLocation } from './testLocation';
 
 const formatCoordinates = ({ latitude, longitude }: LatLng) =>
   `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
 
 /** Dev/test builds: the driver positions the pin to set where the app thinks they are. */
 export function TestLocationScreen() {
+  // The route is also guarded in the root layout; this keeps the screen inert on its own.
+  if (!isTestLocationEnabled()) return <Redirect href="/" />;
+  return <TestLocationPicker />;
+}
+
+function TestLocationPicker() {
   const theme = useTheme();
   const [start] = useState<LatLng>(() => getTestLocation() ?? TUNIS_CENTER);
   const [picked, setPicked] = useState<LatLng | null>(null);
