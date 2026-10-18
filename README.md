@@ -39,13 +39,14 @@ apps/
 │       ├── auth/                 # session (AuthProvider), Firebase Auth calls, error messages
 │       ├── api/                  # API client (attaches ID token) + queries (health, me)
 │       ├── ui/                   # shared form components (TextField, Button)
-│       └── features/             # one folder per feature (auth/, account/, map/, status/)
+│       └── features/             # one folder per feature (auth/, account/, profile/, map/, status/)
 ├── api/                        # NestJS (Fastify adapter), ESM
 │   ├── src/
 │   │   ├── config/               # zod-validated env, fails fast at boot
 │   │   ├── db/                   # Drizzle + pg pool, schema.ts
 │   │   ├── auth/                 # FirebaseAuthGuard (verifies ID tokens)
-│   │   ├── accounts/             # GET /me (creates the account on first sign-in)
+│   │   ├── accounts/             # GET /me (creates the account on first sign-in), PUT /me/customer-profile
+│   │   ├── common/               # ZodValidationPipe (request bodies via shared schemas)
 │   │   └── health/               # GET /health
 │   ├── drizzle/                  # SQL migrations (0000 enables PostGIS)
 │   ├── test/                     # e2e tests (supertest over Fastify)
@@ -251,7 +252,8 @@ pnpm --filter @depanini/api db:migrate    # apply pending migrations
 ```
 
 The first migration enables the `postgis` extension. Tables arrive with their
-features: `users` holds accounts (see `GLOSSARY.md`).
+features: `users` holds accounts and `customer_profiles` their customer
+profiles (see `GLOSSARY.md`).
 
 ---
 

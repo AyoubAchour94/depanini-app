@@ -5,13 +5,15 @@ import { useMe } from '@/api/me';
 import { useSignOut } from '@/auth/useSignOut';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
+import { variant } from '@/variant/variant';
 
 /** The signed-in account, its profile, and sign-out. */
 export function AccountScreen() {
   const theme = useTheme();
   const me = useMe();
   const signOut = useSignOut();
-  const profile = me.data?.customerProfile;
+  // The driver app shows the driver profile instead (#8).
+  const profile = variant.isDriverApp ? null : me.data?.customerProfile;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>

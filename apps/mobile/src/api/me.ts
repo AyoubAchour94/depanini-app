@@ -7,7 +7,6 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useAuth } from '@/auth/AuthProvider';
-import type { VariantConfig } from '@/variant/variants';
 
 import { apiRequest } from './client';
 
@@ -18,19 +17,10 @@ import { apiRequest } from './client';
 export function useMe() {
   const uid = useSignedInUid();
   return useQuery({
-    queryKey: ['me', uid],
+    queryKey: meQueryKey(uid),
     queryFn: () => apiRequest('/me', meResponseSchema),
     enabled: Boolean(uid),
   });
-}
-
-/**
- * Whether the account has the profile this app needs; without it the app
- * routes to onboarding. The driver profile arrives with #8, so until then the
- * driver app never onboards.
- */
-export function hasProfileFor(me: MeResponse, variant: VariantConfig): boolean {
-  return variant.isDriverApp || me.customerProfile !== null;
 }
 
 /** Saves the customer profile (`PUT /me/customer-profile`) and updates the cached account. */
@@ -41,9 +31,14 @@ export function useSaveCustomerProfile() {
     mutationFn: (profile: CustomerProfileInput) =>
       apiRequest('/me/customer-profile', customerProfileSchema, { method: 'PUT', json: profile }),
     onSuccess: (customerProfile) =>
-      queryClient.setQueryData<MeResponse>(['me', uid], (me) => me && { ...me, customerProfile }),
+      queryClient.setQueryData<MeResponse>(
+        meQueryKey(uid),
+        (me) => me && { ...me, customerProfile },
+      ),
   });
 }
+
+const meQueryKey = (uid: string | undefined) => ['me', uid];
 
 function useSignedInUid(): string | undefined {
   const auth = useAuth();

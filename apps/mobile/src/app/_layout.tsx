@@ -4,8 +4,9 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 
-import { hasProfileFor, useMe } from '@/api/me';
+import { useMe } from '@/api/me';
 import { AuthProvider, useAuth } from '@/auth/AuthProvider';
+import { hasProfileFor } from '@/features/profile/onboarding';
 import { getFirebaseStatus } from '@/firebase/firebase';
 import { useTheme } from '@/theme/theme';
 import { variant } from '@/variant/variant';
@@ -59,7 +60,7 @@ function RootNavigator() {
         contentStyle: { backgroundColor: theme.background },
       }}
     >
-      <Stack.Protected guard={Boolean(account) && onboarded}>
+      <Stack.Protected guard={onboarded}>
         <Stack.Screen name="index" />
         <Stack.Screen name="account" options={{ title: 'Account' }} />
         <Stack.Screen name="profile" options={{ title: 'Profile' }} />

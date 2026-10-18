@@ -22,7 +22,7 @@ async function bootstrap() {
   const env = app.get<Env>(ENV);
   // @fastify/cors only allows GET, HEAD and POST by default.
   if (env.CORS_ORIGINS.length > 0) {
-    app.enableCors({ origin: env.CORS_ORIGINS, methods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE'] });
+    app.enableCors({ origin: env.CORS_ORIGINS, methods: ['GET', 'HEAD', 'POST', 'PUT'] });
   }
   // 0.0.0.0 so the server is reachable inside a container and from devices on the LAN.
   await app.listen(env.PORT, '0.0.0.0');

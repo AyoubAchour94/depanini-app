@@ -7,6 +7,12 @@ import { customerProfiles, users } from '../db/schema.js';
 
 export type Account = typeof users.$inferSelect;
 
+/** The columns of `customer_profiles` the apps see. */
+const customerProfileColumns = {
+  fullName: customerProfiles.fullName,
+  phone: customerProfiles.phone,
+};
+
 /** An account with the profiles it holds (`null` until filled in). */
 export interface AccountWithProfiles extends Account {
   customerProfile: CustomerProfile | null;
@@ -43,7 +49,7 @@ export class AccountsService {
   async getOrCreateWithProfiles(identity: SignInIdentity): Promise<AccountWithProfiles> {
     const account = await this.getOrCreate(identity);
     const [customerProfile] = await this.db
-      .select({ fullName: customerProfiles.fullName, phone: customerProfiles.phone })
+      .select(customerProfileColumns)
       .from(customerProfiles)
       .where(eq(customerProfiles.userId, account.id));
     return { ...account, customerProfile: customerProfile ?? null };
@@ -58,7 +64,7 @@ export class AccountsService {
         target: customerProfiles.userId,
         set: { ...profile, updatedAt: sql`now()` },
       })
-      .returning({ fullName: customerProfiles.fullName, phone: customerProfiles.phone });
+      .returning(customerProfileColumns);
     return saved!;
   }
 }

@@ -81,16 +81,14 @@ describe('PUT /me/customer-profile (e2e)', () => {
   });
 
   it.each([
-    ['a missing name', { phone: '+21698123456' }],
-    ['a blank name', { fullName: '   ', phone: '+21698123456' }],
-    ['a non-Tunisian phone', { fullName: 'Alice', phone: '+33612345678' }],
-    ['a short phone', { fullName: 'Alice', phone: '9812345' }],
-  ])('rejects %s with 400 and the failing field', async (_, body) => {
+    ['a missing name', { phone: '+21698123456' }, 'fullName'],
+    ['a blank name', { fullName: '   ', phone: '+21698123456' }, 'fullName'],
+    ['a non-Tunisian phone', { fullName: 'Alice', phone: '+33612345678' }, 'phone'],
+    ['a short phone', { fullName: 'Alice', phone: '9812345' }, 'phone'],
+  ])('rejects %s with 400 and the failing field', async (_, body, field) => {
     const res = await putProfile(body, alice).expect(400);
 
-    expect(res.body.issues).toEqual(
-      expect.arrayContaining([expect.objectContaining({ path: expect.any(Array) })]),
-    );
+    expect(res.body.issues).toEqual([expect.objectContaining({ path: [field] })]);
     expect(await database.db.select().from(customerProfiles)).toHaveLength(0);
   });
 });
