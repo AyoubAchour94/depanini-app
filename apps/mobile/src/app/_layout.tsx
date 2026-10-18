@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 
 import { useMe } from '@/api/me';
 import { AuthProvider, useAuth } from '@/auth/AuthProvider';
+import { driverStrings } from '@/features/driver/strings';
 import { hasProfileFor } from '@/features/profile/onboarding';
 import { RequestFlowProvider } from '@/features/request/RequestFlowContext';
 import { requestStrings } from '@/features/request/strings';
@@ -80,6 +81,9 @@ function RootNavigator() {
           options={{ title: requestStrings.activeTitle, headerBackVisible: false }}
         />
         <Stack.Screen name="request/history" options={{ title: requestStrings.historyTitle }} />
+      </Stack.Protected>
+      <Stack.Protected guard={onboarded && variant.isDriverApp}>
+        <Stack.Screen name="job-offer/[id]" options={{ title: driverStrings.detailsTitle }} />
       </Stack.Protected>
       <Stack.Protected guard={Boolean(account) && !onboarded}>
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
