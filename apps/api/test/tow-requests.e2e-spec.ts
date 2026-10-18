@@ -339,6 +339,29 @@ describe('tow requests (e2e)', () => {
       expect(new Set(seen).size).toBe(3);
     });
 
+    it('pages through requests created microseconds apart', async () => {
+      await makeCustomer(alice);
+      const [customer] = await database.db.select().from(users);
+      for (const us of [1, 2, 3, 4]) {
+        await database.db.execute(sqlInsert(customer!.id, `2026-06-01T09:00:00.00000${us}Z`));
+      }
+
+      const seen: string[] = [];
+      let cursor: string | null = null;
+      do {
+        const url: string = `/tow-requests?limit=1${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
+        const page = towRequestPageSchema.parse((await api('get', url, alice).expect(200)).body);
+        seen.push(...page.items.map((r) => r.id));
+        cursor = page.nextCursor;
+      } while (cursor);
+
+      const { rows } = await database.db.execute<{ id: string }>(
+        sql`select id from tow_requests order by created_at desc`,
+      );
+      expect(rows).toHaveLength(4);
+      expect(seen).toEqual(rows.map((r) => r.id));
+    });
+
     it.each(['0', '51', 'abc'])('rejects limit=%s with 400', async (limit) => {
       await api('get', `/tow-requests?limit=${limit}`, alice).expect(400);
     });
@@ -416,11 +439,12 @@ describe('tow requests (e2e)', () => {
   });
 });
 
-function sqlInsert(customerId: string, at: Date) {
+function sqlInsert(customerId: string, atTime: Date | string) {
+  const at = typeof atTime === 'string' ? atTime : atTime.toISOString();
   return sql`insert into tow_requests
     (customer_id, status, pickup, pickup_address, dropoff, dropoff_address, vehicle_type,
      problem_type, distance_m, suggested_fare_tnd, proposed_fare_tnd, expires_at, created_at)
     values (${customerId}, 'cancelled', ST_MakePoint(10.18, 36.8)::geography, 'a',
-     ST_MakePoint(10.6, 35.8)::geography, 'b', 'car', 'breakdown', 1000, 50, 50, ${at.toISOString()},
-     ${at.toISOString()})`;
+     ST_MakePoint(10.6, 35.8)::geography, 'b', 'car', 'breakdown', 1000, 50, 50, ${at},
+     ${at})`;
 }

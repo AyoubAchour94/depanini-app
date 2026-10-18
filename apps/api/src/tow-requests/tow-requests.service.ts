@@ -52,6 +52,8 @@ const columns = {
   proposedFare: towRequests.proposedFareTnd,
   expiresAt: towRequests.expiresAt,
   createdAt: towRequests.createdAt,
+  // The JS `Date` above keeps milliseconds; the cursor needs the full microseconds.
+  createdAtMicros: sql<string>`to_char(${towRequests.createdAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
 };
 
 type Row = SelectResultFields<typeof columns>;
@@ -81,23 +83,28 @@ function toTowRequest(row: Row): TowRequest {
   };
 }
 
-/** Position in the history: the last item of a page. Opaque to the apps. */
+/**
+ * Position in the history: the last item of a page. Opaque to the apps.
+ * `createdAt` is the column's own text at microsecond precision (a JS `Date` would round it).
+ */
 interface Cursor {
-  createdAt: Date;
+  createdAt: string;
   id: string;
 }
 
 const encodeCursor = ({ createdAt, id }: Cursor) =>
-  Buffer.from(`${createdAt.toISOString()}|${id}`).toString('base64url');
+  Buffer.from(`${createdAt}|${id}`).toString('base64url');
 
 /** The cursor in a string, or `null` if it is not one we issued. */
 export function decodeCursor(cursor: string): Cursor | null {
   const [createdAt, id, ...rest] = Buffer.from(cursor, 'base64url').toString().split('|');
   if (!createdAt || !id || rest.length) return null;
-  const date = new Date(createdAt);
+  const timestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/;
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (Number.isNaN(date.getTime()) || !uuid.test(id)) return null;
-  return { createdAt: date, id };
+  if (!timestamp.test(createdAt) || Number.isNaN(Date.parse(createdAt)) || !uuid.test(id)) {
+    return null;
+  }
+  return { createdAt, id };
 }
 
 /** Whether a database error is a unique-constraint violation (Drizzle wraps the driver's error). */
@@ -195,7 +202,7 @@ export class TowRequestsService {
         and(
           eq(towRequests.customerId, customerId),
           after
-            ? sql`(${towRequests.createdAt}, ${towRequests.id}) < (${after.createdAt.toISOString()}::timestamptz, ${after.id}::uuid)`
+            ? sql`(${towRequests.createdAt}, ${towRequests.id}) < (${after.createdAt}::timestamptz, ${after.id}::uuid)`
             : undefined,
         ),
       )
@@ -205,7 +212,9 @@ export class TowRequestsService {
     const items = rows.slice(0, limit).map(toTowRequest);
     const last = rows[limit - 1];
     const nextCursor =
-      rows.length > limit && last ? encodeCursor({ createdAt: last.createdAt, id: last.id }) : null;
+      rows.length > limit && last
+        ? encodeCursor({ createdAt: last.createdAtMicros, id: last.id })
+        : null;
     return { items, nextCursor };
   }
 
