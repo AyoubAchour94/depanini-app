@@ -43,6 +43,13 @@
       "when": 1792347521661,
       "tag": "0005_driver_presence_offers",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792348406232,
+      "tag": "0006_offer_expiry_indexes",
+      "breakpoints": true
     }
   ]
 }
