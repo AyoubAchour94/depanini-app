@@ -33,4 +33,24 @@ describe('driverJobSchema', () => {
   ])('rejects %s', (_name, patch) => {
     expect(driverJobSchema.safeParse({ ...job, ...patch }).success).toBe(false);
   });
+
+  it('parses a Phase 4 job without a stage', () => {
+    expect(driverJobSchema.parse(job).tripStage).toBeUndefined();
+  });
+
+  it('parses the stage and its timestamps', () => {
+    const parsed = driverJobSchema.parse({
+      ...job,
+      tripStage: 'arrived',
+      enRouteAt: '2026-01-01T10:06:00.000Z',
+      arrivedAt: '2026-01-01T10:12:00.000Z',
+    });
+    expect(parsed.tripStage).toBe('arrived');
+    expect(parsed.arrivedAt).toBe('2026-01-01T10:12:00.000Z');
+  });
+
+  it('rejects an unknown stage and a completed status', () => {
+    expect(driverJobSchema.safeParse({ ...job, tripStage: 'flying' }).success).toBe(false);
+    expect(driverJobSchema.safeParse({ ...job, status: 'completed' }).success).toBe(false);
+  });
 });

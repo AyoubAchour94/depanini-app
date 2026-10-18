@@ -118,6 +118,7 @@ export const requestStrings = {
   statusLabels: {
     open: 'Open',
     assigned: 'Assigned',
+    completed: 'Completed',
     cancelled: 'Cancelled',
     expired: 'Expired',
   },
