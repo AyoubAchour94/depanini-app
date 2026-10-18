@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // Shares the local stack on public URLs so a slice can be tried from a phone
-// anywhere: `pnpm share [user|driver]`.
+// anywhere: `pnpm share [user|driver|both]`.
 //
 // Opens Cloudflare quick tunnels (no account, random *.trycloudflare.com
 // hostnames) to the web app, the API and the Auth emulator, then starts the
-// API and Expo web with those URLs baked in. Postgres must already be up
+// API and Expo web with those URLs baked in. `both` shares the customer and
+// driver apps at once (two Expo web processes, a tunnel each). Postgres must already be up
 // (`pnpm db:up`); the Auth emulator is reused when it is already running.
 // Ctrl+C stops everything this script started.
 //
@@ -17,12 +18,15 @@ import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const variant = process.argv[2] ?? 'user';
-if (!['user', 'driver'].includes(variant)) fail(`Unknown variant "${variant}" (user | driver).`);
+import { corsOrigins, MODES, planApps, PORTS } from './share-plan.mjs';
 
-const PORTS = { web: 8081, api: 3000, emulator: 9099, db: 5432 };
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const mode = process.argv[2] ?? 'user';
 const children = [];
+if (!MODES.includes(mode)) fail(`Unknown variant "${mode}" (${MODES.join(' | ')}).`);
+
+// The Expo web apps to share: one per variant, each on its own port.
+const apps = planApps(mode);
 
 function fail(message) {
   console.error(`\n✖ ${message}`);
@@ -138,7 +142,7 @@ process.on('SIGINT', () => {
 if (!(await isListening(PORTS.db))) fail('Postgres is not running. Start it with `pnpm db:up`.');
 for (const [label, port] of [
   ['API', PORTS.api],
-  ['Expo', PORTS.web],
+  ...apps.map((app) => [`Expo ${app.variant}`, app.port]),
 ]) {
   if (await isListening(port)) {
     fail(`Port ${port} is busy (${label} already running?). Stop it first; share starts its own.`);
@@ -149,11 +153,12 @@ const binary = cloudflaredPath();
 // --- tunnels ---------------------------------------------------------------
 
 log('opening tunnels…');
-const [webUrl, apiUrl, emulatorUrl] = await Promise.all([
-  tunnel('web', PORTS.web, binary),
+const [apiUrl, emulatorUrl, ...webUrls] = await Promise.all([
   tunnel('api', PORTS.api, binary),
   tunnel('emulator', PORTS.emulator, binary),
+  ...apps.map((app) => tunnel(apps.length > 1 ? `web:${app.variant}` : 'web', app.port, binary)),
 ]);
+const publicUrls = Object.fromEntries(apps.map((app, i) => [app.variant, webUrls[i]]));
 
 // --- services --------------------------------------------------------------
 
@@ -169,36 +174,55 @@ log('starting the API…');
 start('api', 'pnpm', ['--filter', '@depanini/api', 'start:dev'], {
   shell: true,
   echo: true,
-  env: { CORS_ORIGINS: `http://localhost:${PORTS.web},${webUrl}` },
+  env: { CORS_ORIGINS: corsOrigins(apps, publicUrls).join(',') },
 });
 
-log(`starting Expo web (${variant})…`);
-start('expo', 'pnpm', ['exec', 'expo', 'start', '--web', '--clear', '--port', String(PORTS.web)], {
-  cwd: path.join(root, 'apps/mobile'),
-  shell: true,
-  env: {
-    CI: '1',
-    BROWSER: 'none',
-    APP_VARIANT: variant,
-    // Process env wins over apps/mobile/.env, so the bundle gets the public URLs.
-    EXPO_PUBLIC_WEB_API_URL: apiUrl,
-    EXPO_PUBLIC_WEB_AUTH_EMULATOR_URL: emulatorUrl,
-  },
-});
-await Promise.all([waitFor(PORTS.api, 'API'), waitFor(PORTS.web, 'Expo')]);
+for (const app of apps) {
+  log(`starting Expo web (${app.variant}, port ${app.port})…`);
+  start(
+    `expo:${app.variant}`,
+    'pnpm',
+    ['exec', 'expo', 'start', '--web', '--clear', '--port', String(app.port)],
+    {
+      cwd: path.join(root, 'apps/mobile'),
+      shell: true,
+      env: {
+        CI: '1',
+        BROWSER: 'none',
+        APP_VARIANT: app.variant,
+        // Process env wins over apps/mobile/.env, so the bundle gets the public URLs.
+        EXPO_PUBLIC_WEB_API_URL: apiUrl,
+        EXPO_PUBLIC_WEB_AUTH_EMULATOR_URL: emulatorUrl,
+      },
+    },
+  );
+}
+await Promise.all([
+  waitFor(PORTS.api, 'API'),
+  ...apps.map((app) => waitFor(app.port, `Expo ${app.variant}`)),
+]);
 
-// Build the bundle once so the first phone visit doesn't wait on Metro.
+// Build each bundle once so the first phone visit doesn't wait on Metro.
 log('warming the web bundle…');
-const html = await fetch(`http://localhost:${PORTS.web}/`).then((r) => r.text());
-const bundle = /<script src="([^"]+)"/.exec(html)?.[1];
-if (bundle) await fetch(new URL(bundle, `http://localhost:${PORTS.web}`)).then((r) => r.text());
+await Promise.all(
+  apps.map(async ({ port }) => {
+    const html = await fetch(`http://localhost:${port}/`).then((r) => r.text());
+    const bundle = /<script src="([^"]+)"/.exec(html)?.[1];
+    if (bundle) await fetch(new URL(bundle, `http://localhost:${port}`)).then((r) => r.text());
+  }),
+);
+
+const appLinks =
+  mode === 'both'
+    ? `    Customer  ${publicUrls.user}\n    Driver    ${publicUrls.driver}`
+    : `    App       ${publicUrls[mode]}`;
 
 console.log(`
-  Depanini (${variant}) is shared:
+  Depanini (${mode}) is shared:
 
-    App       ${webUrl}
+${appLinks}
     API       ${apiUrl}
     Emulator  ${emulatorUrl}
 
-  Open the App link on your phone. Ctrl+C stops everything.
+  Open the ${mode === 'both' ? 'app links' : 'App link'} on your phone. Ctrl+C stops everything.
 `);
