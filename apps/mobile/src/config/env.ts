@@ -18,6 +18,8 @@ const envSchema = z.object({
   environment: z.enum(['dev', 'staging', 'prod']).catch('dev'),
   /** Firebase Auth emulator (e.g. `http://localhost:9099`); unset to use the real project. */
   authEmulatorUrl: z.url().optional().catch(undefined),
+  /** Lets the driver app pretend to be at a chosen place in Tunisia; never on in store builds by default. */
+  enableTestLocation: z.boolean(),
 });
 
 export const env = envSchema.parse({
@@ -34,4 +36,5 @@ export const env = envSchema.parse({
     Platform.OS === 'web'
       ? (process.env.EXPO_PUBLIC_WEB_AUTH_EMULATOR_URL ?? process.env.EXPO_PUBLIC_AUTH_EMULATOR_URL)
       : process.env.EXPO_PUBLIC_AUTH_EMULATOR_URL,
+  enableTestLocation: __DEV__ || process.env.EXPO_PUBLIC_ENABLE_TEST_LOCATION === '1',
 });

@@ -12,6 +12,15 @@ export const driverStrings = {
   loadFailed: 'Could not load requests. Retrying…',
   empty: 'No requests nearby right now',
 
+  testLocationTitle: 'Test location',
+  testLocationUsingGps: 'Using: device GPS',
+  testLocationUsing: (where: string) => `Using: ${where} (test)`,
+  setOnMap: 'Set on map',
+  useDeviceGps: 'Use device GPS',
+  confirmTestLocation: 'Use this location',
+  findingAddress: 'Finding the address…',
+  outsideTunisia: 'Move the pin to a place in Tunisia.',
+
   distanceToPickup: (m: number) => `${(m / 1000).toFixed(1)} km away`,
   route: (pickup: string, dropoff: string) => `${pickup} → ${dropoff}`,
   timeLeft: (time: string) => `${time} left`,

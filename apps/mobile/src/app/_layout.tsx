@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 
 import { useMe } from '@/api/me';
 import { AuthProvider, useAuth } from '@/auth/AuthProvider';
+import { env } from '@/config/env';
 import { driverStrings } from '@/features/driver/strings';
 import { hasProfileFor } from '@/features/profile/onboarding';
 import { RequestFlowProvider } from '@/features/request/RequestFlowContext';
@@ -88,6 +89,9 @@ function RootNavigator() {
           name="job"
           options={{ title: driverStrings.jobTitle, headerBackVisible: false }}
         />
+      </Stack.Protected>
+      <Stack.Protected guard={onboarded && variant.isDriverApp && env.enableTestLocation}>
+        <Stack.Screen name="test-location" options={{ title: driverStrings.testLocationTitle }} />
       </Stack.Protected>
       <Stack.Protected guard={Boolean(account) && !onboarded}>
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
