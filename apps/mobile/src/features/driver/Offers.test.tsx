@@ -116,6 +116,8 @@ async function renderApp(initialUrl = '/') {
 }
 
 const flush = () => act(async () => jest.advanceTimersByTime(0));
+const pickReason = async (name: string) =>
+  act(async () => fireEvent.press(screen.getByRole('radio', { name })));
 const press = async (name: string | RegExp) => {
   await act(async () => fireEvent.press(screen.getByRole('button', { name })));
   await flush();
@@ -313,6 +315,7 @@ describe('the job', () => {
     await renderApp('/job');
     await flush();
 
+    await pickReason('Unsafe situation');
     await press('Cancel job');
     expect(api.calls(`POST /tow-requests/${REQUEST_ID}/cancel`)).toHaveLength(0);
   });
@@ -326,10 +329,14 @@ describe('the job', () => {
     await flush();
 
     server.job = null;
+    await pickReason('Unsafe situation');
     await press('Cancel job');
     await flush();
 
     expect(api.calls(`POST /tow-requests/${REQUEST_ID}/cancel`)).toHaveLength(1);
+    expect(api.calls(`POST /tow-requests/${REQUEST_ID}/cancel`)[0]?.body).toEqual({
+      reason: 'unsafe',
+    });
     expect(view.getPathname()).toBe('/');
     expect(screen.queryByText('Current job')).toBeNull();
   });
@@ -343,6 +350,7 @@ describe('the job', () => {
     await renderApp('/job');
     await flush();
 
+    await pickReason('Unsafe situation');
     await press('Cancel job');
     expect(await screen.findByText('Could not cancel the job. Try again.')).toBeOnTheScreen();
   });

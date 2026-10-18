@@ -39,7 +39,17 @@ const request = {
   distanceToPickupM: 4_000,
 };
 
+const job = {
+  ...request,
+  status: 'assigned',
+  agreedFare: 60,
+  assignedAt: '2026-01-01T10:01:00.000Z',
+  createdAt: '2026-01-01T09:55:00.000Z',
+  customer: { fullName: 'Sami Trabelsi', phone: '+21620123456' },
+};
+
 let nearbyBody: unknown[] = [];
+let jobBody: unknown | null = null;
 // When set, `online: true` presence requests wait for it.
 let holdOnline: Promise<void> | null = null;
 
@@ -54,7 +64,9 @@ function mockApi() {
       if (holdOnline && JSON.parse(String(init?.body)).online) await holdOnline;
       return Response.json({ online: JSON.parse(String(init?.body)).online });
     }
-    if (path === '/driver/job') return new Response(null, { status: 204 });
+    if (path === '/driver/job') {
+      return jobBody ? Response.json(jobBody) : new Response(null, { status: 204 });
+    }
     if (path === '/driver/offers/active') return Response.json([]);
     return Response.json(nearbyBody);
   });
@@ -89,6 +101,7 @@ beforeEach(() => {
   jest.useFakeTimers();
   jest.setSystemTime(new Date('2026-01-01T10:00:00.000Z'));
   nearbyBody = [];
+  jobBody = null;
   holdOnline = null;
   location.requestForegroundPermissionsAsync.mockResolvedValue({ granted: true } as never);
   location.getCurrentPositionAsync.mockResolvedValue({
@@ -99,6 +112,68 @@ afterEach(() => {
   jest.useRealTimers();
   jest.restoreAllMocks();
   jest.clearAllMocks();
+});
+
+/** Moves the clock a second at a time until the job card is (or is not) on the screen. */
+async function untilShown(text: string, shown = true) {
+  for (let i = 0; i < 30 && !!screen.queryByText(text) !== shown; i++) {
+    await act(async () => jest.advanceTimersByTime(1_000));
+    await flush();
+  }
+}
+
+describe('DriverHome presence interval', () => {
+  it('sends every 5 seconds while a job exists', async () => {
+    jobBody = job;
+    const api = mockApi();
+    await renderHome();
+    await flush();
+    await goOnline();
+    expect(api.calls('PUT /driver/presence')).toHaveLength(1);
+
+    await act(async () => jest.advanceTimersByTime(5_000));
+    await flush();
+    expect(api.calls('PUT /driver/presence')).toHaveLength(2);
+    await act(async () => jest.advanceTimersByTime(5_000));
+    await flush();
+    expect(api.calls('PUT /driver/presence')).toHaveLength(3);
+  });
+
+  it('speeds up when a job appears and slows down when it ends, without leaking timers', async () => {
+    const api = mockApi();
+    await renderHome();
+    await flush();
+    await goOnline();
+    await act(async () => jest.advanceTimersByTime(15_000));
+    await flush();
+    expect(api.calls('PUT /driver/presence')).toHaveLength(2);
+    const timersAtFifteen = jest.getTimerCount();
+
+    // The next job poll finds the job: a send right away, then every 5 s.
+    jobBody = job;
+    await untilShown('Current job');
+    await flush();
+    const afterStart = api.calls('PUT /driver/presence').length;
+    expect(afterStart).toBeGreaterThan(2);
+    await act(async () => jest.advanceTimersByTime(5_000));
+    await flush();
+    expect(api.calls('PUT /driver/presence')).toHaveLength(afterStart + 1);
+
+    // The job ends at the next poll: back to every 15 s.
+    jobBody = null;
+    await untilShown('Current job', false);
+    await flush();
+    const afterEnd = api.calls('PUT /driver/presence').length;
+    await act(async () => jest.advanceTimersByTime(14_000));
+    await flush();
+    // The switch back sent at once; nothing more until a full 15 s have passed.
+    expect(api.calls('PUT /driver/presence')).toHaveLength(afterEnd);
+    await act(async () => jest.advanceTimersByTime(1_000));
+    await flush();
+    expect(api.calls('PUT /driver/presence')).toHaveLength(afterEnd + 1);
+    // Each switch replaced the interval instead of adding one.
+    expect(jest.getTimerCount()).toBeLessThanOrEqual(timersAtFifteen);
+  });
 });
 
 describe('DriverHome presence', () => {

@@ -27,8 +27,12 @@ import { useDriverPresence } from './usePresence';
 export function DriverHome() {
   const theme = useTheme();
   const focused = useIsFocused();
-  const { online, problem, goOnline, goOffline } = useDriverPresence(focused);
   const job = useDriverJob({ poll: focused });
+  // The location keeps going (faster) while a job is open, also on the job screen.
+  const { online, problem, goOnline, goOffline } = useDriverPresence(
+    focused || !!job.data,
+    !!job.data,
+  );
   const nearby = useNearbyRequests({ enabled: online && !job.data, poll: focused });
 
   return (

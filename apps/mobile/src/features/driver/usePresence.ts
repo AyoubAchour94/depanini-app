@@ -1,6 +1,6 @@
-import { isInTunisia } from '@depanini/shared';
+import { isInTunisia, type LatLng } from '@depanini/shared';
 import * as Location from 'expo-location';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import { putPresence } from '@/api/driver';
 
@@ -15,20 +15,46 @@ async function currentPosition() {
 
 /** How often an online driver's location is sent. The API treats 2 minutes of silence as offline. */
 export const PRESENCE_INTERVAL_MS = 15_000;
+/** The faster rate while the driver has a job, so the customer sees the truck move. */
+export const JOB_PRESENCE_INTERVAL_MS = 5_000;
+
+// The last location that went to the API, for the truck marker on the job map.
+let lastSent: LatLng | null = null;
+const listeners = new Set<() => void>();
+const subscribe = (listener: () => void) => {
+  listeners.add(listener);
+  return () => void listeners.delete(listener);
+};
+
+function setLastSent(location: LatLng | null) {
+  lastSent = location;
+  for (const listener of listeners) listener();
+}
+
+/** Where the truck last reported from, or null before the first send or after going offline. */
+export function useTruckLocation(): LatLng | null {
+  return useSyncExternalStore(
+    subscribe,
+    () => lastSent,
+    () => lastSent,
+  );
+}
 
 export type PresenceProblem = 'denied' | 'unavailable' | null;
 
 /**
  * The driver's online switch. Online state lives in memory only, so every app
  * start begins offline. While online and `focused`, the location goes to the
- * API right away and every {@link PRESENCE_INTERVAL_MS} after; a blur or an
+ * API right away and every {@link PRESENCE_INTERVAL_MS} after (every
+ * {@link JOB_PRESENCE_INTERVAL_MS} while `hasJob`); a blur or an
  * unmount stops it (the API lets the driver lapse), and switching off tells
  * the API at once.
  *
  * Sends never overlap (a tick is skipped while one is pending), and the
  * `online: false` request always goes out after any `online: true` one.
  */
-export function useDriverPresence(focused: boolean) {
+export function useDriverPresence(focused: boolean, hasJob = false) {
+  const intervalMs = hasJob ? JOB_PRESENCE_INTERVAL_MS : PRESENCE_INTERVAL_MS;
   const [online, setOnline] = useState(false);
   const [problem, setProblem] = useState<PresenceProblem>(null);
   const mounted = useRef(true);
@@ -64,6 +90,7 @@ export function useDriverPresence(focused: boolean) {
         const request = putPresence({ online: true, location });
         wire.current = request;
         await request;
+        if (started === generation.current) setLastSent(location);
       } catch {
         // Offline or no fix right now: the next tick tries again.
       } finally {
@@ -71,12 +98,12 @@ export function useDriverPresence(focused: boolean) {
       }
     };
     void send();
-    const timer = setInterval(() => void send(), PRESENCE_INTERVAL_MS);
+    const timer = setInterval(() => void send(), intervalMs);
     return () => {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [online, focused]);
+  }, [online, focused, intervalMs]);
 
   const goOnline = useCallback(async () => {
     if (promptPending.current) return;
@@ -101,6 +128,7 @@ export function useDriverPresence(focused: boolean) {
 
   const goOffline = useCallback(() => {
     generation.current += 1;
+    setLastSent(null);
     setOnline(false);
     setProblem(null);
     const inFlight = wire.current;
