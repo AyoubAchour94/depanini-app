@@ -1,0 +1,290 @@
+// End-to-end flow check against a running stack (API + Auth emulator + Postgres).
+// Creates two throwaway emulator accounts, walks the customer + driver flow over
+// HTTP, checks every response against the @depanini/shared schemas, then deletes
+// both accounts. See README "End-to-end flow check".
+//
+// To add a step, append `{ name, run(ctx) }` to STEPS. Steps run in order and share `ctx`.
+import { createRequire } from 'node:module';
+import assert from 'node:assert/strict';
+
+const require = createRequire(import.meta.url);
+// Built shared package (`pnpm --filter @depanini/shared build`).
+const shared = require('../../packages/shared/dist/index.js');
+
+const API = (process.env.E2E_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+const EMULATOR = (process.env.E2E_AUTH_EMULATOR ?? 'http://127.0.0.1:9099').replace(/\/$/, '');
+const run = Date.now().toString(36);
+
+const TUNIS_PICKUP = {
+  latitude: 36.8065,
+  longitude: 10.1815,
+  address: 'Avenue Habib Bourguiba, Tunis',
+};
+const TUNIS_DROPOFF = { latitude: 36.8625, longitude: 10.1956, address: 'La Marsa, Tunis' };
+
+/** A fetch against the API as `user`; checks the status and, if given, the response schema. */
+async function api(user, method, path, { body, expect = 200, schema } = {}) {
+  const res = await fetch(`${API}${path}`, {
+    method,
+    headers: {
+      authorization: `Bearer ${user.idToken}`,
+      ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const text = await res.text();
+  const json = text ? JSON.parse(text) : undefined;
+  assert.equal(
+    res.status,
+    expect,
+    `${method} ${path}: expected ${expect}, got ${res.status} ${text}`,
+  );
+  if (schema) {
+    const parsed = schema.safeParse(json);
+    assert.ok(parsed.success, `${method} ${path}: response does not match schema: ${parsed.error}`);
+  }
+  return json;
+}
+
+async function signUp(label) {
+  const res = await fetch(
+    `${EMULATOR}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake-api-key`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        email: `e2e-${label}-${run}@example.test`,
+        password: 'e2e-password-1',
+        returnSecureToken: true,
+      }),
+    },
+  );
+  const text = await res.text();
+  assert.equal(res.status, 200, `emulator signUp failed: ${res.status} ${text}`);
+  return JSON.parse(text);
+}
+
+async function deleteEmulatorUser(user) {
+  await fetch(`${EMULATOR}/identitytoolkit.googleapis.com/v1/accounts:delete?key=fake-api-key`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ idToken: user.idToken }),
+  });
+}
+
+const STEPS = [
+  {
+    name: 'sign up customer and driver in the Auth emulator',
+    async run(ctx) {
+      ctx.customer = await signUp('customer');
+      ctx.driver = await signUp('driver');
+    },
+  },
+  {
+    name: 'GET /me creates both accounts without profiles',
+    async run({ customer, driver }) {
+      for (const user of [customer, driver]) {
+        const me = await api(user, 'GET', '/me', { schema: shared.meResponseSchema });
+        assert.equal(me.customerProfile, null);
+        assert.equal(me.driverProfile, null);
+      }
+    },
+  },
+  {
+    name: 'save the customer profile',
+    async run({ customer }) {
+      const profile = await api(customer, 'PUT', '/me/customer-profile', {
+        body: { fullName: 'E2E Customer', phone: '+21620000001' },
+        schema: shared.customerProfileSchema,
+      });
+      assert.equal(profile.phone, '+21620000001');
+      const me = await api(customer, 'GET', '/me', { schema: shared.meResponseSchema });
+      assert.equal(me.customerProfile?.fullName, 'E2E Customer');
+    },
+  },
+  {
+    name: 'save the driver profile',
+    async run({ driver }) {
+      const profile = await api(driver, 'PUT', '/me/driver-profile', {
+        body: {
+          fullName: 'E2E Driver',
+          phone: '+21620000002',
+          truckType: 'flatbed',
+          plateNumber: ' 123 tu 4567 ',
+        },
+        schema: shared.driverProfileSchema,
+      });
+      assert.equal(profile.plateNumber, '123 TU 4567');
+    },
+  },
+  {
+    name: 'estimate the fare',
+    async run(ctx) {
+      ctx.estimate = await api(ctx.customer, 'POST', '/tow-requests/estimate', {
+        body: { pickup: TUNIS_PICKUP, dropoff: TUNIS_DROPOFF, vehicleType: 'car' },
+        schema: shared.fareEstimateSchema,
+      });
+      assert.ok(ctx.estimate.minFare <= ctx.estimate.suggestedFare);
+      assert.ok(ctx.estimate.suggestedFare <= ctx.estimate.maxFare);
+    },
+  },
+  {
+    name: 'create a tow request',
+    async run(ctx) {
+      const request = await api(ctx.customer, 'POST', '/tow-requests', {
+        expect: 201,
+        body: {
+          pickup: TUNIS_PICKUP,
+          dropoff: TUNIS_DROPOFF,
+          vehicleType: 'car',
+          problemType: 'breakdown',
+          note: `e2e ${run}`,
+          proposedFare: ctx.estimate.suggestedFare,
+        },
+        schema: shared.towRequestSchema,
+      });
+      assert.equal(request.status, 'open');
+      ctx.request = request;
+    },
+  },
+  {
+    name: 'driver goes online near the pickup and sees the request nearby',
+    async run(ctx) {
+      const presence = await api(ctx.driver, 'PUT', '/driver/presence', {
+        body: {
+          online: true,
+          location: { latitude: TUNIS_PICKUP.latitude + 0.002, longitude: TUNIS_PICKUP.longitude },
+        },
+        schema: shared.driverPresenceSchema,
+      });
+      assert.equal(presence.online, true);
+      const nearby = await api(ctx.driver, 'GET', '/driver/requests/nearby');
+      assert.ok(Array.isArray(nearby));
+      for (const item of nearby) assert.ok(shared.nearbyRequestSchema.safeParse(item).success);
+      assert.ok(
+        nearby.some((item) => item.id === ctx.request.id),
+        'the new request is not in nearby',
+      );
+    },
+  },
+  {
+    name: 'driver counter-offers and the customer sees the offer',
+    async run(ctx) {
+      const { suggestedFare, minFare, maxFare } = ctx.estimate;
+      const counter =
+        suggestedFare + 1 <= maxFare ? suggestedFare + 1 : Math.max(minFare, suggestedFare - 1);
+      const offer = await api(ctx.driver, 'POST', `/tow-requests/${ctx.request.id}/offers`, {
+        expect: 201,
+        body: { fare: counter },
+        schema: shared.offerSchema,
+      });
+      assert.equal(offer.status, 'pending');
+      assert.equal(offer.fare, counter);
+      ctx.offer = offer;
+
+      const offers = await api(ctx.customer, 'GET', `/tow-requests/${ctx.request.id}/offers`);
+      assert.ok(Array.isArray(offers));
+      for (const item of offers) assert.ok(shared.customerOfferSchema.safeParse(item).success);
+      assert.ok(
+        offers.some((item) => item.id === offer.id),
+        'the customer does not see the offer',
+      );
+    },
+  },
+  {
+    name: 'customer accepts the offer',
+    async run(ctx) {
+      const request = await api(ctx.customer, 'POST', `/offers/${ctx.offer.id}/accept`, {
+        schema: shared.towRequestSchema,
+      });
+      assert.equal(request.status, 'assigned');
+      assert.equal(request.agreedFare, ctx.offer.fare);
+    },
+  },
+  {
+    name: 'customer active request is assigned with driver contact',
+    async run(ctx) {
+      const active = await api(ctx.customer, 'GET', '/tow-requests/active', {
+        schema: shared.towRequestSchema,
+      });
+      assert.equal(active.id, ctx.request.id);
+      assert.equal(active.status, 'assigned');
+      assert.equal(active.driver?.fullName, 'E2E Driver');
+      assert.equal(active.driver?.phone, '+21620000002');
+    },
+  },
+  {
+    name: 'driver job has the customer contact',
+    async run(ctx) {
+      const job = await api(ctx.driver, 'GET', '/driver/job', { schema: shared.driverJobSchema });
+      assert.equal(job.id, ctx.request.id);
+      assert.equal(job.customer.fullName, 'E2E Customer');
+      assert.equal(job.customer.phone, '+21620000001');
+    },
+  },
+  {
+    name: 'driver cancels with no reason and both sides see it end',
+    async run(ctx) {
+      const cancelled = await api(ctx.driver, 'POST', `/tow-requests/${ctx.request.id}/cancel`, {
+        schema: shared.towRequestSchema,
+      });
+      assert.equal(cancelled.status, 'cancelled');
+      await api(ctx.driver, 'GET', '/driver/job', { expect: 204 });
+      await api(ctx.customer, 'GET', '/tow-requests/active', { expect: 204 });
+      const history = await api(ctx.customer, 'GET', '/tow-requests', {
+        schema: shared.towRequestPageSchema,
+      });
+      assert.equal(history.items.find((item) => item.id === ctx.request.id)?.status, 'cancelled');
+    },
+  },
+];
+
+/** Runs whether the flow passed or failed, so no data is left behind. */
+async function cleanup(ctx) {
+  const problems = [];
+  for (const user of [ctx.customer, ctx.driver]) {
+    if (!user) continue;
+    try {
+      await api(user, 'DELETE', '/me', { expect: 204 });
+    } catch (error) {
+      problems.push(error.message);
+    }
+    await deleteEmulatorUser(user).catch(() => {});
+  }
+  return problems;
+}
+
+async function main() {
+  console.log(`API ${API}, Auth emulator ${EMULATOR}`);
+  const ctx = {};
+  let failed = false;
+  for (const step of STEPS) {
+    const started = performance.now();
+    try {
+      await step.run(ctx);
+      console.log(`✓ ${step.name} (${Math.round(performance.now() - started)} ms)`);
+    } catch (error) {
+      console.log(`✗ ${step.name} (${Math.round(performance.now() - started)} ms)`);
+      console.log(`  ${error.message}`);
+      failed = true;
+      break;
+    }
+  }
+
+  const started = performance.now();
+  const problems = await cleanup(ctx);
+  const took = `${Math.round(performance.now() - started)} ms`;
+  if (problems.length) {
+    console.log(`✗ cleanup: DELETE /me for both accounts (${took})`);
+    for (const problem of problems) console.log(`  ${problem}`);
+  } else {
+    console.log(`✓ cleanup: DELETE /me for both accounts (${took})`);
+  }
+  if (failed || problems.length) process.exit(1);
+  console.log('All steps passed.');
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
