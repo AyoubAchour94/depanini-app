@@ -7,7 +7,7 @@ import { Button } from '@/ui/Button';
 import { requestStrings as t } from './strings';
 import { truckTypeLabel } from './truck';
 
-/** Who is coming, how to reach them and the fare agreed; real call UX comes in Phase 5. */
+/** Who is coming, how to reach them (no phone or plate once completed) and the fare agreed. */
 export function AssignedDriver({ request }: { request: TowRequest }) {
   const theme = useTheme();
   const { driver, agreedFare } = request;
@@ -15,15 +15,19 @@ export function AssignedDriver({ request }: { request: TowRequest }) {
   return (
     <View style={[styles.card, { backgroundColor: theme.surface }]}>
       <Row label={t.driverLabel} value={driver.fullName} />
-      <Row label={t.phoneLabel} value={driver.phone} />
-      <Button
-        kind="link"
-        title={`${t.callDriver} ${driver.phone}`}
-        onPress={() => void Linking.openURL(`tel:${driver.phone}`)}
-      />
+      {driver.phone ? (
+        <>
+          <Row label={t.phoneLabel} value={driver.phone} />
+          <Button
+            kind="link"
+            title={`${t.callDriver} ${driver.phone}`}
+            onPress={() => void Linking.openURL(`tel:${driver.phone}`)}
+          />
+        </>
+      ) : null}
       <Row
         label={t.truckLabel}
-        value={`${truckTypeLabel(driver.truckType)} · ${driver.plateNumber}`}
+        value={[truckTypeLabel(driver.truckType), driver.plateNumber].filter(Boolean).join(' · ')}
       />
       {agreedFare ? (
         <View>

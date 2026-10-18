@@ -3,7 +3,13 @@ import type { WsServerMessage } from '@depanini/shared';
 import type { WebSocket } from 'ws';
 
 /** The slice of a `ws` socket the registry uses; easy to fake in tests. */
-export type RealtimeSocket = Pick<WebSocket, 'send' | 'readyState' | 'OPEN'>;
+export type RealtimeSocket = Pick<WebSocket, 'send' | 'close' | 'readyState' | 'OPEN'>;
+
+/** Most sockets one user may have open; a sixth replaces the oldest. */
+export const MAX_SOCKETS_PER_USER = 5;
+
+/** Close code for a socket pushed out by newer ones (4000–4999 are the application's own). */
+export const CLOSE_TOO_MANY_SOCKETS = 4000;
 
 /**
  * The authenticated `/ws` sockets of this API instance, by user id (one user may
@@ -17,8 +23,14 @@ export type RealtimeSocket = Pick<WebSocket, 'send' | 'readyState' | 'OPEN'>;
 export class RealtimeService {
   private readonly sockets = new Map<string, Set<RealtimeSocket>>();
 
+  /** Adds a socket; past {@link MAX_SOCKETS_PER_USER} the oldest is closed (4000). */
   add(userId: string, socket: RealtimeSocket): void {
     const sockets = this.sockets.get(userId) ?? new Set();
+    while (sockets.size >= MAX_SOCKETS_PER_USER) {
+      const [oldest] = sockets;
+      sockets.delete(oldest);
+      oldest.close(CLOSE_TOO_MANY_SOCKETS, 'Too many connections');
+    }
     sockets.add(socket);
     this.sockets.set(userId, sockets);
   }

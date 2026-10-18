@@ -126,13 +126,16 @@ export const towRequestSchema = z.object({
   /** Whole dinars; set once the request is assigned. */
   agreedFare: z.number().int().positive().nullish(),
   assignedAt: z.iso.datetime().nullish(),
-  /** The assigned driver's contact; present only when the request is assigned. */
+  /**
+   * The assigned driver. The phone and plate are only for an assigned request; on a
+   * completed one (kept for the summary) they are null.
+   */
   driver: z
     .object({
       fullName: z.string(),
-      phone: z.string(),
+      phone: z.string().nullish(),
       truckType: truckTypeSchema,
-      plateNumber: z.string(),
+      plateNumber: z.string().nullish(),
     })
     .nullish(),
   /** Where the assigned request is in the trip; null for requests assigned before trips existed. */

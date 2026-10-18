@@ -149,6 +149,15 @@ describe('towRequestSchema, assigned', () => {
     expect(parsed.agreedFare).toBe(70);
   });
 
+  it('parses a completed request whose driver has no phone or plate', () => {
+    const driver = { fullName: 'Ali', phone: null, truckType: 'flatbed', plateNumber: null };
+    const parsed = towRequestSchema.parse({ ...base, status: 'completed', driver });
+    expect(parsed.driver?.phone).toBeNull();
+    expect(parsed.driver?.plateNumber).toBeNull();
+    const bare = { fullName: 'Ali', truckType: 'flatbed' };
+    expect(towRequestSchema.safeParse({ ...base, driver: bare }).success).toBe(true);
+  });
+
   it('rejects a bad agreed fare or driver truck type', () => {
     expect(towRequestSchema.safeParse({ ...base, agreedFare: 7.5 }).success).toBe(false);
     expect(

@@ -12,6 +12,7 @@ import type { DecodedIdToken } from 'firebase-admin/auth';
 import request from 'supertest';
 
 import { users } from '../src/db/schema.js';
+import { RealtimeService } from '../src/realtime/realtime.service.js';
 import { createTestApp, fakeVerifier } from './support/test-app.js';
 import { connectTestDatabase } from './support/test-database.js';
 import { connectAs, openSocket, type TestSocket } from './support/ws-client.js';
@@ -153,6 +154,12 @@ describe('realtime /ws (e2e)', () => {
       const started = Date.now();
       expect((await client.closed).code).toBe(4408);
       expect(Date.now() - started).toBeGreaterThanOrEqual(AUTH_TIMEOUT_MS - 50);
+    });
+
+    it('closes a socket that sends a frame over 16 KiB', async () => {
+      const client = await open();
+      client.socket.send('x'.repeat(16 * 1024 + 1));
+      expect((await client.closed).code).toBe(1009);
     });
 
     it('ignores messages before auth, then still accepts auth', async () => {
@@ -315,10 +322,27 @@ describe('realtime /ws (e2e)', () => {
       expect(forCustomer).toMatchObject({
         id: req.id,
         status: 'completed',
-        driver: { fullName: 'Dan Driver', truckType: 'flatbed' },
+        driver: { fullName: 'Dan Driver', truckType: 'flatbed', phone: null, plateNumber: null },
       });
       expect((await driver.next('request.updated')).request).toEqual(res.body);
       await expectQuiet(stranger);
+    });
+
+    it('still answers the REST call when publishing fails', async () => {
+      await assign();
+      for (const next of ['en_route', 'arrived', 'towing']) await stage(next);
+      await connect(alice);
+      const send = vi.spyOn(app.get(RealtimeService), 'send').mockImplementation(() => {
+        throw new Error('socket exploded');
+      });
+
+      try {
+        const res = await api('post', '/driver/job/complete', dan).expect(200);
+        expect(res.body).toMatchObject({ status: 'completed' });
+        expect(send).toHaveBeenCalled();
+      } finally {
+        send.mockRestore();
+      }
     });
 
     it('goes to both on cancel, with who cancelled and why', async () => {

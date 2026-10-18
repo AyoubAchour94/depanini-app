@@ -84,8 +84,8 @@ export const selectTowRequests = (db: Pick<Database, 'select'>) =>
     .leftJoin(driverPresence, eq(driverPresence.userId, towRequests.assignedDriverId));
 
 /**
- * A row as the apps see it. The driver's contact shows while the request is assigned, and
- * stays on a completed one for the trip summary. With `now`, an assigned request also gets
+ * A row as the apps see it. The driver shows while the request is assigned, with phone and plate;
+ * a completed one keeps the name and truck for the trip summary, without the contact. With `now`, an assigned request also gets
  * the driver's location (if fresh) and the ETA from it: to the pickup before `arrived`, to
  * the drop-off while `towing`.
  */
@@ -145,9 +145,10 @@ export function toTowRequest(row: Row, now?: Date): TowRequest {
       (row.status === 'assigned' || row.status === 'completed') && row.driverFullName
         ? {
             fullName: row.driverFullName,
-            phone: row.driverPhone!,
+            // The contact is only for the trip itself; the summary keeps name and truck.
+            phone: row.status === 'assigned' ? row.driverPhone! : null,
             truckType: row.driverTruckType!,
-            plateNumber: row.driverPlateNumber!,
+            plateNumber: row.status === 'assigned' ? row.driverPlateNumber! : null,
           }
         : null,
   };

@@ -235,7 +235,7 @@ describe('trip stages, completion and cancel rules (e2e)', () => {
       expect(history.body.items[0]).toMatchObject({ status: 'completed' });
     });
 
-    it('keeps the driver on the completed request for the customer', async () => {
+    it('keeps the driver on the completed request, without phone or plate', async () => {
       const req = await assign();
       await advanceTo('towing');
       await api('post', '/driver/job/complete', dan).expect(200);
@@ -245,7 +245,7 @@ describe('trip stages, completion and cancel rules (e2e)', () => {
         expect(completed).toMatchObject({
           id: req.id,
           status: 'completed',
-          driver: { fullName: 'Dan Driver', truckType: 'flatbed' },
+          driver: { fullName: 'Dan Driver', truckType: 'flatbed', phone: null, plateNumber: null },
         });
       }
     });

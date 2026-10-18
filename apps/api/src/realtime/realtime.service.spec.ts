@@ -2,8 +2,14 @@ import { RealtimeService, type RealtimeSocket } from './realtime.service.js';
 
 const fakeSocket = (readyState: RealtimeSocket['readyState'] = 1) => {
   const sent: string[] = [];
-  const socket: RealtimeSocket = { OPEN: 1, readyState, send: (data) => sent.push(String(data)) };
-  return { socket, sent };
+  const closed: number[] = [];
+  const socket: RealtimeSocket = {
+    OPEN: 1,
+    readyState,
+    send: (data) => sent.push(String(data)),
+    close: (code) => closed.push(code!),
+  };
+  return { socket, sent, closed };
 };
 
 describe('RealtimeService', () => {
@@ -41,6 +47,18 @@ describe('RealtimeService', () => {
     expect(realtime.isConnected('alice')).toBe(true);
     realtime.remove('alice', web.socket);
     expect(realtime.isConnected('alice')).toBe(false);
+  });
+
+  it('closes the oldest socket with 4000 when a sixth connects', () => {
+    const realtime = new RealtimeService();
+    const all = Array.from({ length: 6 }, () => fakeSocket());
+    for (const { socket } of all) realtime.add('alice', socket);
+
+    expect(all[0].closed).toEqual([4000]);
+    expect(all.slice(1).flatMap((s) => s.closed)).toEqual([]);
+    realtime.send('alice', { type: 'auth.ok' });
+    expect(all[0].sent).toEqual([]);
+    expect(all[5].sent).toHaveLength(1);
   });
 
   it('does nothing for a user without sockets', () => {
