@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { act, fireEvent, renderRouter, screen } from 'expo-router/testing-library';
 import { Alert, Linking } from 'react-native';
@@ -6,6 +6,7 @@ import { Alert, Linking } from 'react-native';
 import { DriverHome } from './DriverHome';
 import { JobScreen } from './JobScreen';
 import { RequestDetailsScreen } from './RequestDetailsScreen';
+import { createTestQueryClient } from '@/test/queryClient';
 
 jest.mock('expo-location', () => ({
   requestForegroundPermissionsAsync: jest.fn(),
@@ -95,9 +96,7 @@ function mockApi() {
 }
 
 async function renderApp(initialUrl = '/') {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { gcTime: Infinity, retry: false } },
-  });
+  const queryClient = createTestQueryClient();
   // The nearby list is only read from the cache, so seed it like the home would.
   queryClient.setQueryData(['driver', 'requests', 'nearby'], server.nearby);
   view = await renderRouter(

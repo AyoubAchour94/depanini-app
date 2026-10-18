@@ -1,10 +1,11 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { router as navigator, Slot } from 'expo-router';
 import { act, fireEvent, renderRouter, screen, waitFor } from 'expo-router/testing-library';
 import { Alert, Linking, Text } from 'react-native';
 
 import { ActiveRequestScreen } from './ActiveRequestScreen';
 import { RequestFlowProvider, useRequestFlow } from './RequestFlowContext';
+import { createTestQueryClient } from '@/test/queryClient';
 
 jest.mock('@/firebase/firebase', () => ({ getCurrentIdToken: async () => 'id-token' }));
 jest.mock('@/config/env', () => ({
@@ -97,9 +98,7 @@ function DraftProbe() {
 }
 
 function renderScreen() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { gcTime: Infinity, retry: false } },
-  });
+  const queryClient = createTestQueryClient();
   return renderRouter(
     {
       _layout: () => (

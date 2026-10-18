@@ -1,7 +1,8 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { HistoryScreen } from './HistoryScreen';
+import { createTestQueryClient } from '@/test/queryClient';
 
 jest.mock('@/firebase/firebase', () => ({ getCurrentIdToken: async () => 'id-token' }));
 jest.mock('@/config/env', () => ({
@@ -35,9 +36,7 @@ function mockPages(pages: Record<string, unknown>) {
 }
 
 async function renderHistory() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { gcTime: Infinity, retry: false } },
-  });
+  const queryClient = createTestQueryClient();
   await render(
     <QueryClientProvider client={queryClient}>
       <HistoryScreen />
