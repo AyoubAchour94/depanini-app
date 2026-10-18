@@ -64,15 +64,21 @@ export async function signOut(): Promise<void> {
  * (`auth/requires-recent-login`).
  */
 export async function reauthenticate(password: string): Promise<void> {
-  const user = auth().currentUser;
-  if (!user?.email)
-    throw Object.assign(new Error('No email user signed in'), { code: 'auth/no-current-user' });
-  await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, password));
+  const user = currentUserOrThrow();
+  await reauthenticateWithCredential(
+    user,
+    EmailAuthProvider.credential(user.email ?? '', password),
+  );
 }
 
 /** Deletes the signed-in Firebase user; the auth listener then reports a sign-out. */
 export async function deleteCurrentUser(): Promise<void> {
+  await deleteUser(currentUserOrThrow());
+}
+
+function currentUserOrThrow() {
   const user = auth().currentUser;
-  if (!user) throw Object.assign(new Error('No user signed in'), { code: 'auth/no-current-user' });
-  await deleteUser(user);
+  if (!user)
+    throw Object.assign(new Error('Nobody is signed in'), { code: 'auth/no-current-user' });
+  return user;
 }

@@ -322,5 +322,23 @@ describe('root navigation', () => {
       ).toBeOnTheScreen();
       expect(firebaseAuth.deleteCurrentUser).not.toHaveBeenCalled();
     });
+
+    it('can retry when the Firebase user survives the account deletion', async () => {
+      jest
+        .mocked(firebaseAuth.deleteCurrentUser)
+        .mockRejectedValueOnce(Object.assign(new Error(), { code: 'auth/requires-recent-login' }));
+      await openDeleteAccount();
+      await fireEvent.changeText(screen.getByLabelText('Password'), 'secret1');
+      await fireEvent.press(screen.getByRole('button', { name: 'Delete my account' }));
+
+      expect(
+        await screen.findByText('For your security, sign out and sign in again, then retry.'),
+      ).toBeOnTheScreen();
+
+      // DELETE /me succeeds again for the already-deleted account (204), so a retry finishes.
+      await fireEvent.press(screen.getByRole('button', { name: 'Delete my account' }));
+      expect(await screen.findByText('Sign in to continue.')).toBeOnTheScreen();
+      expect(requestsWith('DELETE')).toHaveLength(2);
+    });
   });
 });

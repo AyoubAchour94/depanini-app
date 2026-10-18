@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 import { ApiError } from '@/api/client';
 import { deleteAccount } from '@/api/me';
-import { authErrorMessage } from '@/auth/errors';
+import { authErrorCode, authErrorMessage } from '@/auth/errors';
 import { deleteCurrentUser, reauthenticate } from '@/auth/firebase-auth';
 import { AuthLayout } from '@/features/auth/AuthLayout';
 import { Button } from '@/ui/Button';
@@ -67,7 +67,7 @@ function deleteErrorMessage(error: Error): string {
     return 'Could not delete your account. Check your connection and try again.';
   }
   // Only the password is asked for here, so don't mention the email.
-  const code = 'code' in error ? error.code : undefined;
+  const code = authErrorCode(error);
   return code === 'auth/invalid-credential' || code === 'auth/wrong-password'
     ? 'Password is incorrect.'
     : authErrorMessage(error);
