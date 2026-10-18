@@ -1,19 +1,17 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react-native';
 
 import { env } from '@/config/env';
 
 import { MapScreen } from './MapScreen';
+import { createTestQueryClient } from '@/test/queryClient';
 
 jest.mock('@/config/env', () => ({
   env: { mapboxAccessToken: undefined, apiUrl: undefined, environment: 'dev' },
 }));
 
 async function renderScreen() {
-  const queryClient = new QueryClient({
-    // No cache GC timer, so Jest can exit as soon as the tests finish.
-    defaultOptions: { queries: { gcTime: Infinity } },
-  });
+  const queryClient = createTestQueryClient();
   return render(
     <QueryClientProvider client={queryClient}>
       <MapScreen />

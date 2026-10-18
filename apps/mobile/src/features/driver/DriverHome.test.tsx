@@ -1,10 +1,11 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import * as Location from 'expo-location';
 import { router, Stack } from 'expo-router';
 import { act, fireEvent, renderRouter, screen } from 'expo-router/testing-library';
 
 import { DriverHome } from './DriverHome';
 import { RequestDetailsScreen } from './RequestDetailsScreen';
+import { createTestQueryClient } from '@/test/queryClient';
 
 jest.mock('expo-location', () => ({
   requestForegroundPermissionsAsync: jest.fn(),
@@ -63,9 +64,7 @@ function mockApi() {
 }
 
 function renderHome() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { gcTime: Infinity, retry: false } },
-  });
+  const queryClient = createTestQueryClient();
   return renderRouter({
     _layout: () => (
       <QueryClientProvider client={queryClient}>

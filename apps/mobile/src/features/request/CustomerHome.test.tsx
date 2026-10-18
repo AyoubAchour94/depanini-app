@@ -1,9 +1,10 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, renderRouter, screen } from 'expo-router/testing-library';
 import { Slot } from 'expo-router';
 
 import { CustomerHome } from './CustomerHome';
 import { RequestFlowProvider } from './RequestFlowContext';
+import { createTestQueryClient } from '@/test/queryClient';
 
 jest.mock('@/firebase/firebase', () => ({
   getFirebaseStatus: () => ({ configured: true }),
@@ -38,9 +39,7 @@ function mockActive(body: unknown) {
 }
 
 function renderHome() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { gcTime: Infinity, retry: false } },
-  });
+  const queryClient = createTestQueryClient();
   return renderRouter({
     _layout: () => (
       <QueryClientProvider client={queryClient}>

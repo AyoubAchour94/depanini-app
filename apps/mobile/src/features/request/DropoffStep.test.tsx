@@ -1,15 +1,17 @@
 import type { Place } from '@depanini/shared';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 import { env } from '@/config/env';
 
 import { DropoffStep } from './DropoffStep';
+import { createTestQueryClient } from '@/test/queryClient';
 
 jest.mock('@/config/env', () => ({
   env: { mapboxAccessToken: 'pk.test', apiUrl: undefined, environment: 'dev' },
 }));
 
+const SEARCH_DEBOUNCE_MS = 300;
 const pickup: Place = { latitude: 36.8, longitude: 10.18, address: 'Tunis' };
 const marsa = 'La Marsa, Tunis, Tunisie';
 
@@ -18,9 +20,7 @@ function feature(name: string, coordinates: [number, number]) {
 }
 
 async function renderStep(onConfirm: (place: Place) => void = jest.fn()) {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { gcTime: Infinity, retry: false } },
-  });
+  const queryClient = createTestQueryClient();
   await render(
     <QueryClientProvider client={queryClient}>
       <DropoffStep pickup={pickup} onConfirm={onConfirm} />
@@ -29,7 +29,11 @@ async function renderStep(onConfirm: (place: Place) => void = jest.fn()) {
   return onConfirm;
 }
 
+// The search is debounced; fake timers let the tests step past it instead of waiting in real time.
+beforeEach(() => jest.useFakeTimers());
+
 afterEach(() => {
+  jest.useRealTimers();
   env.mapboxAccessToken = 'pk.test';
   jest.restoreAllMocks();
 });
@@ -42,6 +46,7 @@ describe('DropoffStep', () => {
     const onConfirm = await renderStep();
 
     await fireEvent.changeText(screen.getByLabelText('Where should it go?'), 'marsa');
+    await act(() => jest.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS));
     await fireEvent.press(await screen.findByRole('button', { name: marsa }));
 
     expect(onConfirm).toHaveBeenCalledWith({ latitude: 36.88, longitude: 10.32, address: marsa });
@@ -56,6 +61,7 @@ describe('DropoffStep', () => {
     await renderStep();
 
     await fireEvent.changeText(screen.getByLabelText('Where should it go?'), 'par');
+    await act(() => jest.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS));
     expect(await screen.findByRole('button', { name: marsa })).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Paris' })).toBeNull();
   });
@@ -65,6 +71,7 @@ describe('DropoffStep', () => {
     await renderStep();
 
     await fireEvent.changeText(screen.getByLabelText('Where should it go?'), 'zzzz');
+    await act(() => jest.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS));
     expect(await screen.findByText('No places found.')).toBeOnTheScreen();
   });
 

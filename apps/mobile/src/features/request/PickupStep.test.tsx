@@ -1,11 +1,12 @@
 import type { Place } from '@depanini/shared';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import * as Location from 'expo-location';
 
 import { env } from '@/config/env';
 
 import { PickupStep } from './PickupStep';
+import { createTestQueryClient } from '@/test/queryClient';
 
 jest.mock('expo-location', () => ({
   requestForegroundPermissionsAsync: jest.fn(),
@@ -25,9 +26,7 @@ const geocodeBody = {
 };
 
 async function renderStep(onConfirm: (place: Place) => void = jest.fn()) {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { gcTime: Infinity, retry: false } },
-  });
+  const queryClient = createTestQueryClient();
   await render(
     <QueryClientProvider client={queryClient}>
       <PickupStep onConfirm={onConfirm} />
