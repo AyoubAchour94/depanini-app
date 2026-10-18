@@ -47,6 +47,7 @@ apps/
 │   │   ├── auth/                 # FirebaseAuthGuard (verifies ID tokens)
 │   │   ├── accounts/             # GET /me (creates the account on first sign-in), DELETE /me, PUT /me/{customer,driver}-profile
 │   │   ├── common/               # ZodValidationPipe (request bodies via shared schemas)
+│   │   ├── realtime/             # WebSocket /ws: auth, fan-out of trip events (docs/realtime.md)
 │   │   └── health/               # GET /health
 │   ├── drizzle/                  # SQL migrations (0000 enables PostGIS)
 │   ├── test/                     # e2e tests (supertest over Fastify)
@@ -168,7 +169,7 @@ pnpm --filter @depanini/shared build
 pnpm db:up
 pnpm emulators                              # own terminal
 pnpm --filter @depanini/api start:dev       # own terminal
-pnpm e2e:flow                               # E2E_API_URL, E2E_AUTH_EMULATOR override the defaults
+pnpm e2e:flow                               # E2E_API_URL, E2E_AUTH_EMULATOR override the defaults; E2E_WS=off skips /ws
 ```
 
 It prints one line per step and exits non-zero on the first failure. Add steps
