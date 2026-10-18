@@ -45,7 +45,7 @@ apps/
 │   │   ├── config/               # zod-validated env, fails fast at boot
 │   │   ├── db/                   # Drizzle + pg pool, schema.ts
 │   │   ├── auth/                 # FirebaseAuthGuard (verifies ID tokens)
-│   │   ├── accounts/             # GET /me (creates the account on first sign-in), PUT /me/{customer,driver}-profile
+│   │   ├── accounts/             # GET /me (creates the account on first sign-in), DELETE /me, PUT /me/{customer,driver}-profile
 │   │   ├── common/               # ZodValidationPipe (request bodies via shared schemas)
 │   │   └── health/               # GET /health
 │   ├── drizzle/                  # SQL migrations (0000 enables PostGIS)

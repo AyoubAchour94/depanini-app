@@ -40,6 +40,7 @@ export function AccountScreen() {
         </View>
       ) : null}
       <Button title="Sign out" onPress={() => signOut.mutate()} loading={signOut.isPending} />
+      <Button kind="link" title="Delete account" onPress={() => router.push('/delete-account')} />
     </View>
   );
 }

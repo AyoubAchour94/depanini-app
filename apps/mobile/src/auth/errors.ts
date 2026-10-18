@@ -11,6 +11,8 @@ const messages: Record<string, string> = {
   'auth/network-request-failed': 'No connection. Check your internet and try again.',
   'auth/user-disabled': 'This account has been disabled.',
   'auth/operation-not-allowed': 'This sign-in method is not enabled yet.',
+  'auth/missing-password': 'Enter your password.',
+  'auth/requires-recent-login': 'For your security, sign out and sign in again, then retry.',
 };
 
 /** A message to show the user for an error thrown by Firebase Auth. */

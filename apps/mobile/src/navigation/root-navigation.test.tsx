@@ -1,9 +1,11 @@
+import { router } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { Text } from 'react-native';
 import { act, fireEvent, renderRouter, screen, waitFor } from 'expo-router/testing-library';
 
 import type { AuthUser } from '@/auth/firebase-auth';
 import * as firebaseAuth from '@/auth/firebase-auth';
+import DeleteAccount from '@/app/delete-account';
 import LoadingAccount from '@/app/loading-account';
 import Onboarding from '@/app/onboarding';
 import SignIn from '@/app/sign-in';
@@ -30,6 +32,9 @@ jest.mock('@/auth/firebase-auth', () => ({
   signUp: jest.fn(async () => {}),
   sendPasswordReset: jest.fn(async () => {}),
   signOut: jest.fn(async () => {}),
+  reauthenticate: jest.fn(async () => {}),
+  // Like Firebase, deleting the user signs them out.
+  deleteCurrentUser: jest.fn(async () => mockEmitUser(null)),
 }));
 
 // Each test picks the app it runs as; the customer app unless it says otherwise.
@@ -58,22 +63,27 @@ const driverProfile = {
   plateNumber: '123 TU 4567',
 };
 
-/** Fakes the API: `GET /me` answers with the given profiles, `PUT` echoes the profile back. */
+/**
+ * Fakes the API: `GET /me` answers with the given profiles, `PUT` echoes the
+ * profile back, `DELETE` answers 204.
+ */
 function mockApi(profiles: { customerProfile?: object; driverProfile?: object }) {
-  jest.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) =>
-    init?.method === 'PUT'
-      ? Response.json(JSON.parse(String(init.body)))
-      : Response.json({
-          ...me,
-          customerProfile: profiles.customerProfile ?? null,
-          driverProfile: profiles.driverProfile ?? null,
-        }),
-  );
+  jest.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+    if (init?.method === 'PUT') return Response.json(JSON.parse(String(init.body)));
+    if (init?.method === 'DELETE') return new Response(null, { status: 204 });
+    return Response.json({
+      ...me,
+      customerProfile: profiles.customerProfile ?? null,
+      driverProfile: profiles.driverProfile ?? null,
+    });
+  });
 }
 
-function putRequests() {
-  return jest.mocked(fetch).mock.calls.filter(([, init]) => init?.method === 'PUT');
+function requestsWith(method: 'PUT' | 'DELETE') {
+  return jest.mocked(fetch).mock.calls.filter(([, init]) => init?.method === method);
 }
+
+const putRequests = () => requestsWith('PUT');
 
 /** The real root layout and sign-in/onboarding screens; the app screens are stand-ins. */
 function renderApp() {
@@ -84,6 +94,7 @@ function renderApp() {
     profile: () => <Text>Profile</Text>,
     onboarding: Onboarding,
     'loading-account': LoadingAccount,
+    'delete-account': DeleteAccount,
     'sign-in': SignIn,
     'sign-up': () => <Text>Sign up</Text>,
     'forgot-password': () => <Text>Forgot password</Text>,
@@ -246,6 +257,70 @@ describe('root navigation', () => {
       const [[url, init]] = putRequests();
       expect(url).toEqual(new URL('/me/driver-profile', 'http://api.test'));
       expect(JSON.parse(String(init?.body))).toEqual(driverProfile);
+    });
+  });
+
+  describe('account deletion', () => {
+    beforeEach(() => {
+      jest.mocked(firebaseAuth.reauthenticate).mockClear();
+      jest.mocked(firebaseAuth.deleteCurrentUser).mockClear();
+    });
+
+    /** Signs in with a complete profile and opens the confirmation screen. */
+    async function openDeleteAccount() {
+      const rendered = await renderApp();
+      await emitSession({ uid: 'u1', email: me.email });
+      expect(await screen.findByText('Home')).toBeOnTheScreen();
+      await act(async () => router.push('/delete-account'));
+      expect(await screen.findByText('Delete your account?')).toBeOnTheScreen();
+      return rendered;
+    }
+
+    it('confirms the password, deletes the account, then the Firebase user', async () => {
+      const rendered = await openDeleteAccount();
+
+      await fireEvent.changeText(screen.getByLabelText('Password'), 'secret1');
+      await fireEvent.press(screen.getByRole('button', { name: 'Delete my account' }));
+
+      expect(await screen.findByText('Sign in to continue.')).toBeOnTheScreen();
+      expect(rendered.getPathname()).toBe('/sign-in');
+      expect(firebaseAuth.reauthenticate).toHaveBeenCalledWith('secret1');
+      const [[url]] = requestsWith('DELETE');
+      expect(url).toEqual(new URL('/me', 'http://api.test'));
+      // The API deletes first: once the Firebase user is gone, the app can't call it.
+      const deleteCallOrder = jest.mocked(fetch).mock.invocationCallOrder.at(-1)!;
+      expect(
+        jest.mocked(firebaseAuth.deleteCurrentUser).mock.invocationCallOrder[0],
+      ).toBeGreaterThan(deleteCallOrder);
+    });
+
+    it('deletes nothing when the password is wrong', async () => {
+      jest
+        .mocked(firebaseAuth.reauthenticate)
+        .mockRejectedValueOnce(Object.assign(new Error(), { code: 'auth/invalid-credential' }));
+      await openDeleteAccount();
+
+      await fireEvent.changeText(screen.getByLabelText('Password'), 'wrong');
+      await fireEvent.press(screen.getByRole('button', { name: 'Delete my account' }));
+
+      expect(await screen.findByText('Password is incorrect.')).toBeOnTheScreen();
+      expect(requestsWith('DELETE')).toHaveLength(0);
+      expect(firebaseAuth.deleteCurrentUser).not.toHaveBeenCalled();
+    });
+
+    it('keeps the Firebase user when the API fails', async () => {
+      await openDeleteAccount();
+      jest.mocked(fetch).mockImplementationOnce(async () => new Response(null, { status: 500 }));
+
+      await fireEvent.changeText(screen.getByLabelText('Password'), 'secret1');
+      await fireEvent.press(screen.getByRole('button', { name: 'Delete my account' }));
+
+      expect(
+        await screen.findByText(
+          'Could not delete your account. Check your connection and try again.',
+        ),
+      ).toBeOnTheScreen();
+      expect(firebaseAuth.deleteCurrentUser).not.toHaveBeenCalled();
     });
   });
 });
