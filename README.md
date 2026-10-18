@@ -45,7 +45,7 @@ apps/
 │   │   ├── config/               # zod-validated env, fails fast at boot
 │   │   ├── db/                   # Drizzle + pg pool, schema.ts
 │   │   ├── auth/                 # FirebaseAuthGuard (verifies ID tokens)
-│   │   ├── accounts/             # GET /me (creates the account on first sign-in), PUT /me/customer-profile
+│   │   ├── accounts/             # GET /me (creates the account on first sign-in), PUT /me/{customer,driver}-profile
 │   │   ├── common/               # ZodValidationPipe (request bodies via shared schemas)
 │   │   └── health/               # GET /health
 │   ├── drizzle/                  # SQL migrations (0000 enables PostGIS)
@@ -184,6 +184,10 @@ cd apps/mobile
 pnpm web:user            # or web:driver → http://localhost:8081
 ```
 
+When switching between `web:user` and `web:driver`, add `--clear`
+(`pnpm web:driver --clear`): Metro caches the bundle with the previous variant
+baked in, so you would otherwise see the wrong app.
+
 The web build is a development convenience, not a shipped target. Native-only
 pieces have web stand-ins: `TunisMap.web.tsx` (Mapbox GL JS instead of the
 native SDK) and `firebase.web.ts` (Firebase JS SDK with the project's web app,
@@ -252,8 +256,8 @@ pnpm --filter @depanini/api db:migrate    # apply pending migrations
 ```
 
 The first migration enables the `postgis` extension. Tables arrive with their
-features: `users` holds accounts and `customer_profiles` their customer
-profiles (see `GLOSSARY.md`).
+features: `users` holds accounts, and `customer_profiles` and `driver_profiles`
+their profiles (see `GLOSSARY.md`).
 
 ---
 

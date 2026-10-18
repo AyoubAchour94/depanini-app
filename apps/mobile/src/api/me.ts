@@ -1,6 +1,8 @@
 import {
   type CustomerProfileInput,
   customerProfileSchema,
+  type DriverProfileInput,
+  driverProfileSchema,
   type MeResponse,
   meResponseSchema,
 } from '@depanini/shared';
@@ -35,6 +37,18 @@ export function useSaveCustomerProfile() {
         meQueryKey(uid),
         (me) => me && { ...me, customerProfile },
       ),
+  });
+}
+
+/** Saves the driver profile (`PUT /me/driver-profile`) and updates the cached account. */
+export function useSaveDriverProfile() {
+  const uid = useSignedInUid();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (profile: DriverProfileInput) =>
+      apiRequest('/me/driver-profile', driverProfileSchema, { method: 'PUT', json: profile }),
+    onSuccess: (driverProfile) =>
+      queryClient.setQueryData<MeResponse>(meQueryKey(uid), (me) => me && { ...me, driverProfile }),
   });
 }
 
