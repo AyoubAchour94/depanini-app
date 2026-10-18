@@ -14,7 +14,8 @@
     "format:check": "prettier --check .",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
-    "emulators": "pnpm dlx firebase-tools@15.34.0 emulators:start --only auth --project depanini-dev"
+    "emulators": "pnpm dlx firebase-tools@15.34.0 emulators:start --only auth --project depanini-dev",
+    "share": "node scripts/share.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
