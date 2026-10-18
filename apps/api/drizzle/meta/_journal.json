@@ -50,6 +50,13 @@
       "when": 1792348406232,
       "tag": "0006_offer_expiry_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792361357889,
+      "tag": "0007_trip_stages",
+      "breakpoints": true
     }
   ]
 }

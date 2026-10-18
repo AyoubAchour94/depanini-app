@@ -7,10 +7,17 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  canCustomerCancel,
+  canDriverCancel,
+  type CancelInput,
+  customerCancelReasonSchema,
+  driverCancelReasonSchema,
+  etaTo,
   type FareEstimate,
   type FareEstimateInput,
   fareBounds,
   isFareAllowed,
+  PRESENCE_STALE_MS,
   type Place,
   ROAD_FACTOR,
   suggestFare,
@@ -18,16 +25,25 @@ import {
   type TowRequestInput,
   type TowRequestPage,
 } from '@depanini/shared';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, or, sql } from 'drizzle-orm';
 import type { SelectResultFields } from 'drizzle-orm/query-builders/select.types';
 
 import { DB, type Database } from '../db/database.module.js';
-import { customerProfiles, driverProfiles, towOffers, towRequests } from '../db/schema.js';
+import {
+  customerProfiles,
+  driverPresence,
+  driverProfiles,
+  towOffers,
+  towRequests,
+} from '../db/schema.js';
 import { CLOCK, type Clock } from './clock.js';
 import { expireStaleRequests } from './expiry.js';
 
 /** How long an open request waits for drivers. */
 const EXPIRY_MS = 15 * 60_000;
+
+/** How long a completed request stays the customer's `active` one, for the trip summary. */
+const COMPLETED_VISIBLE_MS = 10 * 60_000;
 
 export const MAX_PAGE_SIZE = 50;
 
@@ -55,6 +71,13 @@ export const columns = {
   createdAt: towRequests.createdAt,
   agreedFare: towRequests.agreedFareTnd,
   assignedAt: towRequests.assignedAt,
+  tripStage: towRequests.tripStage,
+  enRouteAt: towRequests.enRouteAt,
+  arrivedAt: towRequests.arrivedAt,
+  towingAt: towRequests.towingAt,
+  completedAt: towRequests.completedAt,
+  cancelledBy: towRequests.cancelledBy,
+  cancelReason: towRequests.cancelReason,
   // The JS `Date` above keeps milliseconds; the cursor needs the full microseconds.
   createdAtMicros: sql<string>`to_char(${towRequests.createdAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
 };
@@ -67,33 +90,70 @@ const driverColumns = {
   driverPlateNumber: driverProfiles.plateNumber,
 };
 
+/** The assigned driver's live location, from a left join on `driver_presence`. */
+const presenceColumns = {
+  driverLatitude: sql<number | null>`ST_Y(${driverPresence.location}::geometry)`,
+  driverLongitude: sql<number | null>`ST_X(${driverPresence.location}::geometry)`,
+  driverLocationUpdatedAt: driverPresence.locationUpdatedAt,
+};
+
 type Row = SelectResultFields<typeof columns> &
   Partial<{
     [K in keyof typeof driverColumns]: SelectResultFields<typeof driverColumns>[K] | null;
+  }> &
+  Partial<{
+    [K in keyof typeof presenceColumns]: SelectResultFields<typeof presenceColumns>[K] | null;
   }>;
 
-/** Requests with their assigned driver's contact. `db` may be a transaction. */
+/**
+ * Requests with their assigned driver's contact and last location. `db` may be a transaction.
+ * Pass the rows through {@link toTowRequest} with `now` to expose the location.
+ */
 export const selectTowRequests = (db: Pick<Database, 'select'>) =>
   db
-    .select({ ...columns, ...driverColumns })
+    .select({ ...columns, ...driverColumns, ...presenceColumns })
     .from(towRequests)
-    .leftJoin(driverProfiles, eq(driverProfiles.userId, towRequests.assignedDriverId));
+    .leftJoin(driverProfiles, eq(driverProfiles.userId, towRequests.assignedDriverId))
+    .leftJoin(driverPresence, eq(driverPresence.userId, towRequests.assignedDriverId));
 
-/** A row as the apps see it. The driver's contact shows only while the request is assigned. */
-export function toTowRequest(row: Row): TowRequest {
+/**
+ * A row as the apps see it. The driver's contact shows only while the request is assigned.
+ * With `now`, an assigned request also gets the driver's location (if fresh) and the ETA
+ * from it: to the pickup before `arrived`, to the drop-off while `towing`.
+ */
+export function toTowRequest(row: Row, now?: Date): TowRequest {
+  const pickup = {
+    latitude: Number(row.pickupLatitude),
+    longitude: Number(row.pickupLongitude),
+    address: row.pickupAddress,
+  };
+  const dropoff = {
+    latitude: Number(row.dropoffLatitude),
+    longitude: Number(row.dropoffLongitude),
+    address: row.dropoffAddress,
+  };
+  const updatedAt = row.driverLocationUpdatedAt;
+  const driverLocation =
+    now &&
+    row.status === 'assigned' &&
+    row.driverLatitude != null &&
+    row.driverLongitude != null &&
+    updatedAt &&
+    now.getTime() - updatedAt.getTime() <= PRESENCE_STALE_MS
+      ? {
+          latitude: Number(row.driverLatitude),
+          longitude: Number(row.driverLongitude),
+          updatedAt: updatedAt.toISOString(),
+        }
+      : null;
+  // A job assigned before trips existed has no stage; it counts as `accepted`.
+  const stage = row.tripStage ?? 'accepted';
+  const target = stage === 'towing' ? dropoff : stage === 'arrived' ? null : pickup;
   return {
     id: row.id,
     status: row.status,
-    pickup: {
-      latitude: Number(row.pickupLatitude),
-      longitude: Number(row.pickupLongitude),
-      address: row.pickupAddress,
-    },
-    dropoff: {
-      latitude: Number(row.dropoffLatitude),
-      longitude: Number(row.dropoffLongitude),
-      address: row.dropoffAddress,
-    },
+    pickup,
+    dropoff,
     vehicleType: row.vehicleType,
     problemType: row.problemType,
     note: row.note,
@@ -104,6 +164,15 @@ export function toTowRequest(row: Row): TowRequest {
     createdAt: row.createdAt.toISOString(),
     agreedFare: row.agreedFare,
     assignedAt: row.assignedAt?.toISOString() ?? null,
+    tripStage: row.tripStage,
+    enRouteAt: row.enRouteAt?.toISOString() ?? null,
+    arrivedAt: row.arrivedAt?.toISOString() ?? null,
+    towingAt: row.towingAt?.toISOString() ?? null,
+    completedAt: row.completedAt?.toISOString() ?? null,
+    cancelledBy: row.cancelledBy,
+    cancelReason: row.cancelReason,
+    driverLocation,
+    etaMin: driverLocation && target ? etaTo(target, driverLocation) : null,
     driver:
       row.status === 'assigned' && row.driverFullName
         ? {
@@ -145,6 +214,9 @@ export function isUniqueViolation(error: unknown): boolean {
   const code = (error as { cause?: { code?: string }; code?: string }) ?? {};
   return (code.cause?.code ?? code.code) === '23505';
 }
+
+const badReason = (message: string) =>
+  new BadRequestException({ statusCode: 400, message, issues: [{ path: ['reason'], message }] });
 
 @Injectable()
 export class TowRequestsService {
@@ -218,20 +290,34 @@ export class TowRequestsService {
     }
   }
 
-  /** The customer's open or assigned request (with the driver's contact), or `null`. */
+  /**
+   * The customer's open or assigned request (with the driver's contact, last location and
+   * ETA), or one completed in the last 10 minutes so the app can show the trip summary;
+   * `null` if there is none.
+   */
   async active(customerId: string): Promise<TowRequest | null> {
     await this.expireStale(customerId);
+    const now = this.now();
     const [row] = await selectTowRequests(this.db)
       .where(
         and(
           eq(towRequests.customerId, customerId),
-          inArray(towRequests.status, ['open', 'assigned']),
+          or(
+            inArray(towRequests.status, ['open', 'assigned']),
+            and(
+              eq(towRequests.status, 'completed'),
+              gt(towRequests.completedAt, new Date(now.getTime() - COMPLETED_VISIBLE_MS)),
+            ),
+          ),
         ),
       )
-      // Should both exist, the assigned one matters more.
-      .orderBy(sql`${towRequests.status} = 'assigned' desc`, desc(towRequests.createdAt))
+      // Should several exist, the assigned one matters most, then the open one.
+      .orderBy(
+        sql`case ${towRequests.status} when 'assigned' then 0 when 'open' then 1 else 2 end`,
+        desc(towRequests.createdAt),
+      )
       .limit(1);
-    return row ? toTowRequest(row) : null;
+    return row ? toTowRequest(row, now) : null;
   }
 
   /** The customer's requests, newest first. */
@@ -253,7 +339,7 @@ export class TowRequestsService {
       .orderBy(desc(towRequests.createdAt), desc(towRequests.id))
       .limit(limit + 1);
 
-    const items = rows.slice(0, limit).map(toTowRequest);
+    const items = rows.slice(0, limit).map((row) => toTowRequest(row));
     const last = rows[limit - 1];
     const nextCursor =
       rows.length > limit && last
@@ -265,9 +351,12 @@ export class TowRequestsService {
   /**
    * Cancels an open request (by its customer) or an assigned one (by its customer or
    * its driver), and rejects its pending offers. `404` if it is neither's, `409` if
-   * it is no longer open or assigned.
+   * it is no longer open or assigned, or the trip stage does not allow the caller to
+   * cancel (see `canCustomerCancel` / `canDriverCancel`), `400` if a reason is needed
+   * and missing, or not in the caller's own list. An assigned request records who
+   * cancelled and why; an open one needs no reason, and any given is dropped.
    */
-  async cancel(accountId: string, id: string): Promise<TowRequest> {
+  async cancel(accountId: string, id: string, { reason }: CancelInput = {}): Promise<TowRequest> {
     await this.expireStale(accountId);
     const now = this.now();
     const cancelled = await this.db.transaction(async (tx) => {
@@ -277,6 +366,7 @@ export class TowRequestsService {
           customerId: towRequests.customerId,
           assignedDriverId: towRequests.assignedDriverId,
           status: towRequests.status,
+          tripStage: towRequests.tripStage,
           expiresAt: towRequests.expiresAt,
         })
         .from(towRequests)
@@ -290,9 +380,27 @@ export class TowRequestsService {
         throw new ConflictException('Only an open or assigned request can be cancelled');
       }
 
+      const byCustomer = row.customerId === accountId;
+      const rule = byCustomer ? canCustomerCancel(row) : canDriverCancel(row);
+      if (rule === 'no') {
+        throw new ConflictException('This request can no longer be cancelled');
+      }
+      const reasons = byCustomer ? customerCancelReasonSchema : driverCancelReasonSchema;
+      if (reason !== undefined && !reasons.safeParse(reason).success) {
+        throw badReason('Choose one of the reasons offered');
+      }
+      if (rule === 'with_reason' && reason === undefined) throw badReason('Give a reason');
+
+      const assigned = row.status === 'assigned';
       const [updated] = await tx
         .update(towRequests)
-        .set({ status: 'cancelled', cancelledAt: now, updatedAt: now })
+        .set({
+          status: 'cancelled',
+          cancelledAt: now,
+          cancelledBy: assigned ? (byCustomer ? 'customer' : 'driver') : null,
+          cancelReason: assigned ? (reason ?? null) : null,
+          updatedAt: now,
+        })
         .where(eq(towRequests.id, id))
         .returning(columns);
       await tx

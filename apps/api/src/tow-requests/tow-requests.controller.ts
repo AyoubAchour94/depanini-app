@@ -12,6 +12,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  type CancelInput,
+  cancelInputSchema,
   type FareEstimate,
   type FareEstimateInput,
   fareEstimateInputSchema,
@@ -87,10 +89,14 @@ export class TowRequestsController {
 
   @Post(':id/cancel')
   @HttpCode(200)
-  async cancel(@Req() request: AuthenticatedRequest, @Param('id') id: string): Promise<TowRequest> {
+  async cancel(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(cancelInputSchema.optional())) input?: CancelInput,
+  ): Promise<TowRequest> {
     if (!z.uuid().safeParse(id).success) throw new NotFoundException('Tow request not found');
     const account = await this.accounts.getOrCreate(identityOf(request));
-    return this.towRequests.cancel(account.id, id);
+    return this.towRequests.cancel(account.id, id, input);
   }
 }
 

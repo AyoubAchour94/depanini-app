@@ -158,7 +158,7 @@ Remove those lines to use the real `depanini-dev` project.
 ### End-to-end flow check
 
 `pnpm e2e:flow` walks the whole customer + driver flow (profiles, estimate,
-request, presence, nearby, offer, accept, job, cancel) over HTTP against a
+request, presence, nearby, offer, accept, job, trip stages, completion, cancel) over HTTP against a
 running stack, checks each response against the `@depanini/shared` schemas and
 deletes its two throwaway accounts at the end. It needs the built shared
 package, Postgres, the Auth emulator and the API started with the emulator:

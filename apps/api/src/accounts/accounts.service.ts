@@ -100,7 +100,13 @@ export class AccountsService {
       const now = new Date();
       await tx
         .update(towRequests)
-        .set({ status: 'cancelled', cancelledAt: now, updatedAt: now })
+        .set({
+          status: 'cancelled',
+          cancelledAt: now,
+          cancelledBy: 'driver',
+          cancelReason: null,
+          updatedAt: now,
+        })
         .where(
           and(eq(towRequests.assignedDriverId, account.id), eq(towRequests.status, 'assigned')),
         );

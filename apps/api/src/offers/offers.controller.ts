@@ -14,6 +14,8 @@ import {
 import {
   type CustomerOffer,
   type DriverJob,
+  type JobStageInput,
+  jobStageInputSchema,
   type Offer,
   type OfferInput,
   offerInputSchema,
@@ -72,6 +74,23 @@ export class OffersController {
     const job = await this.offers.job(await this.driverId(request));
     if (!job) void reply.status(204);
     return job ?? undefined;
+  }
+
+  /** Moves the driver's job to its next stage; `409` if `stage` is not the next one. */
+  @Post('driver/job/stage')
+  @HttpCode(200)
+  async stage(
+    @Req() request: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(jobStageInputSchema)) { stage }: JobStageInput,
+  ): Promise<DriverJob> {
+    return this.offers.advance(await this.driverId(request), stage);
+  }
+
+  /** Drops the vehicle off: completes the job, from `towing` only. */
+  @Post('driver/job/complete')
+  @HttpCode(200)
+  async complete(@Req() request: AuthenticatedRequest): Promise<TowRequest> {
+    return this.offers.complete(await this.driverId(request));
   }
 
   @Get('tow-requests/:id/offers')
