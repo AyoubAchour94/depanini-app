@@ -1,4 +1,6 @@
 import {
+  type CustomerOffer,
+  customerOfferSchema,
   type FareEstimate,
   type FareEstimateInput,
   fareEstimateSchema,
@@ -29,12 +31,15 @@ export function useFareEstimate(input: FareEstimateInput | null) {
 const ACTIVE_KEY = ['tow-requests', 'active'] as const;
 const HISTORY_KEY = ['tow-requests', 'history'] as const;
 
-/** Refetches the active request and the history, which every create and cancel changes. */
+const OFFERS_KEY = ['tow-requests', 'offers'] as const;
+
+/** Refetches the active request, its offers and the history, which every create, cancel and accept changes. */
 function useInvalidateTowRequests() {
   const queryClient = useQueryClient();
   return () =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: ACTIVE_KEY }),
+      queryClient.invalidateQueries({ queryKey: OFFERS_KEY }),
       queryClient.invalidateQueries({ queryKey: HISTORY_KEY }),
     ]);
 }
@@ -57,7 +62,7 @@ export function useCreateTowRequest() {
 export const ACTIVE_POLL_MS = 15_000;
 
 /**
- * `GET /tow-requests/active`: the customer's open request, or `null` (204)
+ * `GET /tow-requests/active`: the customer's open or assigned request, or `null` (204)
  * when there is none, because it was cancelled elsewhere or expired.
  */
 export function useActiveTowRequest({ poll = false }: { poll?: boolean } = {}) {
@@ -71,13 +76,52 @@ export function useActiveTowRequest({ poll = false }: { poll?: boolean } = {}) {
 
 /**
  * `POST /tow-requests/:id/cancel`. Fails with an `ApiError`: 404 when the
- * request is not the customer's, 409 when it is no longer open.
+ * request is not the customer's, 409 when it is no longer open or assigned.
  */
 export function useCancelTowRequest() {
   const invalidate = useInvalidateTowRequests();
   return useMutation({
     mutationFn: (id: string): Promise<TowRequest> =>
       apiRequest(`/tow-requests/${id}/cancel`, towRequestSchema, { method: 'POST' }),
+    onSettled: () => void invalidate(),
+  });
+}
+
+/** How often the offers on the open request are re-read while its screen is showing. */
+export const OFFERS_POLL_MS = 5_000;
+
+/**
+ * `GET /tow-requests/:id/offers`: the pending offers, lowest fare first.
+ * Pass `poll` only while the screen is focused and the request is open.
+ */
+export function useOffers(requestId: string, { poll = false }: { poll?: boolean } = {}) {
+  return useQuery({
+    queryKey: [...OFFERS_KEY, requestId],
+    queryFn: (): Promise<CustomerOffer[]> =>
+      apiRequest(`/tow-requests/${requestId}/offers`, z.array(customerOfferSchema)),
+    refetchInterval: poll ? OFFERS_POLL_MS : false,
+  });
+}
+
+/**
+ * `POST /offers/:id/accept`: assigns the driver. Fails with an `ApiError`:
+ * 409 when the offer or the request is no longer available.
+ */
+export function useAcceptOffer() {
+  const invalidate = useInvalidateTowRequests();
+  return useMutation({
+    mutationFn: (id: string): Promise<TowRequest> =>
+      apiRequest(`/offers/${id}/accept`, towRequestSchema, { method: 'POST' }),
+    onSettled: () => void invalidate(),
+  });
+}
+
+/** `POST /offers/:id/decline`. */
+export function useDeclineOffer() {
+  const invalidate = useInvalidateTowRequests();
+  return useMutation({
+    mutationFn: (id: string): Promise<CustomerOffer> =>
+      apiRequest(`/offers/${id}/decline`, customerOfferSchema, { method: 'POST' }),
     onSettled: () => void invalidate(),
   });
 }
