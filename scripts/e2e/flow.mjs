@@ -390,10 +390,17 @@ const STEPS = [
       assert.equal(active.id, ctx.request.id);
       assert.equal(active.status, 'completed');
       assert.equal(active.driverLocation ?? null, null);
+      // The summary keeps the driver's name, not the contact.
+      assert.equal(active.driver?.fullName, 'E2E Driver');
+      assert.equal(active.driver?.phone ?? null, null);
+      assert.equal(active.driver?.plateNumber ?? null, null);
       const history = await api(ctx.customer, 'GET', '/tow-requests', {
         schema: shared.towRequestPageSchema,
       });
-      assert.equal(history.items.find((item) => item.id === ctx.request.id)?.status, 'completed');
+      const done = history.items.find((item) => item.id === ctx.request.id);
+      assert.equal(done?.status, 'completed');
+      assert.equal(done?.driver?.phone ?? null, null);
+      assert.equal(done?.driver?.plateNumber ?? null, null);
     },
   },
   {
