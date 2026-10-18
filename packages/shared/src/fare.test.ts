@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  DRIVER_SPEED_KMH,
   estimateRoadDistanceM,
+  etaMinutes,
   fareBounds,
   haversineM,
   isFareAllowed,
+  NEARBY_RADIUS_M,
+  OFFER_TTL_MS,
+  PRESENCE_STALE_MS,
   ROAD_FACTOR,
   suggestFare,
 } from './fare';
@@ -64,5 +69,26 @@ describe('estimateRoadDistanceM', () => {
     expect(estimateRoadDistanceM(TUNIS_CENTER, b)).toBe(
       Math.round(haversineM(TUNIS_CENTER, b) * ROAD_FACTOR),
     );
+  });
+});
+
+describe('etaMinutes', () => {
+  it.each([
+    [0, 1],
+    [500, 1],
+    [1_000, 2], // 1.5 min
+    [10_000, 15],
+    [13_100, 20], // 19.65 min
+    [13_400, 21], // 20.1 min
+  ])('%i m takes %i min', (distanceM, minutes) => {
+    expect(etaMinutes(distanceM)).toBe(minutes);
+  });
+});
+
+describe('phase 4 constants', () => {
+  it('match the agreed values', () => {
+    expect([NEARBY_RADIUS_M, OFFER_TTL_MS, DRIVER_SPEED_KMH, PRESENCE_STALE_MS]).toEqual([
+      25_000, 180_000, 40, 120_000,
+    ]);
   });
 });

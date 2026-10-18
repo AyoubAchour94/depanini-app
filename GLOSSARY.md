@@ -46,7 +46,7 @@ The store app named "Depanini Driver", for drivers.
 
 **Tow request**:
 A customer's ask for a tow: where the vehicle is, where it should go, its vehicle type and problem type, an optional note of up to 280 characters, and the fare they propose. It starts **open** and waits for drivers until the customer cancels it or it expires 15 minutes after creation. A customer has at most one open request at a time.
-_Avoid_: Order, ride, job (a job is what a driver takes once offers exist)
+_Avoid_: Order, ride, job (a job is a tow request as its assigned driver sees it)
 
 **Pickup**:
 The place where the vehicle is. Coordinates are the source of truth and must be inside Tunisia; the address text is only for display.
@@ -68,3 +68,27 @@ The fare the API computes for a tow request, in whole dinars: a base per vehicle
 
 **Proposed fare**:
 The fare the customer offers, in whole dinars. It starts at the suggested fare and may be changed, from 80% up to 3 times the suggestion.
+
+### Drivers and offers
+
+**Online**:
+A driver who has switched on availability in the driver app and whose last location is under 2 minutes old. The app sends its location every 15 seconds while it is in the foreground; a driver who stops sending counts as offline.
+
+**Nearby request**:
+An open, unexpired tow request whose pickup is within 25 km of an online driver, as that driver sees it, with the distance to the pickup. It never includes the customer's contact. A driver doesn't see their own requests, nor any while they have a job.
+
+**Offer**:
+A driver's bid on a tow request: a fare in whole dinars, an ETA to the pickup (road distance at 40 km/h, rounded up to whole minutes), and a status of pending, accepted, rejected, declined, withdrawn or expired. A driver has at most one pending offer per request. It expires 3 minutes after it is made, and the driver can withdraw it before then.
+_Avoid_: Bid, quote
+
+**Counter-offer**:
+An offer whose fare differs from the customer's proposed fare. It must stay within the request's fare bounds (80% to 3 times the suggested fare). Accepting the proposed fare as is is also an offer, not a counter.
+
+**Agreed fare**:
+The fare of the accepted offer, in whole dinars. It is fixed when the request is assigned.
+
+**Assigned**:
+The status of a tow request after the customer accepts an offer. It names the driver and the agreed fare, never expires, and either side can still cancel it. Accepting rejects every other pending offer on the request.
+
+**Job**:
+A tow request that is assigned to a driver, as that driver sees it, with the customer's name and phone. A driver has at most one job at a time.

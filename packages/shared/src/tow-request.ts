@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { truckTypeSchema } from './account';
 import { isInTunisia } from './geo';
 
 /** The kinds of vehicle a customer can have towed. */
@@ -24,8 +25,8 @@ export const problemTypeSchema = z.enum(PROBLEM_TYPES, 'Choose the problem');
 
 export type ProblemType = z.infer<typeof problemTypeSchema>;
 
-/** The states of a tow request. Assigned and completed come in later phases. */
-export const TOW_REQUEST_STATUSES = ['open', 'cancelled', 'expired'] as const;
+/** The states of a tow request. Trip progress after assigned comes in a later phase. */
+export const TOW_REQUEST_STATUSES = ['open', 'assigned', 'cancelled', 'expired'] as const;
 
 export const towRequestStatusSchema = z.enum(TOW_REQUEST_STATUSES);
 
@@ -101,6 +102,18 @@ export const towRequestSchema = z.object({
   proposedFare: z.number().int().positive(),
   expiresAt: z.iso.datetime(),
   createdAt: z.iso.datetime(),
+  /** Whole dinars; set once the request is assigned. */
+  agreedFare: z.number().int().positive().nullish(),
+  assignedAt: z.iso.datetime().nullish(),
+  /** The assigned driver's contact; present only when the request is assigned. */
+  driver: z
+    .object({
+      fullName: z.string(),
+      phone: z.string(),
+      truckType: truckTypeSchema,
+      plateNumber: z.string(),
+    })
+    .nullish(),
 });
 
 export type TowRequest = z.infer<typeof towRequestSchema>;
