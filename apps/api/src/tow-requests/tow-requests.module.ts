@@ -9,5 +9,6 @@ import { TowRequestsService } from './tow-requests.service.js';
   imports: [AccountsModule],
   controllers: [TowRequestsController],
   providers: [{ provide: CLOCK, useValue: (() => new Date()) satisfies Clock }, TowRequestsService],
+  exports: [CLOCK],
 })
 export class TowRequestsModule {}

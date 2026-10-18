@@ -18,12 +18,13 @@ import {
   type TowRequestInput,
   type TowRequestPage,
 } from '@depanini/shared';
-import { and, desc, eq, lte, sql } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import type { SelectResultFields } from 'drizzle-orm/query-builders/select.types';
 
 import { DB, type Database } from '../db/database.module.js';
 import { customerProfiles, towRequests } from '../db/schema.js';
 import { CLOCK, type Clock } from './clock.js';
+import { expireStaleRequests } from './expiry.js';
 
 /** How long an open request waits for drivers. */
 const EXPIRY_MS = 15 * 60_000;
@@ -31,7 +32,7 @@ const EXPIRY_MS = 15 * 60_000;
 export const MAX_PAGE_SIZE = 50;
 
 /** SQL for a point from coordinates (longitude first, as PostGIS wants). */
-const point = ({ latitude, longitude }: Place) =>
+export const point = ({ latitude, longitude }: Pick<Place, 'latitude' | 'longitude'>) =>
   sql`ST_SetSRID(ST_MakePoint(${longitude}::float8, ${latitude}::float8), 4326)::geography`;
 
 /** The columns of `tow_requests` the apps see; coordinates are read back out of the geography. */
@@ -243,19 +244,9 @@ export class TowRequestsService {
     throw new ConflictException('Only an open request can be cancelled');
   }
 
-  /** Marks the customer's open requests past their expiry as expired (there is no cron yet). */
-  private async expireStale(customerId: string): Promise<void> {
-    const now = this.now();
-    await this.db
-      .update(towRequests)
-      .set({ status: 'expired', updatedAt: now })
-      .where(
-        and(
-          eq(towRequests.customerId, customerId),
-          eq(towRequests.status, 'open'),
-          lte(towRequests.expiresAt, now),
-        ),
-      );
+  /** Marks the customer's open requests past their expiry as expired. */
+  private expireStale(customerId: string): Promise<void> {
+    return expireStaleRequests(this.db, this.now(), customerId);
   }
 
   /** The estimated road distance in whole metres: PostGIS straight line times the road factor. */

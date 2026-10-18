@@ -2,10 +2,17 @@
  * Drizzle table definitions. Tables arrive with their features. PostGIS
  * itself is enabled by the first migration in `drizzle/`.
  */
-import type { ProblemType, TowRequestStatus, TruckType, VehicleType } from '@depanini/shared';
+import type {
+  OfferStatus,
+  ProblemType,
+  TowRequestStatus,
+  TruckType,
+  VehicleType,
+} from '@depanini/shared';
 import { sql } from 'drizzle-orm';
 import {
   customType,
+  boolean,
   index,
   integer,
   pgTable,
@@ -93,6 +100,13 @@ export const towRequests = pgTable(
     proposedFareTnd: integer('proposed_fare_tnd').notNull(),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+    /** Set when the customer accepts an offer; the request is then `assigned`. */
+    assignedDriverId: uuid('assigned_driver_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    /** The fare of the accepted offer. */
+    agreedFareTnd: integer('agreed_fare_tnd'),
+    assignedAt: timestamp('assigned_at', { withTimezone: true }),
     ...timestamps,
   },
   (table) => [
@@ -102,5 +116,48 @@ export const towRequests = pgTable(
     uniqueIndex('tow_requests_one_open_per_customer_idx')
       .on(table.customerId)
       .where(sql`${table.status} = 'open'`),
+  ],
+);
+
+/** Whether a driver is online and where they last were. At most one row per driver. */
+export const driverPresence = pgTable(
+  'driver_presence',
+  {
+    userId: uuid('user_id')
+      .primaryKey()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    online: boolean().notNull().default(false),
+    location: geographyPoint(),
+    locationUpdatedAt: timestamp('location_updated_at', { withTimezone: true }),
+  },
+  (table) => [index('driver_presence_location_idx').using('gist', table.location)],
+);
+
+/** A driver's offer on an open request: the customer's fare, or a counter. */
+export const towOffers = pgTable(
+  'tow_offers',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    requestId: uuid('request_id')
+      .notNull()
+      .references(() => towRequests.id, { onDelete: 'cascade' }),
+    driverId: uuid('driver_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    fareTnd: integer('fare_tnd').notNull(),
+    /** Estimated road distance from the driver to the pickup when the offer was made. */
+    distanceToPickupM: integer('distance_to_pickup_m').notNull(),
+    etaMin: integer('eta_min').notNull(),
+    status: text().$type<OfferStatus>().notNull().default('pending'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    index('tow_offers_request_idx').on(table.requestId),
+    index('tow_offers_driver_idx').on(table.driverId),
+    // A driver has at most one pending offer per request.
+    uniqueIndex('tow_offers_one_pending_per_driver_idx')
+      .on(table.requestId, table.driverId)
+      .where(sql`${table.status} = 'pending'`),
   ],
 );
