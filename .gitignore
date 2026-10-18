@@ -6,6 +6,10 @@ coverage/
 *.tsbuildinfo
 *.log
 
+# Claude Code per-machine state (usage snapshot, local settings)
+.claude/state/
+.claude/settings.local.json
+
 # OS / editors
 .DS_Store
 .idea/

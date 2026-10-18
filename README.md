@@ -278,8 +278,9 @@ their profiles (see `GLOSSARY.md`).
 
 ## 8. CI/CD
 
-GitHub Actions + EAS. Pushing to `develop` runs the quality gates, then queues
-four EAS builds (user/driver × Android/iOS). Android goes to EAS internal
+GitHub Actions + EAS. Every PR runs the quality gates. EAS builds are started by
+hand at milestones (`gh workflow run eas-build.yml --ref develop`), which runs the
+gates again and queues four builds (user/driver × Android/iOS). Android goes to EAS internal
 distribution and iOS to TestFlight. Details, the secrets checklist, and the
 API deploy stub are in **[CI.md](./CI.md)**.
 
