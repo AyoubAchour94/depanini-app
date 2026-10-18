@@ -1,5 +1,27 @@
 import { z } from 'zod';
 
+import { tunisianPhoneSchema } from './phone';
+
+/**
+ * Body of `PUT /me/customer-profile`: what a customer fills in before using
+ * the customer app. The API trims and normalizes the values.
+ */
+export const customerProfileInputSchema = z.object({
+  fullName: z.string().trim().min(1, 'Enter your name').max(100, 'Name is too long'),
+  phone: tunisianPhoneSchema,
+});
+
+export type CustomerProfileInput = z.input<typeof customerProfileInputSchema>;
+
+/** A saved customer profile, as the API returns it. */
+export const customerProfileSchema = z.object({
+  fullName: z.string(),
+  /** Normalized: `+216` followed by 8 digits. */
+  phone: z.string(),
+});
+
+export type CustomerProfile = z.infer<typeof customerProfileSchema>;
+
 /**
  * Response of `GET /me` on the API: the signed-in account, created on its
  * first call.
@@ -12,8 +34,8 @@ export const meResponseSchema = z.object({
   id: z.uuid(),
   /** Absent for sign-in methods without an email. */
   email: z.email().nullable(),
-  // Profiles arrive with their own slices (#7, #8); always null until then.
-  customerProfile: z.null(),
+  customerProfile: customerProfileSchema.nullable(),
+  // The driver profile arrives with its own slice (#8); always null until then.
   driverProfile: z.null(),
 });
 

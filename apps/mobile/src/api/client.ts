@@ -16,6 +16,8 @@ export class ApiError extends Error {
 interface ApiRequestOptions extends RequestInit {
   /** HTTP statuses besides 2xx whose body still matches `schema` (e.g. 503 from /health). */
   acceptStatuses?: number[];
+  /** Sent as the JSON request body. */
+  json?: unknown;
 }
 
 /**
@@ -25,15 +27,17 @@ interface ApiRequestOptions extends RequestInit {
 export async function apiRequest<T>(
   path: string,
   schema: z.ZodType<T>,
-  { acceptStatuses = [], headers, ...init }: ApiRequestOptions = {},
+  { acceptStatuses = [], json, headers, ...init }: ApiRequestOptions = {},
 ): Promise<T> {
   if (!env.apiUrl) throw new ApiError('EXPO_PUBLIC_API_URL is not set');
 
   const token = await getCurrentIdToken();
   const response = await fetch(new URL(path, env.apiUrl), {
     ...init,
+    ...(json === undefined ? {} : { body: JSON.stringify(json) }),
     headers: {
       Accept: 'application/json',
+      ...(json === undefined ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },

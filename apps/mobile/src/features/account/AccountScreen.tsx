@@ -1,21 +1,19 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useMe } from '@/api/me';
-import { signOut } from '@/auth/firebase-auth';
+import { useSignOut } from '@/auth/useSignOut';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
+import { variant } from '@/variant/variant';
 
-/** The signed-in account and sign-out. Profiles are added here in later slices. */
+/** The signed-in account, its profile, and sign-out. */
 export function AccountScreen() {
   const theme = useTheme();
-  const queryClient = useQueryClient();
   const me = useMe();
-  const signOutMutation = useMutation({
-    mutationFn: signOut,
-    // Drop the previous user's cached API data.
-    onSuccess: () => queryClient.clear(),
-  });
+  const signOut = useSignOut();
+  // The driver app shows the driver profile instead (#8).
+  const profile = variant.isDriverApp ? null : me.data?.customerProfile;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -28,11 +26,15 @@ export function AccountScreen() {
           <Text style={{ color: theme.danger }}>Could not load your account from the server.</Text>
         ) : null}
       </View>
-      <Button
-        title="Sign out"
-        onPress={() => signOutMutation.mutate()}
-        loading={signOutMutation.isPending}
-      />
+      {profile ? (
+        <View style={[styles.card, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.label, { color: theme.textMuted }]}>Your details</Text>
+          <Text style={[styles.value, { color: theme.text }]}>{profile.fullName}</Text>
+          <Text style={{ color: theme.text }}>{profile.phone}</Text>
+          <Button kind="link" title="Edit details" onPress={() => router.push('/profile')} />
+        </View>
+      ) : null}
+      <Button title="Sign out" onPress={() => signOut.mutate()} loading={signOut.isPending} />
     </View>
   );
 }

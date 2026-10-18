@@ -12,7 +12,7 @@ interface AuthLayoutProps {
   children: ReactNode;
 }
 
-/** Shared frame for the sign-in, sign-up and password reset screens. */
+/** Shared frame for the sign-in, sign-up, password reset and profile form screens. */
 export function AuthLayout({ title, subtitle, error, children }: AuthLayoutProps) {
   const theme = useTheme();
   const auth = useAuth();
