@@ -1,9 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { CustomerProfile, DriverProfile } from '@depanini/shared';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, or, sql } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/database.module.js';
-import { customerProfiles, driverProfiles, users } from '../db/schema.js';
+import { customerProfiles, driverProfiles, towRequests, users } from '../db/schema.js';
+import { isDeadlock } from '../tow-requests/deadlock.js';
+
+/** How often a delete is retried after Postgres broke a deadlock by aborting it. */
+const DELETE_ATTEMPTS = 3;
 
 export type Account = typeof users.$inferSelect;
 
@@ -55,11 +59,53 @@ export class AccountsService {
   }
 
   /**
-   * Deletes this Firebase user's account; its profiles go with it (cascade).
+   * Deletes this Firebase user's account; its profiles, requests and offers go
+   * with it (cascade). Requests assigned to the account as driver are cancelled
+   * first, so their customers are not left waiting for a driver who is gone.
    * Does nothing if there is no account.
    */
   async delete(firebaseUid: string): Promise<void> {
-    await this.db.delete(users).where(eq(users.firebaseUid, firebaseUid));
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        return await this.deleteOnce(firebaseUid);
+      } catch (error) {
+        if (!isDeadlock(error) || attempt === DELETE_ATTEMPTS) throw error;
+      }
+    }
+  }
+
+  private deleteOnce(firebaseUid: string): Promise<void> {
+    return this.db.transaction(async (tx) => {
+      const [account] = await tx
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.firebaseUid, firebaseUid));
+      if (!account) return;
+
+      // Same lock order as accepting an offer: requests, then the driver's profile.
+      // The account's pending offers need no update: they cascade away below.
+      await tx
+        .select({ id: towRequests.id })
+        .from(towRequests)
+        .where(
+          or(eq(towRequests.customerId, account.id), eq(towRequests.assignedDriverId, account.id)),
+        )
+        .for('update');
+      await tx
+        .select({ userId: driverProfiles.userId })
+        .from(driverProfiles)
+        .where(eq(driverProfiles.userId, account.id))
+        .for('update');
+
+      const now = new Date();
+      await tx
+        .update(towRequests)
+        .set({ status: 'cancelled', cancelledAt: now, updatedAt: now })
+        .where(
+          and(eq(towRequests.assignedDriverId, account.id), eq(towRequests.status, 'assigned')),
+        );
+      await tx.delete(users).where(eq(users.id, account.id));
+    });
   }
 
   /** {@link getOrCreate}, plus the account's profiles. */

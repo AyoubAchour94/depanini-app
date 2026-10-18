@@ -30,6 +30,7 @@ import {
   towRequests,
 } from '../db/schema.js';
 import { CLOCK, type Clock } from '../tow-requests/clock.js';
+import { isDeadlock } from '../tow-requests/deadlock.js';
 import { expireStaleOffers, expireStaleRequests } from '../tow-requests/expiry.js';
 import {
   columns as requestColumns,
@@ -79,12 +80,6 @@ function toCustomerOffer({
   ...row
 }: OfferRow & { driverFullName: string; driverTruckType: CustomerOffer['driver']['truckType'] }) {
   return { ...toOffer(row), driver: { fullName: driverFullName, truckType: driverTruckType } };
-}
-
-/** Whether Postgres aborted the transaction to break a deadlock. */
-function isDeadlock(error: unknown): boolean {
-  const code = (error as { cause?: { code?: string }; code?: string }) ?? {};
-  return (code.cause?.code ?? code.code) === '40P01';
 }
 
 /**
