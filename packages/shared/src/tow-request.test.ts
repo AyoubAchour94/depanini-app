@@ -106,6 +106,56 @@ describe('towRequestSchema', () => {
   });
 
   it('rejects an unknown status', () => {
-    expect(towRequestSchema.safeParse({ ...request, status: 'assigned' }).success).toBe(false);
+    expect(towRequestSchema.safeParse({ ...request, status: 'completed' }).success).toBe(false);
+  });
+});
+
+describe('towRequestSchema, assigned', () => {
+  const base = {
+    id: '7b0c8f2e-5d1a-4c3b-9e6f-2a1b3c4d5e6f',
+    status: 'open',
+    pickup,
+    dropoff,
+    vehicleType: 'car',
+    problemType: 'breakdown',
+    distanceM: 12_000,
+    suggestedFare: 64,
+    proposedFare: 60,
+    expiresAt: '2026-01-01T10:15:00.000Z',
+    createdAt: '2026-01-01T10:00:00.000Z',
+  };
+
+  it('still parses a Phase 3 request without the new fields', () => {
+    expect(towRequestSchema.safeParse(base).success).toBe(true);
+    expect(towRequestSchema.safeParse({ ...base, agreedFare: null, driver: null }).success).toBe(
+      true,
+    );
+  });
+
+  it('parses an assigned request with its driver', () => {
+    const parsed = towRequestSchema.parse({
+      ...base,
+      status: 'assigned',
+      agreedFare: 70,
+      assignedAt: '2026-01-01T10:05:00.000Z',
+      driver: {
+        fullName: 'Ali',
+        phone: '+21622123456',
+        truckType: 'flatbed',
+        plateNumber: '1 TN 2',
+      },
+    });
+    expect(parsed.driver?.truckType).toBe('flatbed');
+    expect(parsed.agreedFare).toBe(70);
+  });
+
+  it('rejects a bad agreed fare or driver truck type', () => {
+    expect(towRequestSchema.safeParse({ ...base, agreedFare: 7.5 }).success).toBe(false);
+    expect(
+      towRequestSchema.safeParse({
+        ...base,
+        driver: { fullName: 'Ali', phone: '1', truckType: 'rocket', plateNumber: 'x' },
+      }).success,
+    ).toBe(false);
   });
 });

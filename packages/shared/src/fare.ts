@@ -20,6 +20,18 @@ export const MIN_FARE_RATIO = 0.8;
 /** The highest proposed fare, as a multiple of the suggested fare. */
 export const MAX_FARE_RATIO = 3;
 
+/** How far from the pickup a driver sees open requests, in metres. */
+export const NEARBY_RADIUS_M = 25_000;
+
+/** How long an offer stays pending, in milliseconds. */
+export const OFFER_TTL_MS = 180_000;
+
+/** The average speed used to estimate a driver's arrival, in km/h. */
+export const DRIVER_SPEED_KMH = 40;
+
+/** A driver whose last location is older than this counts as offline, in milliseconds. */
+export const PRESENCE_STALE_MS = 120_000;
+
 const EARTH_RADIUS_M = 6_371_000;
 
 const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
@@ -55,6 +67,14 @@ export function fareBounds(suggested: number): { min: number; max: number } {
     min: Math.ceil(suggested * MIN_FARE_RATIO),
     max: suggested * MAX_FARE_RATIO,
   };
+}
+
+/**
+ * Minutes for a driver to reach the pickup, rounded up, at least 1. The
+ * distance is already road-adjusted (see {@link ROAD_FACTOR}).
+ */
+export function etaMinutes(distanceToPickupM: number): number {
+  return Math.max(1, Math.ceil((distanceToPickupM / 1000 / DRIVER_SPEED_KMH) * 60));
 }
 
 /** Whether a proposed fare is a whole number of dinars within the bounds. */
