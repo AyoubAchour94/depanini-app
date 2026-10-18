@@ -8,11 +8,13 @@
 # The builds themselves run on Expo's servers; this job only queues them
 # (`--no-wait`), so it finishes in about a minute. Follow progress on expo.dev.
 # Required secret: EXPO_TOKEN. Everything else lives in EAS (see CI.md).
+#
+# Manual only: merges to develop are frequent (agents merge autonomously) and
+# each run uses 4 builds of EAS quota. Start it at milestones:
+#   gh workflow run eas-build.yml --ref develop
 name: EAS build
 
 on:
-  push:
-    branches: [develop]
   workflow_dispatch:
 
 concurrency:

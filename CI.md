@@ -6,7 +6,7 @@ run on **EAS Build** (Expo's cloud) and are only queued by GitHub Actions.
 | Workflow         | Trigger                | What it does                                                      |
 | ---------------- | ---------------------- | ----------------------------------------------------------------- |
 | `ci.yml`         | pull requests (+ called by `eas-build.yml`) | format check, lint, typecheck, tests for all packages |
-| `eas-build.yml`  | push to `develop`, manual | runs `ci.yml`, then queues the 4 EAS builds below          |
+| `eas-build.yml`  | manual only (`gh workflow run eas-build.yml --ref develop`) | runs `ci.yml`, then queues the 4 EAS builds below. Not on every merge: each run uses 4 builds of EAS quota |
 | `api-deploy.yml` | manual only (**stub**) | builds the API image and deploys it to Cloud Run                  |
 
 ## The four mobile builds
