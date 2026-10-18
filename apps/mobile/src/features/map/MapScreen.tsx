@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { env } from '@/config/env';
@@ -5,18 +6,22 @@ import { ApiHealthBadge } from '@/features/status/ApiHealthBadge';
 import { FirebaseBanner } from '@/features/status/FirebaseBanner';
 import { useTheme } from '@/theme/theme';
 
+import { CenterPin } from './CenterPin';
 import { TunisMap } from './TunisMap';
 
 /**
- * PLACEHOLDER home screen for Phase 1, shared by both variants. Proves the
- * toolchain end to end: Mapbox renders, the app reaches the API, and Firebase
- * is initialized. Replaced by the real user/driver home screens later.
+ * Home screen map, shared by both variants. Also proves the toolchain end to
+ * end: Mapbox renders, the app reaches the API, and Firebase is initialized.
+ * `children` are drawn over the map (the customer home puts its action there).
  */
-export function MapScreen() {
+export function MapScreen({ children }: { children?: ReactNode }) {
   return (
     <View style={styles.fill}>
       {env.mapboxAccessToken ? (
-        <TunisMap accessToken={env.mapboxAccessToken} />
+        <>
+          <TunisMap accessToken={env.mapboxAccessToken} />
+          <CenterPin />
+        </>
       ) : (
         <MissingTokenView />
       )}
@@ -24,12 +29,13 @@ export function MapScreen() {
         <ApiHealthBadge />
         <FirebaseBanner />
       </View>
+      {children}
     </View>
   );
 }
 
 /** Explains a blank map instead of silently rendering nothing. */
-function MissingTokenView() {
+export function MissingTokenView() {
   const theme = useTheme();
   return (
     <View style={[styles.fill, styles.center, { backgroundColor: theme.background }]}>

@@ -4,41 +4,48 @@ import { TUNIS_CENTER } from '@depanini/shared';
 import mapboxgl from 'mapbox-gl';
 import { useEffect, useRef } from 'react';
 
-import { useTheme } from '@/theme/theme';
+import type { TunisMapProps } from './map-props';
 
-const DEFAULT_ZOOM = 12;
-const TUNIS: [number, number] = [TUNIS_CENTER.longitude, TUNIS_CENTER.latitude];
+const DEFAULT_ZOOM = 14;
 
 /**
  * Web counterpart of TunisMap.tsx: the native Mapbox SDK doesn't run in a
- * browser, so the web build uses Mapbox GL JS with the same style, center and pin.
+ * browser, so the web build uses Mapbox GL JS with the same style, props and
+ * behavior (no pin of its own; see `CenterPin`).
  */
-export function TunisMap({ accessToken }: { accessToken: string }) {
-  const theme = useTheme();
+export function TunisMap({ accessToken, center = TUNIS_CENTER, onCenterChange }: TunisMapProps) {
   const container = useRef<HTMLDivElement>(null);
+  const map = useRef<mapboxgl.Map | null>(null);
+  // Always call the latest callback without recreating the map.
+  const onChange = useRef(onCenterChange);
+  useEffect(() => {
+    onChange.current = onCenterChange;
+  });
+  const initialCenter = useRef(center);
 
   useEffect(() => {
     if (!container.current) return;
-    const map = new mapboxgl.Map({
+    const instance = new mapboxgl.Map({
       accessToken,
       container: container.current,
       style: 'mapbox://styles/mapbox/streets-v12',
-      center: TUNIS,
+      center: [initialCenter.current.longitude, initialCenter.current.latitude],
       zoom: DEFAULT_ZOOM,
     });
-
-    const pin = document.createElement('div');
-    Object.assign(pin.style, {
-      width: '22px',
-      height: '22px',
-      borderRadius: '11px',
-      border: `3px solid ${theme.onBrand}`,
-      backgroundColor: theme.brand,
+    instance.on('moveend', () => {
+      const { lat, lng } = instance.getCenter();
+      onChange.current?.({ latitude: lat, longitude: lng });
     });
-    new mapboxgl.Marker({ element: pin }).setLngLat(TUNIS).addTo(map);
+    map.current = instance;
+    return () => {
+      map.current = null;
+      instance.remove();
+    };
+  }, [accessToken]);
 
-    return () => map.remove();
-  }, [accessToken, theme.brand, theme.onBrand]);
+  useEffect(() => {
+    map.current?.jumpTo({ center: [center.longitude, center.latitude] });
+  }, [center.latitude, center.longitude]);
 
   return <div ref={container} style={{ position: 'absolute', inset: 0 }} />;
 }
