@@ -1,7 +1,7 @@
-import { and, eq, lte, type SQL } from 'drizzle-orm';
+import { and, eq, inArray, lte, type SQL, sql } from 'drizzle-orm';
 
 import type { Database } from '../db/database.module.js';
-import { towRequests } from '../db/schema.js';
+import { towOffers, towRequests } from '../db/schema.js';
 
 /**
  * Marks open requests past their expiry as expired (there is no cron yet): the
@@ -21,4 +21,25 @@ export async function expireStaleRequests(
     .update(towRequests)
     .set({ status: 'expired', updatedAt: now })
     .where(and(...conditions));
+}
+
+/**
+ * Marks everyone's pending offers as expired once they are past their expiry,
+ * or once their request was cancelled or expired. Run {@link expireStaleRequests}
+ * first. Not inside a transaction that holds row locks: it touches other drivers' offers.
+ */
+export async function expireStaleOffers(db: Database, now: Date): Promise<void> {
+  await db
+    .update(towOffers)
+    .set({ status: 'expired', updatedAt: now })
+    .where(
+      and(
+        eq(towOffers.status, 'pending'),
+        sql`(${lte(towOffers.expiresAt, now)} or exists (
+          select 1 from ${towRequests}
+          where ${towRequests.id} = ${towOffers.requestId}
+            and ${inArray(towRequests.status, ['cancelled', 'expired'])}
+        ))`,
+      ),
+    );
 }
