@@ -164,6 +164,18 @@ describe('trip stages, completion and cancel rules (e2e)', () => {
       await stage(dan, 'en_route').expect(409);
     });
 
+    it('lets only one of two concurrent calls for the same step through', async () => {
+      const req = await assign();
+
+      const statuses = await Promise.all([
+        stage(dan, 'en_route').then((res) => res.status),
+        stage(dan, 'en_route').then((res) => res.status),
+      ]);
+
+      expect(statuses.sort()).toEqual([200, 409]);
+      expect((await row(req.id)).tripStage).toBe('en_route');
+    });
+
     it('is 400 for an unknown stage, including accepted', async () => {
       await assign();
       await stage(dan, 'accepted').expect(400);
@@ -221,6 +233,21 @@ describe('trip stages, completion and cancel rules (e2e)', () => {
       await stage(dan, 'en_route').expect(404);
       const history = await api('get', '/tow-requests', alice).expect(200);
       expect(history.body.items[0]).toMatchObject({ status: 'completed' });
+    });
+
+    it('keeps the driver on the completed request for the customer', async () => {
+      const req = await assign();
+      await advanceTo('towing');
+      await api('post', '/driver/job/complete', dan).expect(200);
+
+      const history = await api('get', '/tow-requests', alice).expect(200);
+      for (const completed of [await active(), towRequestSchema.parse(history.body.items[0])]) {
+        expect(completed).toMatchObject({
+          id: req.id,
+          status: 'completed',
+          driver: { fullName: 'Dan Driver', truckType: 'flatbed' },
+        });
+      }
     });
 
     it('frees the driver and the customer', async () => {

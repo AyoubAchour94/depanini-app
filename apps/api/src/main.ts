@@ -2,6 +2,7 @@ import 'reflect-metadata';
 
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
+import { WsAdapter } from '@nestjs/platform-ws';
 
 import { AppModule } from './app.module.js';
 import type { Env } from './config/env.js';
@@ -18,6 +19,8 @@ try {
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
   app.enableShutdownHooks();
+  // `/ws` (see src/realtime) shares the HTTP server and port.
+  app.useWebSocketAdapter(new WsAdapter(app));
 
   const env = app.get<Env>(ENV);
   // @fastify/cors only allows GET, HEAD and POST by default.

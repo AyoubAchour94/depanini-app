@@ -383,10 +383,26 @@ describe('tow requests (e2e)', () => {
 
       const res = await api('post', `/tow-requests/${created.body.id}/cancel`, alice).expect(200);
 
-      expect(towRequestSchema.parse(res.body)).toEqual({ ...created.body, status: 'cancelled' });
+      expect(towRequestSchema.parse(res.body)).toEqual({
+        ...created.body,
+        status: 'cancelled',
+        cancelledBy: 'customer',
+      });
       const [row] = await database.db.select().from(towRequests);
       expect(row!.cancelledAt).toEqual(now);
+      expect(row!.cancelledBy).toBe('customer');
       await api('get', '/tow-requests/active', alice).expect(204);
+    });
+
+    it('drops a reason given for an open request', async () => {
+      await makeCustomer(alice);
+      const created = await create(alice).expect(201);
+
+      const res = await api('post', `/tow-requests/${created.body.id}/cancel`, alice)
+        .send({ reason: 'problem_solved' })
+        .expect(200);
+
+      expect(res.body).toMatchObject({ cancelledBy: 'customer', cancelReason: null });
     });
 
     it('lets the customer request again after cancelling', async () => {

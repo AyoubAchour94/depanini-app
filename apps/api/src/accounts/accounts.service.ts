@@ -4,6 +4,7 @@ import { and, eq, or, sql } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/database.module.js';
 import { customerProfiles, driverProfiles, towRequests, users } from '../db/schema.js';
+import { TripEvents } from '../realtime/trip-events.service.js';
 import { isDeadlock } from '../tow-requests/deadlock.js';
 
 /** How often a delete is retried after Postgres broke a deadlock by aborting it. */
@@ -39,7 +40,10 @@ export interface SignInIdentity {
 
 @Injectable()
 export class AccountsService {
-  constructor(@Inject(DB) private readonly db: Database) {}
+  constructor(
+    @Inject(DB) private readonly db: Database,
+    private readonly events: TripEvents,
+  ) {}
 
   /**
    * Returns the account for this Firebase user, creating it on first sign-in.
@@ -61,26 +65,32 @@ export class AccountsService {
   /**
    * Deletes this Firebase user's account; its profiles, requests and offers go
    * with it (cascade). Requests assigned to the account as driver are cancelled
-   * first, so their customers are not left waiting for a driver who is gone.
+   * first (and their customers told over `/ws`), so they are not left waiting for a
+   * driver who is gone.
    * Does nothing if there is no account.
    */
   async delete(firebaseUid: string): Promise<void> {
     for (let attempt = 1; ; attempt += 1) {
+      let cancelled: string[];
       try {
-        return await this.deleteOnce(firebaseUid);
+        cancelled = await this.deleteOnce(firebaseUid);
       } catch (error) {
         if (!isDeadlock(error) || attempt === DELETE_ATTEMPTS) throw error;
+        continue;
       }
+      await this.events.requestsUpdated(cancelled);
+      return;
     }
   }
 
-  private deleteOnce(firebaseUid: string): Promise<void> {
+  /** One attempt at {@link delete}: the ids of the jobs it cancelled. */
+  private deleteOnce(firebaseUid: string): Promise<string[]> {
     return this.db.transaction(async (tx) => {
       const [account] = await tx
         .select({ id: users.id })
         .from(users)
         .where(eq(users.firebaseUid, firebaseUid));
-      if (!account) return;
+      if (!account) return [];
 
       // Same lock order as accepting an offer: requests, then the driver's profile.
       // The account's pending offers need no update: they cascade away below.
@@ -98,7 +108,7 @@ export class AccountsService {
         .for('update');
 
       const now = new Date();
-      await tx
+      const cancelled = await tx
         .update(towRequests)
         .set({
           status: 'cancelled',
@@ -109,8 +119,10 @@ export class AccountsService {
         })
         .where(
           and(eq(towRequests.assignedDriverId, account.id), eq(towRequests.status, 'assigned')),
-        );
+        )
+        .returning({ id: towRequests.id });
       await tx.delete(users).where(eq(users.id, account.id));
+      return cancelled.map((request) => request.id);
     });
   }
 

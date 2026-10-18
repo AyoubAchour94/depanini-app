@@ -14,7 +14,8 @@ import { DB, type Database } from '../db/database.module.js';
 import { driverPresence, towOffers, towRequests } from '../db/schema.js';
 import { CLOCK, type Clock } from '../tow-requests/clock.js';
 import { expireStaleOffers, expireStaleRequests } from '../tow-requests/expiry.js';
-import { point } from '../tow-requests/tow-requests.service.js';
+import { TripEvents } from '../realtime/trip-events.service.js';
+import { point } from '../tow-requests/tow-request-rows.js';
 
 /** The most requests the nearby list returns. */
 const NEARBY_LIMIT = 30;
@@ -49,11 +50,13 @@ export class DriversService {
   constructor(
     @Inject(DB) private readonly db: Database,
     @Inject(CLOCK) private readonly now: Clock,
+    private readonly events: TripEvents,
   ) {}
 
   /**
    * Upserts the driver's presence. A location stamps `location_updated_at` from the
    * clock; going offline (or online without a location) leaves the last location alone.
+   * During a job, a new location goes to the customer as `driver.location`.
    */
   async setPresence(
     driverId: string,
@@ -68,6 +71,7 @@ export class DriversService {
       .values({ userId: driverId, ...values })
       .onConflictDoUpdate({ target: driverPresence.userId, set: values })
       .returning(presenceColumns);
+    if (location) await this.events.driverMoved(driverId);
     return toPresence(row!);
   }
 
