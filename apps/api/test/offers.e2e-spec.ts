@@ -59,7 +59,7 @@ describe('offers, accept/decline and driver job (e2e)', () => {
   const dan = 'token-dan:dan@example.com';
   const eve = 'token-eve:eve@example.com';
 
-  const api = (method: 'get' | 'post' | 'put', path: string, token?: string) => {
+  const api = (method: 'get' | 'post' | 'put' | 'delete', path: string, token?: string) => {
     const req = request(app.getHttpServer())[method](path);
     return token ? req.set('Authorization', `Bearer ${token}`) : req;
   };
@@ -589,6 +589,89 @@ describe('offers, accept/decline and driver job (e2e)', () => {
         'assigned',
       );
     });
+  });
+
+  describe('DELETE /me during a job', () => {
+    it("cancels the driver's assigned request and frees the customer", async () => {
+      const req = await setUp();
+      const offer = await makeOffer(dan, req.id);
+      await api('post', `/offers/${offer.id}/accept`, alice).expect(200);
+      secondsLater(30);
+
+      await api('delete', '/me', dan).expect(204);
+
+      const row = await requestRow(req.id);
+      expect(row).toMatchObject({ status: 'cancelled', assignedDriverId: null });
+      expect(row.cancelledAt).toBeInstanceOf(Date);
+      await api('get', '/tow-requests/active', alice).expect(204);
+    });
+
+    it("leaves the driver's other customers' open requests alone", async () => {
+      const req = await setUp();
+      await makeCustomer(bob);
+      const bobs = await createRequest(bob, { ...tunis, address: 'Tunis 2' });
+      const offer = await makeOffer(dan, req.id);
+      await makeOffer(dan, bobs.id);
+      await api('post', `/offers/${offer.id}/accept`, alice).expect(200);
+
+      await api('delete', '/me', dan).expect(204);
+
+      expect((await requestRow(bobs.id)).status).toBe('open');
+      await api('get', `/tow-requests/${bobs.id}/offers`, bob).expect(200, []);
+    });
+
+    it('removes the customer request, so the driver has no job', async () => {
+      const req = await setUp();
+      const offer = await makeOffer(dan, req.id);
+      await api('post', `/offers/${offer.id}/accept`, alice).expect(200);
+      await api('get', '/driver/job', dan).expect(200);
+
+      await api('delete', '/me', alice).expect(204);
+
+      await api('get', '/driver/job', dan).expect(204);
+    });
+  });
+
+  describe('concurrent accepts', () => {
+    it(
+      'both succeed when two drivers cross-accept on two requests',
+      { timeout: 30_000 },
+      async () => {
+        await makeCustomer(alice);
+        await makeCustomer(bob);
+        await makeDriver(dan);
+        await goOnline(dan);
+        await makeDriver(eve, 'Eve Driver', 'wheel_lift');
+        await goOnline(eve, ariana);
+        const danId = await accountId(dan);
+        const eveId = await accountId(eve);
+
+        for (let round = 0; round < 5; round += 1) {
+          await database.db.delete(towRequests);
+          const r1 = await createRequest(alice);
+          const r2 = await createRequest(bob, { ...tunis, address: 'Tunis 2' });
+          const danOnR1 = await makeOffer(dan, r1.id);
+          const danOnR2 = await makeOffer(dan, r2.id);
+          const eveOnR1 = await makeOffer(eve, r1.id);
+          const eveOnR2 = await makeOffer(eve, r2.id);
+
+          const [first, second] = await Promise.all([
+            api('post', `/offers/${danOnR1.id}/accept`, alice),
+            api('post', `/offers/${eveOnR2.id}/accept`, bob),
+          ]);
+
+          expect([first.status, second.status]).toEqual([200, 200]);
+          expect((await requestRow(r1.id)).assignedDriverId).toBe(danId);
+          expect((await requestRow(r2.id)).assignedDriverId).toBe(eveId);
+          expect(await offerStatus(danOnR1.id)).toBe('accepted');
+          expect(await offerStatus(eveOnR2.id)).toBe('accepted');
+          expect(await offerStatus(danOnR2.id)).toMatch(/rejected|withdrawn/);
+          expect(await offerStatus(eveOnR1.id)).toMatch(/rejected|withdrawn/);
+          await api('get', '/driver/job', dan).expect(200);
+          await api('get', '/driver/job', eve).expect(200);
+        }
+      },
+    );
   });
 
   describe('changes to existing endpoints', () => {
