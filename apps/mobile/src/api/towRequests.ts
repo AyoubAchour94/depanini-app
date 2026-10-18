@@ -1,4 +1,5 @@
 import {
+  type CustomerCancelReason,
   type CustomerOffer,
   customerOfferSchema,
   type FareEstimate,
@@ -60,6 +61,8 @@ export function useCreateTowRequest() {
 
 /** How often the open request is re-read while its screen is showing. */
 export const ACTIVE_POLL_MS = 15_000;
+/** Faster while a driver is assigned, for the truck and the ETA; the WebSocket slice will lower it. */
+export const ASSIGNED_POLL_MS = 10_000;
 
 /**
  * `GET /tow-requests/active`: the customer's open or assigned request, or `null` (204)
@@ -70,19 +73,30 @@ export function useActiveTowRequest({ poll = false }: { poll?: boolean } = {}) {
     queryKey: ACTIVE_KEY,
     queryFn: async () =>
       (await apiRequest('/tow-requests/active', towRequestSchema.optional())) ?? null,
-    refetchInterval: poll ? ACTIVE_POLL_MS : false,
+    refetchInterval: (query) =>
+      poll ? (query.state.data?.status === 'assigned' ? ASSIGNED_POLL_MS : ACTIVE_POLL_MS) : false,
   });
 }
 
 /**
- * `POST /tow-requests/:id/cancel`. Fails with an `ApiError`: 404 when the
- * request is not the customer's, 409 when it is no longer open or assigned.
+ * `POST /tow-requests/:id/cancel`, with the reason when the rules ask for one.
+ * Fails with an `ApiError`: 400 for a missing or unknown reason, 404 when the
+ * request is not the customer's, 409 when it can no longer be cancelled.
  */
 export function useCancelTowRequest() {
   const invalidate = useInvalidateTowRequests();
   return useMutation({
-    mutationFn: (id: string): Promise<TowRequest> =>
-      apiRequest(`/tow-requests/${id}/cancel`, towRequestSchema, { method: 'POST' }),
+    mutationFn: ({
+      id,
+      reason,
+    }: {
+      id: string;
+      reason?: CustomerCancelReason;
+    }): Promise<TowRequest> =>
+      apiRequest(`/tow-requests/${id}/cancel`, towRequestSchema, {
+        method: 'POST',
+        json: reason ? { reason } : undefined,
+      }),
     onSettled: () => void invalidate(),
   });
 }
