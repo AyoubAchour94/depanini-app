@@ -20,6 +20,7 @@ export const driverStrings = {
 
   detailsTitle: 'Request',
   notFound: 'This request is no longer available.',
+  backToRequests: 'Back to requests',
   pickupLabel: 'Pickup',
   dropoffLabel: 'Drop-off',
   towDistance: (m: number) => `Tow distance: ${(m / 1000).toFixed(1)} km`,

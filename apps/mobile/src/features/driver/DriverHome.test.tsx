@@ -39,6 +39,8 @@ const request = {
 };
 
 let nearbyBody: unknown[] = [];
+// When set, `online: true` presence requests wait for it.
+let holdOnline: Promise<void> | null = null;
 
 /** Fakes the API and records the calls as `METHOD path`. */
 function mockApi() {
@@ -48,6 +50,7 @@ function mockApi() {
     const call = `${init?.method ?? 'GET'} ${path}`;
     calls.push({ call, body: init?.body ? JSON.parse(String(init.body)) : undefined });
     if (path === '/driver/presence') {
+      if (holdOnline && JSON.parse(String(init?.body)).online) await holdOnline;
       return Response.json({ online: JSON.parse(String(init?.body)).online });
     }
     return Response.json(nearbyBody);
@@ -85,6 +88,7 @@ beforeEach(() => {
   jest.useFakeTimers();
   jest.setSystemTime(new Date('2026-01-01T10:00:00.000Z'));
   nearbyBody = [];
+  holdOnline = null;
   location.requestForegroundPermissionsAsync.mockResolvedValue({ granted: true } as never);
   location.getCurrentPositionAsync.mockResolvedValue({
     coords: { latitude: 36.81, longitude: 10.17 },
@@ -170,6 +174,89 @@ describe('DriverHome presence', () => {
     await view.unmount();
     await act(async () => jest.advanceTimersByTime(45_000));
     expect(api.calls('PUT /driver/presence')).toHaveLength(2);
+  });
+});
+
+describe('DriverHome presence ordering', () => {
+  it('does not start another send while one is pending', async () => {
+    location.getCurrentPositionAsync.mockImplementation(() => new Promise(() => {}));
+    const api = mockApi();
+    await renderHome();
+    await goOnline();
+    await act(async () => jest.advanceTimersByTime(60_000));
+
+    expect(location.getCurrentPositionAsync).toHaveBeenCalledTimes(1);
+    expect(api.calls('PUT /driver/presence')).toHaveLength(0);
+  });
+
+  it('sends online false last when switched off during a send', async () => {
+    let release: () => void = () => {};
+    holdOnline = new Promise<void>((resolve) => (release = resolve));
+    const api = mockApi();
+    await renderHome();
+    await goOnline();
+    expect(api.calls('PUT /driver/presence')).toHaveLength(1);
+
+    await act(async () => fireEvent(screen.getByRole('switch'), 'valueChange', false));
+    await flush();
+    expect(api.calls('PUT /driver/presence')).toHaveLength(1);
+
+    await act(async () => release());
+    await flush();
+    const puts = api.calls('PUT /driver/presence');
+    expect(puts).toHaveLength(2);
+    expect(puts[1]?.body).toEqual({ online: false });
+  });
+
+  it('ignores a second switch-on while the permission prompt is open', async () => {
+    let answer: (value: unknown) => void = () => {};
+    location.requestForegroundPermissionsAsync.mockImplementation(
+      () => new Promise((resolve) => (answer = resolve)) as never,
+    );
+    const api = mockApi();
+    await renderHome();
+    await goOnline();
+    await goOnline();
+    expect(location.requestForegroundPermissionsAsync).toHaveBeenCalledTimes(1);
+
+    await act(async () => answer({ granted: true }));
+    await flush();
+    expect(screen.getByRole('switch').props.value).toBe(true);
+    expect(api.calls('PUT /driver/presence')).toHaveLength(1);
+  });
+
+  it('stays offline when switched off while the permission prompt is open', async () => {
+    let answer: (value: unknown) => void = () => {};
+    location.requestForegroundPermissionsAsync.mockImplementation(
+      () => new Promise((resolve) => (answer = resolve)) as never,
+    );
+    const api = mockApi();
+    await renderHome();
+    await goOnline();
+    await act(async () => fireEvent(screen.getByRole('switch'), 'valueChange', false));
+    await flush();
+    await act(async () => answer({ granted: true }));
+    await flush();
+
+    expect(screen.getByRole('switch').props.value).toBe(false);
+    expect(location.getCurrentPositionAsync).not.toHaveBeenCalled();
+    expect(
+      api.calls('PUT /driver/presence').every((c) => !(c.body as { online: boolean }).online),
+    ).toBe(true);
+  });
+});
+
+describe('RequestDetailsScreen', () => {
+  it('says the request is gone, with a way back, when it is not in the list', async () => {
+    mockApi();
+    await renderHome();
+    await act(async () => router.push({ pathname: '/job-offer/[id]', params: { id: request.id } }));
+    expect(await screen.findByText('This request is no longer available.')).toBeOnTheScreen();
+
+    await act(async () =>
+      fireEvent.press(screen.getByRole('button', { name: 'Back to requests' })),
+    );
+    expect(await screen.findByText('Go online to see requests')).toBeOnTheScreen();
   });
 });
 

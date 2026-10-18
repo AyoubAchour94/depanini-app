@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useCachedNearbyRequest } from '@/api/driver';
@@ -9,8 +9,11 @@ import { TunisMap } from '@/features/map/TunisMap';
 import { formatRemaining, useCountdown } from '@/features/request/countdown';
 import { requestStrings } from '@/features/request/strings';
 import { useTheme } from '@/theme/theme';
+import { Button } from '@/ui/Button';
 
 import { driverStrings as t } from './strings';
+
+const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
 
 /**
  * A nearby request in full. The map is centered on the pickup; the drop-off
@@ -25,6 +28,7 @@ export function RequestDetailsScreen({ id }: { id: string }) {
     return (
       <View style={[styles.fill, styles.center, { backgroundColor: theme.background }]}>
         <Text style={{ color: theme.textMuted }}>{t.notFound}</Text>
+        <Button title={t.backToRequests} kind="link" onPress={goBack} />
       </View>
     );
   }
@@ -82,7 +86,7 @@ function Place({ label, address }: { label: string; address: string }) {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  center: { alignItems: 'center', justifyContent: 'center', padding: 24 },
+  center: { alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },
   body: { padding: 16, gap: 16 },
   map: { height: 200, borderRadius: 12, overflow: 'hidden' },
   card: { borderRadius: 12, padding: 16, gap: 10 },
