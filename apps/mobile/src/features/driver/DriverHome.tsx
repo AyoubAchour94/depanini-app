@@ -14,8 +14,10 @@ import { useDriverJob, useNearbyRequests } from '@/api/driver';
 import { formatRemaining, useCountdown } from '@/features/request/countdown';
 import { requestStrings } from '@/features/request/strings';
 import { useTheme } from '@/theme/theme';
+import { Button } from '@/ui/Button';
 
 import { driverStrings as t } from './strings';
+import { isTestLocationEnabled, setTestLocation, useTestLocation } from './testLocation';
 import { useDriverPresence } from './usePresence';
 
 /**
@@ -42,6 +44,7 @@ export function DriverHome() {
           trackColor={{ true: theme.success }}
         />
       </View>
+      {isTestLocationEnabled() ? <TestLocationRow /> : null}
       {problem ? (
         <Text style={[styles.note, { color: theme.danger }]}>
           {problem === 'denied' ? t.locationDenied : t.locationUnavailable}
@@ -88,6 +91,25 @@ export function DriverHome() {
           <Text style={{ color: theme.textMuted }}>{t.loading}</Text>
         </View>
       )}
+    </View>
+  );
+}
+
+/** Dev/test builds: where the driver app thinks the driver is, with a way to change it. */
+function TestLocationRow() {
+  const theme = useTheme();
+  const test = useTestLocation();
+  return (
+    <View style={[styles.testRow, { backgroundColor: theme.surface }]}>
+      <Text style={{ color: theme.textMuted }}>
+        {test ? t.testLocationUsing(test.address) : t.testLocationUsingGps}
+      </Text>
+      <View style={styles.testActions}>
+        <Button title={t.setOnMap} kind="link" onPress={() => router.push('/test-location')} />
+        {test ? (
+          <Button title={t.useDeviceGps} kind="link" onPress={() => setTestLocation(null)} />
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -140,6 +162,8 @@ const styles = StyleSheet.create({
   },
   switchLabel: { fontSize: 18, fontWeight: '600' },
   note: { fontSize: 14, padding: 16 },
+  testRow: { paddingHorizontal: 16, paddingBottom: 12, gap: 6 },
+  testActions: { flexDirection: 'row', gap: 20 },
   state: { padding: 24, textAlign: 'center' },
   loading: { padding: 24, alignItems: 'center', gap: 12 },
   list: { padding: 16, gap: 12 },

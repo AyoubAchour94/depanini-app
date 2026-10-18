@@ -88,6 +88,7 @@ function RootNavigator() {
           name="job"
           options={{ title: driverStrings.jobTitle, headerBackVisible: false }}
         />
+        <Stack.Screen name="test-location" options={{ title: driverStrings.testLocationTitle }} />
       </Stack.Protected>
       <Stack.Protected guard={Boolean(account) && !onboarded}>
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />

@@ -4,6 +4,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { putPresence } from '@/api/driver';
 
+import { getTestLocation } from './testLocation';
+
+async function currentPosition() {
+  const { coords } = await Location.getCurrentPositionAsync({
+    accuracy: Location.Accuracy.Balanced,
+  });
+  return { latitude: coords.latitude, longitude: coords.longitude };
+}
+
 /** How often an online driver's location is sent. The API treats 2 minutes of silence as offline. */
 export const PRESENCE_INTERVAL_MS = 15_000;
 
@@ -45,10 +54,11 @@ export function useDriverPresence(focused: boolean) {
       sending.current = true;
       const started = generation.current;
       try {
-        const { coords } = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        const location = { latitude: coords.latitude, longitude: coords.longitude };
+        // A test location (dev/test builds) replaces the device GPS.
+        const test = getTestLocation();
+        const location = test
+          ? { latitude: test.latitude, longitude: test.longitude }
+          : await currentPosition();
         // The API rejects places outside Tunisia; the next tick tries again.
         if (cancelled || started !== generation.current || !isInTunisia(location)) return;
         const request = putPresence({ online: true, location });
@@ -74,7 +84,10 @@ export function useDriverPresence(focused: boolean) {
     const started = generation.current;
     setProblem(null);
     try {
-      const permission = await Location.requestForegroundPermissionsAsync();
+      // With a test location the GPS is never read, so there is nothing to ask.
+      const permission = getTestLocation()
+        ? { granted: true }
+        : await Location.requestForegroundPermissionsAsync();
       // Unmounted, or switched off while the prompt was open.
       if (!mounted.current || started !== generation.current) return;
       if (!permission.granted) return setProblem('denied');

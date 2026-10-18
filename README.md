@@ -212,6 +212,17 @@ a running Auth emulator is reused. The URLs are random and change on every
 run, and anyone with them can use the app until you press Ctrl+C. Only
 emulator accounts exist there.
 
+### Testing from outside Tunisia
+
+Every location must be inside Tunisia, so the real GPS of a tester abroad never
+works. In the driver app, development builds (and any build made with
+`EXPO_PUBLIC_ENABLE_TEST_LOCATION=1`) show a **Test location** row on the home
+screen: **Set on map** picks a place in Tunisia, which is then sent as the
+driver's location (no location permission needed), and **Use device GPS**
+switches back. On web the choice survives a reload (localStorage); on native it
+lasts until the app is closed. Customers can move the pickup pin anywhere in
+Tunisia; it starts in Tunis when the GPS is outside the country.
+
 **Reaching the API from a device:** `localhost` is the device itself. Use
 `http://10.0.2.2:3000` from the Android emulator, or your computer's LAN IP
 from a physical device, in `EXPO_PUBLIC_API_URL`.
