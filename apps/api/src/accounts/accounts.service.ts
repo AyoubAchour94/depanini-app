@@ -54,6 +54,14 @@ export class AccountsService {
     return account!;
   }
 
+  /**
+   * Deletes this Firebase user's account; its profiles go with it (cascade).
+   * Does nothing if there is no account.
+   */
+  async delete(firebaseUid: string): Promise<void> {
+    await this.db.delete(users).where(eq(users.firebaseUid, firebaseUid));
+  }
+
   /** {@link getOrCreate}, plus the account's profiles. */
   async getOrCreateWithProfiles(identity: SignInIdentity): Promise<AccountWithProfiles> {
     const account = await this.getOrCreate(identity);

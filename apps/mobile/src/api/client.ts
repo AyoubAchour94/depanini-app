@@ -46,5 +46,6 @@ export async function apiRequest<T>(
   if (!response.ok && !acceptStatuses.includes(response.status)) {
     throw new ApiError(`${init.method ?? 'GET'} ${path} failed`, response.status);
   }
-  return schema.parse(await response.json());
+  // 204 No Content has no body to parse.
+  return schema.parse(response.status === 204 ? undefined : await response.json());
 }

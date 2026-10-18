@@ -11,11 +11,15 @@ const messages: Record<string, string> = {
   'auth/network-request-failed': 'No connection. Check your internet and try again.',
   'auth/user-disabled': 'This account has been disabled.',
   'auth/operation-not-allowed': 'This sign-in method is not enabled yet.',
+  'auth/requires-recent-login': 'For your security, sign out and sign in again, then retry.',
 };
+
+/** The Firebase Auth error code (`auth/...`) of a thrown error, if it has one. */
+export function authErrorCode(error: unknown): string {
+  return typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : '';
+}
 
 /** A message to show the user for an error thrown by Firebase Auth. */
 export function authErrorMessage(error: unknown): string {
-  const code =
-    typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : '';
-  return messages[code] ?? 'Something went wrong. Try again.';
+  return messages[authErrorCode(error)] ?? 'Something went wrong. Try again.';
 }

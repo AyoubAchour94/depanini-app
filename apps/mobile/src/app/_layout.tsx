@@ -64,6 +64,7 @@ function RootNavigator() {
         <Stack.Screen name="index" />
         <Stack.Screen name="account" options={{ title: 'Account' }} />
         <Stack.Screen name="profile" options={{ title: 'Profile' }} />
+        <Stack.Screen name="delete-account" options={{ title: 'Delete account' }} />
       </Stack.Protected>
       <Stack.Protected guard={Boolean(account) && !onboarded}>
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />

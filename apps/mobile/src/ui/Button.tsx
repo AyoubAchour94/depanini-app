@@ -1,12 +1,15 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 
-import { useTheme } from '@/theme/theme';
+import { contrastingTextColor, useTheme } from '@/theme/theme';
 
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  /** `primary` is filled with the brand color; `link` is plain text. */
-  kind?: 'primary' | 'link';
+  /**
+   * `primary` is filled with the brand color, `danger` with the danger color
+   * (for destructive actions); `link` is plain text.
+   */
+  kind?: 'primary' | 'danger' | 'link';
   loading?: boolean;
   disabled?: boolean;
 }
@@ -14,6 +17,8 @@ interface ButtonProps {
 export function Button({ title, onPress, kind = 'primary', loading, disabled }: ButtonProps) {
   const theme = useTheme();
   const inactive = disabled || loading;
+  const fill = kind === 'danger' ? theme.danger : theme.brand;
+  const onFill = kind === 'danger' ? contrastingTextColor(theme.danger) : theme.onBrand;
 
   if (kind === 'link') {
     return (
@@ -31,13 +36,16 @@ export function Button({ title, onPress, kind = 'primary', loading, disabled }: 
       disabled={inactive}
       style={({ pressed }) => [
         styles.primary,
-        { backgroundColor: theme.brand, opacity: inactive ? 0.6 : pressed ? 0.85 : 1 },
+        {
+          backgroundColor: fill,
+          opacity: inactive ? 0.6 : pressed ? 0.85 : 1,
+        },
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={theme.onBrand} />
+        <ActivityIndicator color={onFill} />
       ) : (
-        <Text style={[styles.primaryText, { color: theme.onBrand }]}>{title}</Text>
+        <Text style={[styles.primaryText, { color: onFill }]}>{title}</Text>
       )}
     </Pressable>
   );

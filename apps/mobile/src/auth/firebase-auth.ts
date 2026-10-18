@@ -1,8 +1,11 @@
 import {
   connectAuthEmulator,
   createUserWithEmailAndPassword,
+  deleteUser,
+  EmailAuthProvider,
   getAuth,
   onAuthStateChanged,
+  reauthenticateWithCredential,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
@@ -53,4 +56,29 @@ export async function sendPasswordReset(email: string): Promise<void> {
 
 export async function signOut(): Promise<void> {
   await firebaseSignOut(auth());
+}
+
+/**
+ * Confirms the signed-in user's password with Firebase. Run it right before a
+ * sensitive action, which Firebase refuses after an old sign-in
+ * (`auth/requires-recent-login`).
+ */
+export async function reauthenticate(password: string): Promise<void> {
+  const user = currentUserOrThrow();
+  await reauthenticateWithCredential(
+    user,
+    EmailAuthProvider.credential(user.email ?? '', password),
+  );
+}
+
+/** Deletes the signed-in Firebase user; the auth listener then reports a sign-out. */
+export async function deleteCurrentUser(): Promise<void> {
+  await deleteUser(currentUserOrThrow());
+}
+
+function currentUserOrThrow() {
+  const user = auth().currentUser;
+  if (!user)
+    throw Object.assign(new Error('Nobody is signed in'), { code: 'auth/no-current-user' });
+  return user;
 }

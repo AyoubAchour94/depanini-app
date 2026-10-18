@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Put, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Put, Req, UseGuards } from '@nestjs/common';
 import {
   type CustomerProfile,
   customerProfileInputSchema,
@@ -29,6 +29,16 @@ export class MeController {
       customerProfile: account.customerProfile,
       driverProfile: account.driverProfile,
     };
+  }
+
+  /**
+   * Deletes the account and its profiles, in both apps. The app then deletes
+   * the Firebase user itself: the API has no credentials to do that.
+   */
+  @Delete()
+  @HttpCode(204)
+  async deleteAccount(@Req() request: AuthenticatedRequest): Promise<void> {
+    await this.accounts.delete(request.user.uid);
   }
 
   /** Creates or updates the customer profile; the customer app's onboarding and profile screens. */

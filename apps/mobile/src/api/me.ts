@@ -7,6 +7,7 @@ import {
   meResponseSchema,
 } from '@depanini/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { z } from 'zod';
 
 import { useAuth } from '@/auth/AuthProvider';
 
@@ -50,6 +51,14 @@ export function useSaveDriverProfile() {
     onSuccess: (driverProfile) =>
       queryClient.setQueryData<MeResponse>(meQueryKey(uid), (me) => me && { ...me, driverProfile }),
   });
+}
+
+/**
+ * `DELETE /me`: deletes the account and its profiles in both apps. The
+ * Firebase user is deleted separately (see `DeleteAccountScreen`).
+ */
+export function deleteAccount(): Promise<void> {
+  return apiRequest('/me', z.undefined(), { method: 'DELETE' });
 }
 
 const meQueryKey = (uid: string | undefined) => ['me', uid];
