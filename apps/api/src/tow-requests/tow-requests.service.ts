@@ -12,12 +12,10 @@ import {
   type CancelInput,
   customerCancelReasonSchema,
   driverCancelReasonSchema,
-  etaTo,
   type FareEstimate,
   type FareEstimateInput,
   fareBounds,
   isFareAllowed,
-  PRESENCE_STALE_MS,
   type Place,
   ROAD_FACTOR,
   suggestFare,
@@ -26,18 +24,13 @@ import {
   type TowRequestPage,
 } from '@depanini/shared';
 import { and, desc, eq, gt, inArray, or, sql } from 'drizzle-orm';
-import type { SelectResultFields } from 'drizzle-orm/query-builders/select.types';
 
 import { DB, type Database } from '../db/database.module.js';
-import {
-  customerProfiles,
-  driverPresence,
-  driverProfiles,
-  towOffers,
-  towRequests,
-} from '../db/schema.js';
+import { customerProfiles, towOffers, towRequests } from '../db/schema.js';
+import { TripEvents } from '../realtime/trip-events.service.js';
 import { CLOCK, type Clock } from './clock.js';
 import { expireStaleRequests } from './expiry.js';
+import { columns, point, selectTowRequests, toTowRequest } from './tow-request-rows.js';
 
 /** How long an open request waits for drivers. */
 const EXPIRY_MS = 15 * 60_000;
@@ -46,144 +39,6 @@ const EXPIRY_MS = 15 * 60_000;
 const COMPLETED_VISIBLE_MS = 10 * 60_000;
 
 export const MAX_PAGE_SIZE = 50;
-
-/** SQL for a point from coordinates (longitude first, as PostGIS wants). */
-export const point = ({ latitude, longitude }: Pick<Place, 'latitude' | 'longitude'>) =>
-  sql`ST_SetSRID(ST_MakePoint(${longitude}::float8, ${latitude}::float8), 4326)::geography`;
-
-/** The columns of `tow_requests` the apps see; coordinates are read back out of the geography. */
-export const columns = {
-  id: towRequests.id,
-  status: towRequests.status,
-  pickupLatitude: sql<number>`ST_Y(${towRequests.pickup}::geometry)`,
-  pickupLongitude: sql<number>`ST_X(${towRequests.pickup}::geometry)`,
-  pickupAddress: towRequests.pickupAddress,
-  dropoffLatitude: sql<number>`ST_Y(${towRequests.dropoff}::geometry)`,
-  dropoffLongitude: sql<number>`ST_X(${towRequests.dropoff}::geometry)`,
-  dropoffAddress: towRequests.dropoffAddress,
-  vehicleType: towRequests.vehicleType,
-  problemType: towRequests.problemType,
-  note: towRequests.note,
-  distanceM: towRequests.distanceM,
-  suggestedFare: towRequests.suggestedFareTnd,
-  proposedFare: towRequests.proposedFareTnd,
-  expiresAt: towRequests.expiresAt,
-  createdAt: towRequests.createdAt,
-  agreedFare: towRequests.agreedFareTnd,
-  assignedAt: towRequests.assignedAt,
-  tripStage: towRequests.tripStage,
-  enRouteAt: towRequests.enRouteAt,
-  arrivedAt: towRequests.arrivedAt,
-  towingAt: towRequests.towingAt,
-  completedAt: towRequests.completedAt,
-  cancelledBy: towRequests.cancelledBy,
-  cancelReason: towRequests.cancelReason,
-  // The JS `Date` above keeps milliseconds; the cursor needs the full microseconds.
-  createdAtMicros: sql<string>`to_char(${towRequests.createdAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
-};
-
-/** The assigned driver's contact, from a left join on `driver_profiles` (see {@link selectTowRequests}). */
-const driverColumns = {
-  driverFullName: driverProfiles.fullName,
-  driverPhone: driverProfiles.phone,
-  driverTruckType: driverProfiles.truckType,
-  driverPlateNumber: driverProfiles.plateNumber,
-};
-
-/** The assigned driver's live location, from a left join on `driver_presence`. */
-const presenceColumns = {
-  driverLatitude: sql<number | null>`ST_Y(${driverPresence.location}::geometry)`,
-  driverLongitude: sql<number | null>`ST_X(${driverPresence.location}::geometry)`,
-  driverLocationUpdatedAt: driverPresence.locationUpdatedAt,
-};
-
-type Row = SelectResultFields<typeof columns> &
-  Partial<{
-    [K in keyof typeof driverColumns]: SelectResultFields<typeof driverColumns>[K] | null;
-  }> &
-  Partial<{
-    [K in keyof typeof presenceColumns]: SelectResultFields<typeof presenceColumns>[K] | null;
-  }>;
-
-/**
- * Requests with their assigned driver's contact and last location. `db` may be a transaction.
- * Pass the rows through {@link toTowRequest} with `now` to expose the location.
- */
-export const selectTowRequests = (db: Pick<Database, 'select'>) =>
-  db
-    .select({ ...columns, ...driverColumns, ...presenceColumns })
-    .from(towRequests)
-    .leftJoin(driverProfiles, eq(driverProfiles.userId, towRequests.assignedDriverId))
-    .leftJoin(driverPresence, eq(driverPresence.userId, towRequests.assignedDriverId));
-
-/**
- * A row as the apps see it. The driver's contact shows only while the request is assigned.
- * With `now`, an assigned request also gets the driver's location (if fresh) and the ETA
- * from it: to the pickup before `arrived`, to the drop-off while `towing`.
- */
-export function toTowRequest(row: Row, now?: Date): TowRequest {
-  const pickup = {
-    latitude: Number(row.pickupLatitude),
-    longitude: Number(row.pickupLongitude),
-    address: row.pickupAddress,
-  };
-  const dropoff = {
-    latitude: Number(row.dropoffLatitude),
-    longitude: Number(row.dropoffLongitude),
-    address: row.dropoffAddress,
-  };
-  const updatedAt = row.driverLocationUpdatedAt;
-  const driverLocation =
-    now &&
-    row.status === 'assigned' &&
-    row.driverLatitude != null &&
-    row.driverLongitude != null &&
-    updatedAt &&
-    now.getTime() - updatedAt.getTime() <= PRESENCE_STALE_MS
-      ? {
-          latitude: Number(row.driverLatitude),
-          longitude: Number(row.driverLongitude),
-          updatedAt: updatedAt.toISOString(),
-        }
-      : null;
-  // A job assigned before trips existed has no stage; it counts as `accepted`.
-  const stage = row.tripStage ?? 'accepted';
-  const target = stage === 'towing' ? dropoff : stage === 'arrived' ? null : pickup;
-  return {
-    id: row.id,
-    status: row.status,
-    pickup,
-    dropoff,
-    vehicleType: row.vehicleType,
-    problemType: row.problemType,
-    note: row.note,
-    distanceM: row.distanceM,
-    suggestedFare: row.suggestedFare,
-    proposedFare: row.proposedFare,
-    expiresAt: row.expiresAt.toISOString(),
-    createdAt: row.createdAt.toISOString(),
-    agreedFare: row.agreedFare,
-    assignedAt: row.assignedAt?.toISOString() ?? null,
-    tripStage: row.tripStage,
-    enRouteAt: row.enRouteAt?.toISOString() ?? null,
-    arrivedAt: row.arrivedAt?.toISOString() ?? null,
-    towingAt: row.towingAt?.toISOString() ?? null,
-    completedAt: row.completedAt?.toISOString() ?? null,
-    cancelledBy: row.cancelledBy,
-    cancelReason: row.cancelReason,
-    driverLocation,
-    etaMin: driverLocation && target ? etaTo(target, driverLocation) : null,
-    driver:
-      row.status === 'assigned' && row.driverFullName
-        ? {
-            fullName: row.driverFullName,
-            phone: row.driverPhone!,
-            truckType: row.driverTruckType!,
-            plateNumber: row.driverPlateNumber!,
-          }
-        : null,
-  };
-}
 
 /**
  * Position in the history: the last item of a page. Opaque to the apps.
@@ -223,6 +78,7 @@ export class TowRequestsService {
   constructor(
     @Inject(DB) private readonly db: Database,
     @Inject(CLOCK) private readonly now: Clock,
+    private readonly events: TripEvents,
   ) {}
 
   /** The distance and fare bounds for a trip. The API never trusts a client price. */
@@ -353,13 +209,13 @@ export class TowRequestsService {
    * its driver), and rejects its pending offers. `404` if it is neither's, `409` if
    * it is no longer open or assigned, or the trip stage does not allow the caller to
    * cancel (see `canCustomerCancel` / `canDriverCancel`), `400` if a reason is needed
-   * and missing, or not in the caller's own list. An assigned request records who
-   * cancelled and why; an open one needs no reason, and any given is dropped.
+   * and missing, or not in the caller's own list. Records who cancelled; an assigned
+   * request also records why, while an open one needs no reason and any given is dropped.
    */
   async cancel(accountId: string, id: string, { reason }: CancelInput = {}): Promise<TowRequest> {
     await this.expireStale(accountId);
     const now = this.now();
-    const cancelled = await this.db.transaction(async (tx) => {
+    const { cancelled, rejected } = await this.db.transaction(async (tx) => {
       // Locks out a concurrent accept, so a request is never both assigned and cancelled.
       const [row] = await tx
         .select({
@@ -397,18 +253,21 @@ export class TowRequestsService {
         .set({
           status: 'cancelled',
           cancelledAt: now,
-          cancelledBy: assigned ? (byCustomer ? 'customer' : 'driver') : null,
+          cancelledBy: byCustomer ? 'customer' : 'driver',
           cancelReason: assigned ? (reason ?? null) : null,
           updatedAt: now,
         })
         .where(eq(towRequests.id, id))
         .returning(columns);
-      await tx
+      const rejected = await tx
         .update(towOffers)
         .set({ status: 'rejected', updatedAt: now })
-        .where(and(eq(towOffers.requestId, id), eq(towOffers.status, 'pending')));
-      return updated!;
+        .where(and(eq(towOffers.requestId, id), eq(towOffers.status, 'pending')))
+        .returning({ id: towOffers.id });
+      return { cancelled: updated!, rejected: rejected.map((offer) => offer.id) };
     });
+    await this.events.requestsUpdated([id]);
+    await this.events.offersUpdated(rejected);
     return toTowRequest(cancelled);
   }
 

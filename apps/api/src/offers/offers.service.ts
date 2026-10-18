@@ -22,26 +22,22 @@ import {
   type TripStage,
 } from '@depanini/shared';
 import { and, asc, desc, eq, gt, ne, sql } from 'drizzle-orm';
-import type { SelectResultFields } from 'drizzle-orm/query-builders/select.types';
 
 import { DB, type Database } from '../db/database.module.js';
-import {
-  customerProfiles,
-  driverPresence,
-  driverProfiles,
-  towOffers,
-  towRequests,
-} from '../db/schema.js';
+import { driverPresence, driverProfiles, towOffers, towRequests } from '../db/schema.js';
+import { TripEvents } from '../realtime/trip-events.service.js';
 import { CLOCK, type Clock } from '../tow-requests/clock.js';
 import { isDeadlock } from '../tow-requests/deadlock.js';
 import { expireStaleOffers, expireStaleRequests } from '../tow-requests/expiry.js';
 import {
-  columns as requestColumns,
-  isUniqueViolation,
   point,
+  selectDriverJobs,
   selectTowRequests,
+  toDriverJob,
   toTowRequest,
-} from '../tow-requests/tow-requests.service.js';
+} from '../tow-requests/tow-request-rows.js';
+import { isUniqueViolation } from '../tow-requests/tow-requests.service.js';
+import { customerOfferColumns, offerColumns, toCustomerOffer, toOffer } from './offer-rows.js';
 
 /** How far back `GET /driver/offers/active` looks. */
 const RECENT_OFFERS_MS = 60 * 60_000;
@@ -56,54 +52,21 @@ const STAGE_TIMESTAMPS = {
   towing: 'towingAt',
 } as const;
 
-/** The columns of `tow_offers` the apps see. */
-const offerColumns = {
-  id: towOffers.id,
-  requestId: towOffers.requestId,
-  fare: towOffers.fareTnd,
-  etaMin: towOffers.etaMin,
-  distanceToPickupM: towOffers.distanceToPickupM,
-  status: towOffers.status,
-  expiresAt: towOffers.expiresAt,
-  createdAt: towOffers.createdAt,
-};
-
-type OfferRow = SelectResultFields<typeof offerColumns>;
-
-function toOffer(row: OfferRow): Offer {
-  return {
-    ...row,
-    expiresAt: row.expiresAt.toISOString(),
-    createdAt: row.createdAt.toISOString(),
-  };
-}
-
-const customerOfferColumns = {
-  ...offerColumns,
-  driverFullName: driverProfiles.fullName,
-  driverTruckType: driverProfiles.truckType,
-};
-
-function toCustomerOffer({
-  driverFullName,
-  driverTruckType,
-  ...row
-}: OfferRow & { driverFullName: string; driverTruckType: CustomerOffer['driver']['truckType'] }) {
-  return { ...toOffer(row), driver: { fullName: driverFullName, truckType: driverTruckType } };
-}
-
 /**
  * Offers and their outcome: drivers make and withdraw them, customers accept or
  * decline them, and an accepted one becomes the driver's job.
  *
  * Lock order, everywhere: the request row, then the driver's profile row, then
  * offer rows. Taking them in one order keeps concurrent accepts from deadlocking.
+ *
+ * Every change is published on `/ws` once its transaction has committed.
  */
 @Injectable()
 export class OffersService {
   constructor(
     @Inject(DB) private readonly db: Database,
     @Inject(CLOCK) private readonly now: Clock,
+    private readonly events: TripEvents,
   ) {}
 
   /**
@@ -132,8 +95,9 @@ export class OffersService {
         ? point({ latitude: Number(presence.latitude), longitude: Number(presence.longitude) })
         : null;
 
+    let created: Offer;
     try {
-      return await this.db.transaction(async (tx) => {
+      created = await this.db.transaction(async (tx) => {
         // Shared locks: offers on one request don't block each other, but an accept or
         // cancel waits for them (and they for it), so no offer lands on a closed request.
         const [request] = await tx
@@ -201,6 +165,8 @@ export class OffersService {
       }
       throw error;
     }
+    await this.events.offersUpdated([created.id]);
+    return created;
   }
 
   /** Withdraws the driver's own pending offer. `404` if it is not theirs, `409` if not pending. */
@@ -218,7 +184,10 @@ export class OffersService {
         ),
       )
       .returning(offerColumns);
-    if (withdrawn) return toOffer(withdrawn);
+    if (withdrawn) {
+      await this.events.offersUpdated([withdrawn.id]);
+      return toOffer(withdrawn);
+    }
 
     const [existing] = await this.db
       .select({ id: towOffers.id })
@@ -295,6 +264,7 @@ export class OffersService {
       .where(and(eq(towOffers.id, offerId), owned));
     if (!offer) throw new NotFoundException('Offer not found');
     if (!declined) throw new ConflictException('Only a pending offer can be declined');
+    await this.events.offersUpdated([declined.id]);
     return toCustomerOffer(offer);
   }
 
@@ -308,18 +278,28 @@ export class OffersService {
   async accept(customerId: string, offerId: string): Promise<TowRequest> {
     const now = await this.expireStale();
     for (let attempt = 1; ; attempt += 1) {
+      let accepted: { request: TowRequest; offerIds: string[] };
       try {
-        return await this.acceptOnce(customerId, offerId, now);
+        accepted = await this.acceptOnce(customerId, offerId, now);
       } catch (error) {
         if (isUniqueViolation(error)) {
           throw new ConflictException('This driver has just taken another job');
         }
         if (!isDeadlock(error) || attempt === ACCEPT_ATTEMPTS) throw error;
+        continue;
       }
+      await this.events.requestsUpdated([accepted.request.id]);
+      await this.events.offersUpdated(accepted.offerIds);
+      return accepted.request;
     }
   }
 
-  private acceptOnce(customerId: string, offerId: string, now: Date): Promise<TowRequest> {
+  /** One attempt at {@link accept}: the assigned request, and every offer it changed. */
+  private acceptOnce(
+    customerId: string,
+    offerId: string,
+    now: Date,
+  ): Promise<{ request: TowRequest; offerIds: string[] }> {
     return this.db.transaction(async (tx) => {
       // The offer's request and driver never change, so they can be read before locking.
       const [target] = await tx
@@ -382,7 +362,7 @@ export class OffersService {
         .update(towOffers)
         .set({ status: 'accepted', updatedAt: now })
         .where(eq(towOffers.id, offerId));
-      await tx
+      const rejected = await tx
         .update(towOffers)
         .set({ status: 'rejected', updatedAt: now })
         .where(
@@ -391,8 +371,9 @@ export class OffersService {
             eq(towOffers.status, 'pending'),
             ne(towOffers.id, offerId),
           ),
-        );
-      await tx
+        )
+        .returning({ id: towOffers.id });
+      const withdrawn = await tx
         .update(towOffers)
         .set({ status: 'withdrawn', updatedAt: now })
         .where(
@@ -401,33 +382,23 @@ export class OffersService {
             eq(towOffers.status, 'pending'),
             ne(towOffers.requestId, target.requestId),
           ),
-        );
+        )
+        .returning({ id: towOffers.id });
 
       const [assigned] = await selectTowRequests(tx).where(eq(towRequests.id, target.requestId));
-      return toTowRequest(assigned!, now);
+      return {
+        request: toTowRequest(assigned!, now),
+        offerIds: [offerId, ...[...rejected, ...withdrawn].map((o) => o.id)],
+      };
     });
   }
 
   /** The driver's assigned request with the customer's contact, or `null`. */
   async job(driverId: string): Promise<DriverJob | null> {
-    const [row] = await this.db
-      .select({
-        ...requestColumns,
-        customerFullName: customerProfiles.fullName,
-        customerPhone: customerProfiles.phone,
-      })
-      .from(towRequests)
-      .innerJoin(customerProfiles, eq(customerProfiles.userId, towRequests.customerId))
-      .where(and(eq(towRequests.assignedDriverId, driverId), eq(towRequests.status, 'assigned')));
-    if (!row) return null;
-    const { customerFullName, customerPhone, ...request } = row;
-    return {
-      ...toTowRequest(request),
-      status: 'assigned',
-      agreedFare: request.agreedFare!,
-      assignedAt: request.assignedAt!.toISOString(),
-      customer: { fullName: customerFullName, phone: customerPhone },
-    };
+    const [row] = await selectDriverJobs(this.db).where(
+      and(eq(towRequests.assignedDriverId, driverId), eq(towRequests.status, 'assigned')),
+    );
+    return row ? toDriverJob(row) : null;
   }
 
   /**
@@ -436,7 +407,7 @@ export class OffersService {
    */
   async advance(driverId: string, stage: JobStageInput['stage']): Promise<DriverJob> {
     const now = this.now();
-    await this.db.transaction(async (tx) => {
+    const jobId = await this.db.transaction(async (tx) => {
       const job = await this.lockJob(tx, driverId);
       if (nextTripStage(job.tripStage ?? 'accepted') !== stage) {
         throw new ConflictException('That is not the next step of this trip');
@@ -445,14 +416,16 @@ export class OffersService {
         .update(towRequests)
         .set({ tripStage: stage, [STAGE_TIMESTAMPS[stage]]: now, updatedAt: now })
         .where(eq(towRequests.id, job.id));
+      return job.id;
     });
+    await this.events.requestsUpdated([jobId]);
     return (await this.job(driverId))!;
   }
 
   /** Completes the driver's job (dropped off). `404` if there is none, `409` unless towing. */
   async complete(driverId: string): Promise<TowRequest> {
     const now = this.now();
-    return this.db.transaction(async (tx) => {
+    const completed = await this.db.transaction(async (tx) => {
       const job = await this.lockJob(tx, driverId);
       if (job.tripStage !== 'towing') {
         throw new ConflictException('Complete the trip once the vehicle is on the truck');
@@ -461,9 +434,11 @@ export class OffersService {
         .update(towRequests)
         .set({ status: 'completed', completedAt: now, updatedAt: now })
         .where(eq(towRequests.id, job.id));
-      const [completed] = await selectTowRequests(tx).where(eq(towRequests.id, job.id));
-      return toTowRequest(completed!);
+      const [row] = await selectTowRequests(tx).where(eq(towRequests.id, job.id));
+      return toTowRequest(row!);
     });
+    await this.events.requestsUpdated([completed.id]);
+    return completed;
   }
 
   /**

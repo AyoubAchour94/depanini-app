@@ -1,5 +1,6 @@
 import { healthResponseSchema } from '@depanini/shared';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
+import { WsAdapter } from '@nestjs/platform-ws';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 
@@ -31,6 +32,7 @@ async function createApp(dbIsUp: boolean) {
     .compile();
 
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+  app.useWebSocketAdapter(new WsAdapter(app));
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
   return app;

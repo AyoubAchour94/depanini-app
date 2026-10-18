@@ -13,6 +13,10 @@ const shared = require('../../packages/shared/dist/index.js');
 
 const API = (process.env.E2E_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 const EMULATOR = (process.env.E2E_AUTH_EMULATOR ?? 'http://127.0.0.1:9099').replace(/\/$/, '');
+/** `E2E_WS=off` skips the WebSocket checks (e.g. against an API without `/ws`). */
+const WS = process.env.E2E_WS !== 'off';
+/** How long a `/ws` event may take to arrive after the change that causes it. */
+const WS_EVENT_MS = 2000;
 const run = Date.now().toString(36);
 
 const TUNIS_PICKUP = {
@@ -46,6 +50,51 @@ async function api(user, method, path, { body, expect = 200, schema } = {}) {
     assert.ok(parsed.success, `${method} ${path}: response does not match schema: ${parsed.error}`);
   }
   return json;
+}
+
+/**
+ * Opens `/ws` as `user` (Node's built-in WebSocket) and authenticates. Every message
+ * must match `wsServerMessageSchema`; `next` takes the oldest one matching `test`.
+ */
+async function openRealtime(user) {
+  const socket = new WebSocket(`${API.replace(/^http/, 'ws')}/ws`);
+  const inbox = [];
+  const waiters = new Set();
+  socket.addEventListener('message', ({ data }) => {
+    const message = JSON.parse(String(data));
+    const parsed = shared.wsServerMessageSchema.safeParse(message);
+    inbox.push(parsed.success ? message : { type: 'invalid', message, error: parsed.error });
+    for (const wake of waiters) wake();
+  });
+  await new Promise((resolve, reject) => {
+    socket.addEventListener('open', resolve, { once: true });
+    socket.addEventListener('error', () => reject(new Error('could not connect to /ws')), {
+      once: true,
+    });
+  });
+
+  const next = (what, test, timeoutMs = WS_EVENT_MS) =>
+    new Promise((resolve, reject) => {
+      const look = () => {
+        const invalid = inbox.find((message) => message.type === 'invalid');
+        const index = invalid ? -1 : inbox.findIndex(test);
+        if (!invalid && index === -1) return false;
+        waiters.delete(look);
+        clearTimeout(timer);
+        if (invalid) reject(new Error(`/ws sent an invalid message: ${invalid.error}`));
+        else resolve(inbox.splice(index, 1)[0]);
+        return true;
+      };
+      const timer = setTimeout(() => {
+        waiters.delete(look);
+        reject(new Error(`no ${what} on /ws within ${timeoutMs} ms`));
+      }, timeoutMs);
+      if (!look()) waiters.add(look);
+    });
+
+  socket.send(JSON.stringify({ type: 'auth', token: user.idToken }));
+  await next('auth.ok', (message) => message.type === 'auth.ok');
+  return { next, close: () => socket.close() };
 }
 
 async function signUp(label) {
@@ -193,14 +242,32 @@ const STEPS = [
       );
     },
   },
+  ...(WS
+    ? [
+        {
+          name: 'customer connects to /ws and authenticates',
+          async run(ctx) {
+            ctx.realtime = await openRealtime(ctx.customer);
+          },
+        },
+      ]
+    : []),
   {
-    name: 'customer accepts the offer',
+    name: `customer accepts the offer${WS ? '; request.updated arrives on /ws' : ''}`,
     async run(ctx) {
       const request = await api(ctx.customer, 'POST', `/offers/${ctx.offer.id}/accept`, {
         schema: shared.towRequestSchema,
       });
       assert.equal(request.status, 'assigned');
       assert.equal(request.agreedFare, ctx.offer.fare);
+      if (ctx.realtime) {
+        const { request: pushed } = await ctx.realtime.next(
+          'request.updated (assigned)',
+          (m) => m.type === 'request.updated' && m.request.status === 'assigned',
+        );
+        assert.equal(pushed.id, ctx.request.id);
+        assert.equal(pushed.driver?.fullName, 'E2E Driver');
+      }
     },
   },
   {
@@ -253,6 +320,13 @@ const STEPS = [
       });
       assert.equal(job.tripStage, 'en_route');
       assert.ok(job.enRouteAt);
+      if (ctx.realtime) {
+        const { request: pushed } = await ctx.realtime.next(
+          'request.updated (en_route)',
+          (m) => m.type === 'request.updated' && m.request.tripStage === 'en_route',
+        );
+        assert.equal(pushed.id, ctx.request.id);
+      }
       await api(ctx.driver, 'PUT', '/driver/presence', {
         body: { online: true, location: DRIVER_NEAR_PICKUP },
         schema: shared.driverPresenceSchema,
@@ -372,6 +446,7 @@ const STEPS = [
 
 /** Runs whether the flow passed or failed, so no data is left behind. */
 async function cleanup(ctx) {
+  ctx.realtime?.close();
   const problems = [];
   for (const user of [ctx.customer, ctx.driver]) {
     if (!user) continue;
