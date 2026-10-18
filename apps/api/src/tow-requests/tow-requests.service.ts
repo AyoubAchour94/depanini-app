@@ -18,11 +18,11 @@ import {
   type TowRequestInput,
   type TowRequestPage,
 } from '@depanini/shared';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { SelectResultFields } from 'drizzle-orm/query-builders/select.types';
 
 import { DB, type Database } from '../db/database.module.js';
-import { customerProfiles, towRequests } from '../db/schema.js';
+import { customerProfiles, driverProfiles, towOffers, towRequests } from '../db/schema.js';
 import { CLOCK, type Clock } from './clock.js';
 import { expireStaleRequests } from './expiry.js';
 
@@ -36,7 +36,7 @@ export const point = ({ latitude, longitude }: Pick<Place, 'latitude' | 'longitu
   sql`ST_SetSRID(ST_MakePoint(${longitude}::float8, ${latitude}::float8), 4326)::geography`;
 
 /** The columns of `tow_requests` the apps see; coordinates are read back out of the geography. */
-const columns = {
+export const columns = {
   id: towRequests.id,
   status: towRequests.status,
   pickupLatitude: sql<number>`ST_Y(${towRequests.pickup}::geometry)`,
@@ -53,13 +53,34 @@ const columns = {
   proposedFare: towRequests.proposedFareTnd,
   expiresAt: towRequests.expiresAt,
   createdAt: towRequests.createdAt,
+  agreedFare: towRequests.agreedFareTnd,
+  assignedAt: towRequests.assignedAt,
   // The JS `Date` above keeps milliseconds; the cursor needs the full microseconds.
   createdAtMicros: sql<string>`to_char(${towRequests.createdAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
 };
 
-type Row = SelectResultFields<typeof columns>;
+/** The assigned driver's contact, from a left join on `driver_profiles` (see {@link selectTowRequests}). */
+const driverColumns = {
+  driverFullName: driverProfiles.fullName,
+  driverPhone: driverProfiles.phone,
+  driverTruckType: driverProfiles.truckType,
+  driverPlateNumber: driverProfiles.plateNumber,
+};
 
-function toTowRequest(row: Row): TowRequest {
+type Row = SelectResultFields<typeof columns> &
+  Partial<{
+    [K in keyof typeof driverColumns]: SelectResultFields<typeof driverColumns>[K] | null;
+  }>;
+
+/** Requests with their assigned driver's contact. `db` may be a transaction. */
+export const selectTowRequests = (db: Pick<Database, 'select'>) =>
+  db
+    .select({ ...columns, ...driverColumns })
+    .from(towRequests)
+    .leftJoin(driverProfiles, eq(driverProfiles.userId, towRequests.assignedDriverId));
+
+/** A row as the apps see it. The driver's contact shows only while the request is assigned. */
+export function toTowRequest(row: Row): TowRequest {
   return {
     id: row.id,
     status: row.status,
@@ -81,6 +102,17 @@ function toTowRequest(row: Row): TowRequest {
     proposedFare: row.proposedFare,
     expiresAt: row.expiresAt.toISOString(),
     createdAt: row.createdAt.toISOString(),
+    agreedFare: row.agreedFare,
+    assignedAt: row.assignedAt?.toISOString() ?? null,
+    driver:
+      row.status === 'assigned' && row.driverFullName
+        ? {
+            fullName: row.driverFullName,
+            phone: row.driverPhone!,
+            truckType: row.driverTruckType!,
+            plateNumber: row.driverPlateNumber!,
+          }
+        : null,
   };
 }
 
@@ -109,7 +141,7 @@ export function decodeCursor(cursor: string): Cursor | null {
 }
 
 /** Whether a database error is a unique-constraint violation (Drizzle wraps the driver's error). */
-function isUniqueViolation(error: unknown): boolean {
+export function isUniqueViolation(error: unknown): boolean {
   const code = (error as { cause?: { code?: string }; code?: string }) ?? {};
   return (code.cause?.code ?? code.code) === '23505';
 }
@@ -151,6 +183,13 @@ export class TowRequestsService {
     }
 
     await this.expireStale(customerId);
+    const [assigned] = await this.db
+      .select({ id: towRequests.id })
+      .from(towRequests)
+      .where(and(eq(towRequests.customerId, customerId), eq(towRequests.status, 'assigned')))
+      .limit(1);
+    if (assigned) throw new ConflictException('You already have a driver on the way');
+
     const now = this.now();
     try {
       const [created] = await this.db
@@ -179,13 +218,19 @@ export class TowRequestsService {
     }
   }
 
-  /** The customer's open request, or `null`. */
+  /** The customer's open or assigned request (with the driver's contact), or `null`. */
   async active(customerId: string): Promise<TowRequest | null> {
     await this.expireStale(customerId);
-    const [row] = await this.db
-      .select(columns)
-      .from(towRequests)
-      .where(and(eq(towRequests.customerId, customerId), eq(towRequests.status, 'open')));
+    const [row] = await selectTowRequests(this.db)
+      .where(
+        and(
+          eq(towRequests.customerId, customerId),
+          inArray(towRequests.status, ['open', 'assigned']),
+        ),
+      )
+      // Should both exist, the assigned one matters more.
+      .orderBy(sql`${towRequests.status} = 'assigned' desc`, desc(towRequests.createdAt))
+      .limit(1);
     return row ? toTowRequest(row) : null;
   }
 
@@ -196,9 +241,7 @@ export class TowRequestsService {
   ): Promise<TowRequestPage> {
     await this.expireStale(customerId);
     const after = cursor ? decodeCursor(cursor) : null;
-    const rows = await this.db
-      .select(columns)
-      .from(towRequests)
+    const rows = await selectTowRequests(this.db)
       .where(
         and(
           eq(towRequests.customerId, customerId),
@@ -219,29 +262,46 @@ export class TowRequestsService {
     return { items, nextCursor };
   }
 
-  /** Cancels the customer's own open request. `404` if it is not theirs, `409` if not open. */
-  async cancel(customerId: string, id: string): Promise<TowRequest> {
-    await this.expireStale(customerId);
+  /**
+   * Cancels an open request (by its customer) or an assigned one (by its customer or
+   * its driver), and rejects its pending offers. `404` if it is neither's, `409` if
+   * it is no longer open or assigned.
+   */
+  async cancel(accountId: string, id: string): Promise<TowRequest> {
+    await this.expireStale(accountId);
     const now = this.now();
-    const [cancelled] = await this.db
-      .update(towRequests)
-      .set({ status: 'cancelled', cancelledAt: now, updatedAt: now })
-      .where(
-        and(
-          eq(towRequests.id, id),
-          eq(towRequests.customerId, customerId),
-          eq(towRequests.status, 'open'),
-        ),
-      )
-      .returning(columns);
-    if (cancelled) return toTowRequest(cancelled);
+    const cancelled = await this.db.transaction(async (tx) => {
+      // Locks out a concurrent accept, so a request is never both assigned and cancelled.
+      const [row] = await tx
+        .select({
+          customerId: towRequests.customerId,
+          assignedDriverId: towRequests.assignedDriverId,
+          status: towRequests.status,
+          expiresAt: towRequests.expiresAt,
+        })
+        .from(towRequests)
+        .where(eq(towRequests.id, id))
+        .for('update');
+      if (!row || (row.customerId !== accountId && row.assignedDriverId !== accountId)) {
+        throw new NotFoundException('Tow request not found');
+      }
+      const open = row.status === 'open' && row.expiresAt > now;
+      if (!open && row.status !== 'assigned') {
+        throw new ConflictException('Only an open or assigned request can be cancelled');
+      }
 
-    const [existing] = await this.db
-      .select({ id: towRequests.id })
-      .from(towRequests)
-      .where(and(eq(towRequests.id, id), eq(towRequests.customerId, customerId)));
-    if (!existing) throw new NotFoundException('Tow request not found');
-    throw new ConflictException('Only an open request can be cancelled');
+      const [updated] = await tx
+        .update(towRequests)
+        .set({ status: 'cancelled', cancelledAt: now, updatedAt: now })
+        .where(eq(towRequests.id, id))
+        .returning(columns);
+      await tx
+        .update(towOffers)
+        .set({ status: 'rejected', updatedAt: now })
+        .where(and(eq(towOffers.requestId, id), eq(towOffers.status, 'pending')));
+      return updated!;
+    });
+    return toTowRequest(cancelled);
   }
 
   /** Marks the customer's open requests past their expiry as expired. */

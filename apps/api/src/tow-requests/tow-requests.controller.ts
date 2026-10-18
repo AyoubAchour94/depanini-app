@@ -36,7 +36,7 @@ const pageQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).default(20),
 });
 
-/** `/tow-requests` — a customer's requests for a tow. Customer app only. */
+/** `/tow-requests` — a customer's requests for a tow. Customer app, except cancelling a job. */
 @Controller('tow-requests')
 @UseGuards(FirebaseAuthGuard)
 export class TowRequestsController {
@@ -63,7 +63,7 @@ export class TowRequestsController {
     return this.towRequests.create(account.id, input);
   }
 
-  /** The customer's open request, or 204 when there is none. */
+  /** The customer's open or assigned request, or 204 when there is none. */
   @Get('active')
   async active(
     @Req() request: AuthenticatedRequest,
