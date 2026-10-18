@@ -1,4 +1,9 @@
-import { type DriverProfile, driverProfileInputSchema, type TruckType } from '@depanini/shared';
+import {
+  type DriverProfile,
+  type DriverProfileInput,
+  driverProfileInputSchema,
+  type TruckType,
+} from '@depanini/shared';
 import { useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 
@@ -32,7 +37,7 @@ export function DriverProfileForm({ initial, mode, onSaved }: DriverProfileFormP
   const [truckType, setTruckType] = useState<TruckType | undefined>(initial?.truckType);
   const [plateNumber, setPlateNumber] = useState(initial?.plateNumber ?? '');
   const [step, setStep] = useState<'personal' | 'truck'>('personal');
-  const [errors, setErrors] = useState<FieldErrors>({});
+  const [errors, setErrors] = useState<FieldErrors<keyof DriverProfileInput>>({});
   const save = useSaveDriverProfile();
 
   const next = () => {

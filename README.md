@@ -38,7 +38,7 @@ apps/
 │       ├── firebase/             # init status + current ID token
 │       ├── auth/                 # session (AuthProvider), Firebase Auth calls, error messages
 │       ├── api/                  # API client (attaches ID token) + queries (health, me)
-│       ├── ui/                   # shared form components (TextField, Button)
+│       ├── ui/                   # shared form components (TextField, ChoiceField, Button)
 │       └── features/             # one folder per feature (auth/, account/, profile/, map/, status/)
 ├── api/                        # NestJS (Fastify adapter), ESM
 │   ├── src/

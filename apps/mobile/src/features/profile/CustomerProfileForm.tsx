@@ -1,4 +1,8 @@
-import { type CustomerProfile, customerProfileInputSchema } from '@depanini/shared';
+import {
+  type CustomerProfile,
+  type CustomerProfileInput,
+  customerProfileInputSchema,
+} from '@depanini/shared';
 import { useState } from 'react';
 
 import { useSaveCustomerProfile } from '@/api/me';
@@ -20,7 +24,7 @@ interface CustomerProfileFormProps {
 export function CustomerProfileForm({ initial, submitTitle, onSaved }: CustomerProfileFormProps) {
   const [fullName, setFullName] = useState(initial?.fullName ?? '');
   const [phone, setPhone] = useState(initial?.phone ?? '');
-  const [errors, setErrors] = useState<FieldErrors>({});
+  const [errors, setErrors] = useState<FieldErrors<keyof CustomerProfileInput>>({});
   const save = useSaveCustomerProfile();
 
   const submit = () => {

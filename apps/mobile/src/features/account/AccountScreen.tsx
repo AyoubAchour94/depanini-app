@@ -5,20 +5,17 @@ import { useMe } from '@/api/me';
 import { useSignOut } from '@/auth/useSignOut';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
-import { truckTypeLabel } from '@/features/profile/truck-types';
+import { profileFor } from '@/features/profile/onboarding';
+import { describeTruck } from '@/features/profile/truck-types';
 import { variant } from '@/variant/variant';
 
-/** The signed-in account, its profile, and sign-out. */
+/** The signed-in account, this app's profile, and sign-out. */
 export function AccountScreen() {
   const theme = useTheme();
   const me = useMe();
   const signOut = useSignOut();
-  // Each app shows only its own profile.
-  const profile = variant.isDriverApp ? me.data?.driverProfile : me.data?.customerProfile;
-  const truck =
-    me.data?.driverProfile && variant.isDriverApp
-      ? `${truckTypeLabel(me.data.driverProfile.truckType)} · ${me.data.driverProfile.plateNumber}`
-      : null;
+  const profile = me.data ? profileFor(me.data, variant) : null;
+  const driverProfile = variant.isDriverApp ? me.data?.driverProfile : null;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -36,7 +33,9 @@ export function AccountScreen() {
           <Text style={[styles.label, { color: theme.textMuted }]}>Your details</Text>
           <Text style={[styles.value, { color: theme.text }]}>{profile.fullName}</Text>
           <Text style={{ color: theme.text }}>{profile.phone}</Text>
-          {truck ? <Text style={{ color: theme.text }}>{truck}</Text> : null}
+          {driverProfile ? (
+            <Text style={{ color: theme.text }}>{describeTruck(driverProfile)}</Text>
+          ) : null}
           <Button kind="link" title="Edit details" onPress={() => router.push('/profile')} />
         </View>
       ) : null}

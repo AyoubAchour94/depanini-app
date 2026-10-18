@@ -4,12 +4,13 @@ import { Text } from 'react-native';
 import { useTheme } from '@/theme/theme';
 import { TextField } from '@/ui/TextField';
 
-/** Validation messages by field name; the first issue per field wins. */
-export type FieldErrors = Partial<Record<string, string>>;
+/** Validation messages by field name. */
+export type FieldErrors<Field extends string> = Partial<Record<Field, string>>;
 
-export function fieldErrorsOf(error: z.ZodError): FieldErrors {
-  const errors: FieldErrors = {};
-  for (const issue of error.issues) errors[String(issue.path[0])] ??= issue.message;
+/** The first message per field from a failed parse of a form's schema. */
+export function fieldErrorsOf<Field extends string>(error: z.ZodError): FieldErrors<Field> {
+  const errors: FieldErrors<Field> = {};
+  for (const issue of error.issues) errors[String(issue.path[0]) as Field] ??= issue.message;
   return errors;
 }
 
@@ -18,7 +19,7 @@ interface PersonalFieldsProps {
   phone: string;
   onChangeFullName: (value: string) => void;
   onChangePhone: (value: string) => void;
-  errors: FieldErrors;
+  errors: FieldErrors<'fullName' | 'phone'>;
   onSubmitEditing?: () => void;
 }
 
