@@ -55,6 +55,34 @@ describe('request.updated', () => {
     expect(queryClient.getQueryData(ACTIVE_KEY)).toEqual(open);
   });
 
+  it('ignores a driver-shaped push in the customer app', () => {
+    const { queryClient, invalidated } = setup();
+    const own = { ...request, id: '4b8e3f3e-6a52-4a39-9b1c-0d6f3c3f7f14', status: 'open' };
+    queryClient.setQueryData(ACTIVE_KEY, own);
+    applyRealtimeMessage(queryClient, { type: 'request.updated', request: job }, 'customer');
+    expect(queryClient.getQueryData(ACTIVE_KEY)).toEqual(own);
+    expect(invalidated()).toEqual([]);
+  });
+
+  it('keeps the driver job when a customer-shaped push is for another request', () => {
+    const { queryClient } = setup();
+    queryClient.setQueryData(JOB_KEY, job);
+    const id = '5b8e3f3e-6a52-4a39-9b1c-0d6f3c3f7f15';
+    applyRealtimeMessage(
+      queryClient,
+      { type: 'request.updated', request: { ...request, id, status: 'cancelled' } },
+      'driver',
+    );
+    expect(queryClient.getQueryData(ACTIVE_KEY)).toBeUndefined();
+    expect(queryClient.getQueryData(JOB_KEY)).toEqual(job);
+    applyRealtimeMessage(
+      queryClient,
+      { type: 'request.updated', request: { ...request, id } },
+      'driver',
+    );
+    expect(queryClient.getQueryData(JOB_KEY)).toEqual(job);
+  });
+
   it('sets the driver job while assigned', () => {
     const { queryClient } = setup();
     applyRealtimeMessage(queryClient, { type: 'request.updated', request: job }, 'driver');

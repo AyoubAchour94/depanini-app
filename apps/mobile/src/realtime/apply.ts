@@ -36,6 +36,8 @@ export function applyRealtimeMessage(
         void queryClient.invalidateQueries({ queryKey: NEARBY_KEY });
         void queryClient.invalidateQueries({ queryKey: DRIVER_OFFERS_KEY });
       } else {
+        // An account with both profiles also gets its driver pushes (with the customer's contact): not ours.
+        if ('customer' in request) return;
         const current = queryClient.getQueryData<TowRequest | null>(ACTIVE_KEY);
         // A late end of an older request must not replace the one open now.
         const stale = current && current.id !== request.id && !isOver(current) && isOver(request);

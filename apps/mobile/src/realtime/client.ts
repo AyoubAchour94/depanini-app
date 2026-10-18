@@ -10,6 +10,8 @@ const EVICTED = 4000;
 const UNAUTHORIZED = 4401;
 /** Do not fight a newer socket (another tab or device) for the connection. */
 const EVICTED_WAIT_MS = 30_000;
+/** The API gives up on a silent socket after 10 s; so does the app, a little later. */
+export const AUTH_TIMEOUT_MS = 15_000;
 
 /** `http(s)://host` becomes `ws(s)://host/ws`. */
 export function toWsUrl(apiUrl: string): string {
@@ -44,6 +46,7 @@ interface RealtimeClientOptions {
 export class RealtimeClient {
   private socket: SocketLike | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
+  private authTimer: ReturnType<typeof setTimeout> | null = null;
   /** Bumped on every connect and teardown, so late callbacks of an old attempt do nothing. */
   private run = 0;
   private attempt = 0;
@@ -75,6 +78,7 @@ export class RealtimeClient {
     this.run += 1;
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
+    this.clearAuthTimer();
     const socket = this.socket;
     this.socket = null;
     if (socket) {
@@ -104,7 +108,11 @@ export class RealtimeClient {
     const Socket = this.options.WebSocketImpl ?? (WebSocket as unknown as new () => SocketLike);
     const socket = new Socket(this.options.url);
     this.socket = socket;
-    socket.onopen = () => socket.send(JSON.stringify({ type: 'auth', token }));
+    socket.onopen = () => {
+      socket.send(JSON.stringify({ type: 'auth', token }));
+      // No answer to the auth message: close, and the close handler backs off.
+      this.authTimer = setTimeout(() => socket.close(1000), AUTH_TIMEOUT_MS);
+    };
     socket.onmessage = (event) => {
       if (run !== this.run || typeof event.data !== 'string') return;
       let parsed;
@@ -115,6 +123,7 @@ export class RealtimeClient {
       }
       if (!parsed.success) return;
       const message = parsed.data;
+      if (message.type === 'auth.ok' || message.type === 'auth.error') this.clearAuthTimer();
       if (message.type === 'auth.ok') {
         this.attempt = 0;
         this.options.onStatus('live');
@@ -127,11 +136,17 @@ export class RealtimeClient {
     socket.onclose = (event) => {
       if (run !== this.run) return;
       this.socket = null;
+      this.clearAuthTimer();
       this.options.onStatus('reconnecting');
       if (event.code === EVICTED) return this.schedule(EVICTED_WAIT_MS);
       // An expired token is the normal end of a socket; the first retry gets a new one at once.
       this.schedule(event.code === UNAUTHORIZED && this.attempt === 0 ? 0 : this.backoff());
     };
+  }
+
+  private clearAuthTimer() {
+    if (this.authTimer) clearTimeout(this.authTimer);
+    this.authTimer = null;
   }
 
   private backoff(): number {

@@ -172,6 +172,31 @@ describe('RealtimeClient', () => {
     expect(MockSocket.instances).toHaveLength(2);
   });
 
+  it('gives up on a socket that never answers the auth message', async () => {
+    const { client, onStatus } = setup();
+    client.start();
+    await flush();
+    last().open();
+    jest.advanceTimersByTime(14_999);
+    expect(last().closedWith).toBeUndefined();
+    jest.advanceTimersByTime(1);
+    expect(last().closedWith).toBe(1000);
+    expect(onStatus).toHaveBeenLastCalledWith('reconnecting');
+    jest.advanceTimersByTime(1000);
+    await flush();
+    expect(MockSocket.instances).toHaveLength(2);
+  });
+
+  it('does not time out once authenticated', async () => {
+    const { client } = setup();
+    client.start();
+    await flush();
+    last().open();
+    last().receive({ type: 'auth.ok' });
+    jest.advanceTimersByTime(60_000);
+    expect(last().closedWith).toBeUndefined();
+  });
+
   it('stop closes the socket and never reconnects', async () => {
     const { client } = setup();
     client.start();
