@@ -21,6 +21,8 @@ const TUNIS_PICKUP = {
   address: 'Avenue Habib Bourguiba, Tunis',
 };
 const TUNIS_DROPOFF = { latitude: 36.8625, longitude: 10.1956, address: 'La Marsa, Tunis' };
+/** Where the driver is once on the way: close to the pickup, so the ETA is a few minutes. */
+const DRIVER_NEAR_PICKUP = { latitude: TUNIS_PICKUP.latitude + 0.01, longitude: 10.1815 };
 
 /** A fetch against the API as `user`; checks the status and, if given, the response schema. */
 async function api(user, method, path, { body, expect = 200, schema } = {}) {
@@ -223,18 +225,147 @@ const STEPS = [
     },
   },
   {
-    name: 'driver cancels with no reason and both sides see it end',
+    name: 'driver job starts at the accepted stage',
     async run(ctx) {
-      const cancelled = await api(ctx.driver, 'POST', `/tow-requests/${ctx.request.id}/cancel`, {
+      const job = await api(ctx.driver, 'GET', '/driver/job', { schema: shared.driverJobSchema });
+      assert.equal(job.tripStage, 'accepted');
+      const active = await api(ctx.customer, 'GET', '/tow-requests/active', {
         schema: shared.towRequestSchema,
       });
-      assert.equal(cancelled.status, 'cancelled');
+      assert.equal(active.tripStage, 'accepted');
+    },
+  },
+  {
+    name: 'driver skipping a stage is rejected',
+    async run(ctx) {
+      await api(ctx.driver, 'POST', '/driver/job/stage', {
+        expect: 409,
+        body: { stage: 'towing' },
+      });
+    },
+  },
+  {
+    name: 'driver starts driving; the customer sees the truck and an ETA to the pickup',
+    async run(ctx) {
+      const job = await api(ctx.driver, 'POST', '/driver/job/stage', {
+        body: { stage: 'en_route' },
+        schema: shared.driverJobSchema,
+      });
+      assert.equal(job.tripStage, 'en_route');
+      assert.ok(job.enRouteAt);
+      await api(ctx.driver, 'PUT', '/driver/presence', {
+        body: { online: true, location: DRIVER_NEAR_PICKUP },
+        schema: shared.driverPresenceSchema,
+      });
+      const active = await api(ctx.customer, 'GET', '/tow-requests/active', {
+        schema: shared.towRequestSchema,
+      });
+      assert.equal(active.tripStage, 'en_route');
+      assert.equal(active.driverLocation?.latitude, DRIVER_NEAR_PICKUP.latitude);
+      assert.ok(active.etaMin >= 1, 'no ETA to the pickup');
+    },
+  },
+  {
+    name: 'driver arrives; the ETA goes away',
+    async run(ctx) {
+      const job = await api(ctx.driver, 'POST', '/driver/job/stage', {
+        body: { stage: 'arrived' },
+        schema: shared.driverJobSchema,
+      });
+      assert.equal(job.tripStage, 'arrived');
+      const active = await api(ctx.customer, 'GET', '/tow-requests/active', {
+        schema: shared.towRequestSchema,
+      });
+      assert.equal(active.tripStage, 'arrived');
+      assert.ok(active.arrivedAt);
+      assert.equal(active.etaMin ?? null, null);
+    },
+  },
+  {
+    name: 'vehicle is loaded; the ETA is now to the drop-off and nobody can cancel',
+    async run(ctx) {
+      const job = await api(ctx.driver, 'POST', '/driver/job/stage', {
+        body: { stage: 'towing' },
+        schema: shared.driverJobSchema,
+      });
+      assert.equal(job.tripStage, 'towing');
+      const active = await api(ctx.customer, 'GET', '/tow-requests/active', {
+        schema: shared.towRequestSchema,
+      });
+      assert.equal(active.tripStage, 'towing');
+      assert.ok(active.towingAt);
+      assert.ok(active.etaMin >= 1, 'no ETA to the drop-off');
+      const cancel = `/tow-requests/${ctx.request.id}/cancel`;
+      await api(ctx.customer, 'POST', cancel, { expect: 409, body: { reason: 'other' } });
+      await api(ctx.driver, 'POST', cancel, { expect: 409, body: { reason: 'other' } });
+    },
+  },
+  {
+    name: 'driver drops off; the request completes in both histories',
+    async run(ctx) {
+      const completed = await api(ctx.driver, 'POST', '/driver/job/complete', {
+        schema: shared.towRequestSchema,
+      });
+      assert.equal(completed.status, 'completed');
+      assert.ok(completed.completedAt);
       await api(ctx.driver, 'GET', '/driver/job', { expect: 204 });
-      await api(ctx.customer, 'GET', '/tow-requests/active', { expect: 204 });
+      // The customer still gets the completed request for a few minutes, for the summary.
+      const active = await api(ctx.customer, 'GET', '/tow-requests/active', {
+        schema: shared.towRequestSchema,
+      });
+      assert.equal(active.id, ctx.request.id);
+      assert.equal(active.status, 'completed');
+      assert.equal(active.driverLocation ?? null, null);
       const history = await api(ctx.customer, 'GET', '/tow-requests', {
         schema: shared.towRequestPageSchema,
       });
-      assert.equal(history.items.find((item) => item.id === ctx.request.id)?.status, 'cancelled');
+      assert.equal(history.items.find((item) => item.id === ctx.request.id)?.status, 'completed');
+    },
+  },
+  {
+    name: 'a second request is accepted and the driver cancels it, which needs a reason',
+    async run(ctx) {
+      const request = await api(ctx.customer, 'POST', '/tow-requests', {
+        expect: 201,
+        body: {
+          pickup: TUNIS_PICKUP,
+          dropoff: TUNIS_DROPOFF,
+          vehicleType: 'car',
+          problemType: 'breakdown',
+          note: `e2e ${run} again`,
+          proposedFare: ctx.estimate.suggestedFare,
+        },
+        schema: shared.towRequestSchema,
+      });
+      const offer = await api(ctx.driver, 'POST', `/tow-requests/${request.id}/offers`, {
+        expect: 201,
+        body: { fare: ctx.estimate.suggestedFare },
+        schema: shared.offerSchema,
+      });
+      await api(ctx.customer, 'POST', `/offers/${offer.id}/accept`, {
+        schema: shared.towRequestSchema,
+      });
+
+      const cancel = `/tow-requests/${request.id}/cancel`;
+      await api(ctx.driver, 'POST', cancel, { expect: 400 });
+      await api(ctx.driver, 'POST', cancel, { expect: 400, body: { reason: 'driver_late' } });
+      const cancelled = await api(ctx.driver, 'POST', cancel, {
+        body: { reason: 'truck_problem' },
+        schema: shared.towRequestSchema,
+      });
+      assert.equal(cancelled.status, 'cancelled');
+      assert.equal(cancelled.cancelledBy, 'driver');
+      assert.equal(cancelled.cancelReason, 'truck_problem');
+      await api(ctx.driver, 'GET', '/driver/job', { expect: 204 });
+      // Only the first, completed request is left (it shows for 10 minutes).
+      const active = await api(ctx.customer, 'GET', '/tow-requests/active', {
+        schema: shared.towRequestSchema,
+      });
+      assert.equal(active.id, ctx.request.id);
+      const history = await api(ctx.customer, 'GET', '/tow-requests', {
+        schema: shared.towRequestPageSchema,
+      });
+      assert.equal(history.items.find((item) => item.id === request.id)?.status, 'cancelled');
     },
   },
 ];
