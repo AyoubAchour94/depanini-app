@@ -13,7 +13,7 @@ import { and, asc, eq, gt, ne, sql } from 'drizzle-orm';
 import { DB, type Database } from '../db/database.module.js';
 import { driverPresence, towOffers, towRequests } from '../db/schema.js';
 import { CLOCK, type Clock } from '../tow-requests/clock.js';
-import { expireStaleRequests } from '../tow-requests/expiry.js';
+import { expireStaleOffers, expireStaleRequests } from '../tow-requests/expiry.js';
 import { point } from '../tow-requests/tow-requests.service.js';
 
 /** The most requests the nearby list returns. */
@@ -95,6 +95,7 @@ export class DriversService {
     if (job) return [];
 
     await expireStaleRequests(this.db, now);
+    await expireStaleOffers(this.db, now);
 
     const origin = point(here.location);
     const distance = sql<number>`ST_Distance(${towRequests.pickup}, ${origin})`;

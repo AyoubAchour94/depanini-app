@@ -75,7 +75,8 @@ const geographyPoint = customType<{ data: never; driverData: string }>({
 
 /**
  * A customer's request for a tow. It stays `open` until the customer cancels
- * it or it expires (marked lazily, on read). Assignment comes in Phase 4.
+ * it or it expires (marked lazily, on read), or becomes `assigned` when the
+ * customer accepts an offer.
  */
 export const towRequests = pgTable(
   'tow_requests',
@@ -115,6 +116,14 @@ export const towRequests = pgTable(
     // A customer has at most one open request.
     uniqueIndex('tow_requests_one_open_per_customer_idx')
       .on(table.customerId)
+      .where(sql`${table.status} = 'open'`),
+    // A driver has at most one job.
+    uniqueIndex('tow_requests_one_job_per_driver_idx')
+      .on(table.assignedDriverId)
+      .where(sql`${table.status} = 'assigned'`),
+    // The lazy expiry runs on every nearby poll; it only looks at open requests.
+    index('tow_requests_open_expires_idx')
+      .on(table.expiresAt)
       .where(sql`${table.status} = 'open'`),
   ],
 );
@@ -158,6 +167,10 @@ export const towOffers = pgTable(
     // A driver has at most one pending offer per request.
     uniqueIndex('tow_offers_one_pending_per_driver_idx')
       .on(table.requestId, table.driverId)
+      .where(sql`${table.status} = 'pending'`),
+    // The lazy expiry only looks at pending offers.
+    index('tow_offers_pending_expires_idx')
+      .on(table.expiresAt)
       .where(sql`${table.status} = 'pending'`),
   ],
 );

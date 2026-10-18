@@ -1,0 +1,3 @@
+CREATE INDEX "tow_offers_pending_expires_idx" ON "tow_offers" USING btree ("expires_at") WHERE "tow_offers"."status" = 'pending';--> statement-breakpoint
+CREATE UNIQUE INDEX "tow_requests_one_job_per_driver_idx" ON "tow_requests" USING btree ("assigned_driver_id") WHERE "tow_requests"."status" = 'assigned';--> statement-breakpoint
+CREATE INDEX "tow_requests_open_expires_idx" ON "tow_requests" USING btree ("expires_at") WHERE "tow_requests"."status" = 'open';
