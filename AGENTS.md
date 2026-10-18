@@ -5,7 +5,7 @@ Project setup, structure and commands: see `README.md`. CI/CD and secrets: see `
 
 ## Orchestrator
 
-`/orchestrate <goal>` (or `/loop /orchestrate <goal>` to keep it running) makes the session the master agent: it plans from the GitHub issues, runs `scout` / `implementer` / `verifier` subagents (`.claude/agents/`) in parallel, merges verified PRs into `develop`, and reports via notifications and tracking-issue comments. It paces itself with `node scripts/claude/usage.mjs`, which reads the subscription usage the status line saves. Playbook: `.claude/skills/orchestrate/SKILL.md`.
+`/orchestrate <goal>` (or `/loop /orchestrate finish the project` to keep it running) makes the session the master agent: it works through the `roadmap` issue phase by phase, plans each phase as GitHub issues, runs `scout` / `implementer` / `verifier` subagents (`.claude/agents/`) in parallel, merges verified PRs into `develop`, and reports via notifications and tracking-issue comments. It paces itself with `node scripts/claude/usage.mjs`, which reads the subscription usage the status line saves. Playbook: `.claude/skills/orchestrate/SKILL.md`.
 
 ## Agent skills
 
