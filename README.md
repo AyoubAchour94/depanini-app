@@ -155,6 +155,25 @@ Then point both sides at it (both lines are in the `.env.example` files):
 
 Remove those lines to use the real `depanini-dev` project.
 
+### End-to-end flow check
+
+`pnpm e2e:flow` walks the whole customer + driver flow (profiles, estimate,
+request, presence, nearby, offer, accept, job, cancel) over HTTP against a
+running stack, checks each response against the `@depanini/shared` schemas and
+deletes its two throwaway accounts at the end. It needs the built shared
+package, Postgres, the Auth emulator and the API started with the emulator:
+
+```bash
+pnpm --filter @depanini/shared build
+pnpm db:up
+pnpm emulators                              # own terminal
+pnpm --filter @depanini/api start:dev       # own terminal
+pnpm e2e:flow                               # E2E_API_URL, E2E_AUTH_EMULATOR override the defaults
+```
+
+It prints one line per step and exits non-zero on the first failure. Add steps
+to the `STEPS` list in `scripts/e2e/flow.mjs`.
+
 ### Mobile
 
 The app uses native modules (Mapbox, Firebase), so it runs in a **development

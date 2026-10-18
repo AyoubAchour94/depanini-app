@@ -15,6 +15,7 @@
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
     "emulators": "pnpm dlx firebase-tools@15.34.0 emulators:start --only auth --project depanini-dev",
+    "e2e:flow": "node scripts/e2e/flow.mjs",
     "share": "node scripts/share.mjs"
   },
   "devDependencies": {
