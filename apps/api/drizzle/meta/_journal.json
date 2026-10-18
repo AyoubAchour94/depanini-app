@@ -22,6 +22,13 @@
       "when": 1792326961010,
       "tag": "0002_customer_profiles",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792328761488,
+      "tag": "0003_driver_profiles",
+      "breakpoints": true
     }
   ]
 }

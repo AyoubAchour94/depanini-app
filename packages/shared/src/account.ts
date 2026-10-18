@@ -2,12 +2,14 @@ import { z } from 'zod';
 
 import { tunisianPhoneSchema } from './phone';
 
+const fullNameSchema = z.string().trim().min(1, 'Enter your name').max(100, 'Name is too long');
+
 /**
  * Body of `PUT /me/customer-profile`: what a customer fills in before using
  * the customer app. The API trims and normalizes the values.
  */
 export const customerProfileInputSchema = z.object({
-  fullName: z.string().trim().min(1, 'Enter your name').max(100, 'Name is too long'),
+  fullName: fullNameSchema,
   phone: tunisianPhoneSchema,
 });
 
@@ -22,6 +24,44 @@ export const customerProfileSchema = z.object({
 
 export type CustomerProfile = z.infer<typeof customerProfileSchema>;
 
+/** The kinds of tow truck a driver can operate. Extend as the fleet grows. */
+export const TRUCK_TYPES = ['flatbed', 'wheel_lift'] as const;
+
+export const truckTypeSchema = z.enum(TRUCK_TYPES, 'Choose your truck type');
+
+export type TruckType = z.infer<typeof truckTypeSchema>;
+
+/**
+ * Body of `PUT /me/driver-profile`: what a driver fills in before using the
+ * driver app. Tunisian plate formats vary, so the plate is only trimmed and
+ * upper-cased, not checked against a pattern.
+ */
+export const driverProfileInputSchema = z.object({
+  fullName: fullNameSchema,
+  phone: tunisianPhoneSchema,
+  truckType: truckTypeSchema,
+  plateNumber: z
+    .string()
+    .trim()
+    .min(1, 'Enter your plate number')
+    .max(20, 'Plate number is too long')
+    .toUpperCase(),
+});
+
+export type DriverProfileInput = z.input<typeof driverProfileInputSchema>;
+
+/** A saved driver profile, as the API returns it. */
+export const driverProfileSchema = z.object({
+  fullName: z.string(),
+  /** Normalized: `+216` followed by 8 digits. */
+  phone: z.string(),
+  truckType: truckTypeSchema,
+  /** Trimmed and upper-cased. */
+  plateNumber: z.string(),
+});
+
+export type DriverProfile = z.infer<typeof driverProfileSchema>;
+
 /**
  * Response of `GET /me` on the API: the signed-in account, created on its
  * first call.
@@ -35,8 +75,7 @@ export const meResponseSchema = z.object({
   /** Absent for sign-in methods without an email. */
   email: z.email().nullable(),
   customerProfile: customerProfileSchema.nullable(),
-  // The driver profile arrives with its own slice (#8); always null until then.
-  driverProfile: z.null(),
+  driverProfile: driverProfileSchema.nullable(),
 });
 
 export type MeResponse = z.infer<typeof meResponseSchema>;

@@ -32,6 +32,14 @@ jest.mock('@/auth/firebase-auth', () => ({
   signOut: jest.fn(async () => {}),
 }));
 
+// Each test picks the app it runs as; the customer app unless it says otherwise.
+let mockVariantName: 'user' | 'driver' = 'user';
+jest.mock('@/variant/variant', () => ({
+  get variant() {
+    return jest.requireActual('@/variant/variants').VARIANTS[mockVariantName];
+  },
+}));
+
 jest.mock('@/config/env', () => ({
   env: { mapboxAccessToken: undefined, apiUrl: 'http://api.test', environment: 'dev' },
 }));
@@ -43,16 +51,24 @@ async function emitSession(user: AuthUser | null) {
 
 const me = { id: '7b0f1a52-3c43-4c1e-9d0e-2f6b1d8f5a10', email: 'ali@example.com' };
 const profile = { fullName: 'Ali Ben Salah', phone: '+21698123456' };
+const driverProfile = {
+  fullName: 'Sami Trabelsi',
+  phone: '+21622333444',
+  truckType: 'wheel_lift',
+  plateNumber: '123 TU 4567',
+};
 
-/** Fakes the API: `GET /me` answers with `customerProfile`, `PUT` echoes the profile back. */
-function mockApi(customerProfile: typeof profile | null) {
-  jest
-    .spyOn(globalThis, 'fetch')
-    .mockImplementation(async (_url, init) =>
-      init?.method === 'PUT'
-        ? Response.json(JSON.parse(String(init.body)))
-        : Response.json({ ...me, customerProfile, driverProfile: null }),
-    );
+/** Fakes the API: `GET /me` answers with the given profiles, `PUT` echoes the profile back. */
+function mockApi(profiles: { customerProfile?: object; driverProfile?: object }) {
+  jest.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) =>
+    init?.method === 'PUT'
+      ? Response.json(JSON.parse(String(init.body)))
+      : Response.json({
+          ...me,
+          customerProfile: profiles.customerProfile ?? null,
+          driverProfile: profiles.driverProfile ?? null,
+        }),
+  );
 }
 
 function putRequests() {
@@ -75,7 +91,10 @@ function renderApp() {
 }
 
 describe('root navigation', () => {
-  beforeEach(() => mockApi(profile));
+  beforeEach(() => {
+    mockVariantName = 'user';
+    mockApi({ customerProfile: profile });
+  });
 
   afterEach(() => {
     jest.restoreAllMocks();
@@ -143,7 +162,7 @@ describe('root navigation', () => {
   });
 
   it('sends a customer without a profile to onboarding, then to the app once saved', async () => {
-    mockApi(null);
+    mockApi({});
     const router = await renderApp();
     await emitSession({ uid: 'u1', email: me.email });
 
@@ -162,7 +181,7 @@ describe('root navigation', () => {
   });
 
   it('checks the details before saving them', async () => {
-    mockApi(null);
+    mockApi({});
     await renderApp();
     await emitSession({ uid: 'u1', email: me.email });
 
@@ -174,5 +193,59 @@ describe('root navigation', () => {
       screen.getByText('Enter a Tunisian number: +216 followed by 8 digits'),
     ).toBeOnTheScreen();
     expect(putRequests()).toHaveLength(0);
+  });
+
+  describe('in the driver app', () => {
+    beforeEach(() => {
+      mockVariantName = 'driver';
+    });
+
+    it('shows the app to a driver with a profile', async () => {
+      mockApi({ driverProfile });
+      const router = await renderApp();
+      await emitSession({ uid: 'u1', email: me.email });
+
+      expect(await screen.findByText('Home')).toBeOnTheScreen();
+      expect(router.getPathname()).toBe('/');
+    });
+
+    it('onboards an account that only has a customer profile', async () => {
+      mockApi({ customerProfile: profile });
+      const router = await renderApp();
+      await emitSession({ uid: 'u1', email: me.email });
+
+      expect(await screen.findByText('Set up your driver profile')).toBeOnTheScreen();
+      expect(router.getPathname()).toBe('/onboarding');
+    });
+
+    it('takes personal details, then truck details, then shows the app', async () => {
+      mockApi({});
+      const router = await renderApp();
+      await emitSession({ uid: 'u1', email: me.email });
+
+      expect(await screen.findByText('Step 1 of 2: your details')).toBeOnTheScreen();
+      await fireEvent.press(screen.getByRole('button', { name: 'Next' }));
+      expect(await screen.findByText('Enter your name')).toBeOnTheScreen();
+
+      await fireEvent.changeText(screen.getByLabelText('Full name'), 'Sami Trabelsi');
+      await fireEvent.changeText(screen.getByLabelText('Phone'), '22 333 444');
+      await fireEvent.press(screen.getByRole('button', { name: 'Next' }));
+      expect(await screen.findByText('Step 2 of 2: your truck')).toBeOnTheScreen();
+
+      await fireEvent.press(screen.getByRole('button', { name: 'Finish' }));
+      expect(await screen.findByText('Choose your truck type')).toBeOnTheScreen();
+      expect(screen.getByText('Enter your plate number')).toBeOnTheScreen();
+      expect(putRequests()).toHaveLength(0);
+
+      await fireEvent.press(screen.getByRole('radio', { name: 'Wheel-lift' }));
+      await fireEvent.changeText(screen.getByLabelText('Plate number'), ' 123 tu 4567 ');
+      await fireEvent.press(screen.getByRole('button', { name: 'Finish' }));
+
+      expect(await screen.findByText('Home')).toBeOnTheScreen();
+      expect(router.getPathname()).toBe('/');
+      const [[url, init]] = putRequests();
+      expect(url).toEqual(new URL('/me/driver-profile', 'http://api.test'));
+      expect(JSON.parse(String(init?.body))).toEqual(driverProfile);
+    });
   });
 });

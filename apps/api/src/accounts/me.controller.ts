@@ -2,6 +2,8 @@ import { Body, Controller, Get, Put, Req, UseGuards } from '@nestjs/common';
 import {
   type CustomerProfile,
   customerProfileInputSchema,
+  type DriverProfile,
+  driverProfileInputSchema,
   type MeResponse,
 } from '@depanini/shared';
 
@@ -25,7 +27,7 @@ export class MeController {
       id: account.id,
       email: account.email,
       customerProfile: account.customerProfile,
-      driverProfile: null,
+      driverProfile: account.driverProfile,
     };
   }
 
@@ -37,6 +39,16 @@ export class MeController {
   ): Promise<CustomerProfile> {
     const account = await this.accounts.getOrCreate(identityOf(request));
     return this.accounts.saveCustomerProfile(account.id, profile);
+  }
+
+  /** Creates or updates the driver profile; the driver app's onboarding and profile screens. */
+  @Put('driver-profile')
+  async saveDriverProfile(
+    @Req() request: AuthenticatedRequest,
+    @Body(new ZodValidationPipe(driverProfileInputSchema)) profile: DriverProfile,
+  ): Promise<DriverProfile> {
+    const account = await this.accounts.getOrCreate(identityOf(request));
+    return this.accounts.saveDriverProfile(account.id, profile);
   }
 }
 

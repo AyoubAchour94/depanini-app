@@ -2,6 +2,7 @@
  * Drizzle table definitions. Tables arrive with their features. PostGIS
  * itself is enabled by the first migration in `drizzle/`.
  */
+import type { TruckType } from '@depanini/shared';
 import { pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 const timestamps = {
@@ -26,5 +27,23 @@ export const customerProfiles = pgTable('customer_profiles', {
   fullName: text('full_name').notNull(),
   /** Normalized Tunisian number (`+216` + 8 digits); contact info, not verified. */
   phone: text().notNull(),
+  ...timestamps,
+});
+
+/**
+ * What a driver gave before using the driver app. At most one per account.
+ * Drivers are self-serve for now; an approval status would be a column here.
+ */
+export const driverProfiles = pgTable('driver_profiles', {
+  userId: uuid('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  fullName: text('full_name').notNull(),
+  /** Normalized Tunisian number (`+216` + 8 digits); contact info, not verified. */
+  phone: text().notNull(),
+  /** Checked by the API (`TRUCK_TYPES`); text, so adding a type needs no migration. */
+  truckType: text('truck_type').$type<TruckType>().notNull(),
+  /** Trimmed and upper-cased; not checked against a pattern. */
+  plateNumber: text('plate_number').notNull(),
   ...timestamps,
 });
