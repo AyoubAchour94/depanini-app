@@ -195,6 +195,21 @@ configured by `EXPO_PUBLIC_FIREBASE_WEB_CONFIG`). It calls the API at
 `EXPO_PUBLIC_WEB_API_URL`; the API must allow the origin via `CORS_ORIGINS`
 (already in `apps/api/.env.example`).
 
+### Share (try the web app from a phone, anywhere)
+
+```bash
+pnpm db:up
+pnpm share               # or: pnpm share driver
+```
+
+Opens Cloudflare quick tunnels (needs `cloudflared`:
+`winget install Cloudflare.cloudflared`, no account) to the web app, the API
+and the Auth emulator, starts the API and Expo web with those public URLs, and
+prints the app link. Stop any API or Expo already running on 3000/8081 first;
+a running Auth emulator is reused. The URLs are random and change on every
+run, and anyone with them can use the app until you press Ctrl+C. Only
+emulator accounts exist there.
+
 **Reaching the API from a device:** `localhost` is the device itself. Use
 `http://10.0.2.2:3000` from the Android emulator, or your computer's LAN IP
 from a physical device, in `EXPO_PUBLIC_API_URL`.
