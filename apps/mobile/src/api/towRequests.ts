@@ -6,7 +6,8 @@ import {
   type TowRequestInput,
   towRequestSchema,
 } from '@depanini/shared';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { z } from 'zod';
 
 import { apiRequest } from './client';
 
@@ -25,14 +26,96 @@ export function useFareEstimate(input: FareEstimateInput | null) {
   });
 }
 
+const ACTIVE_KEY = ['tow-requests', 'active'] as const;
+const HISTORY_KEY = ['tow-requests', 'history'] as const;
+
+/** Refetches the active request and the history, which every create and cancel changes. */
+function useInvalidateTowRequests() {
+  const queryClient = useQueryClient();
+  return () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ACTIVE_KEY }),
+      queryClient.invalidateQueries({ queryKey: HISTORY_KEY }),
+    ]);
+}
+
 /**
  * `POST /tow-requests`. Fails with an `ApiError`: 403 without a customer
  * profile, 409 when the customer already has an open request, 400 for a fare
  * outside the bounds.
  */
 export function useCreateTowRequest() {
+  const invalidate = useInvalidateTowRequests();
   return useMutation({
     mutationFn: (input: TowRequestInput): Promise<TowRequest> =>
       apiRequest('/tow-requests', towRequestSchema, { method: 'POST', json: input }),
+    onSettled: () => void invalidate(),
+  });
+}
+
+/** How often the open request is re-read while its screen is showing. */
+export const ACTIVE_POLL_MS = 15_000;
+
+/**
+ * `GET /tow-requests/active`: the customer's open request, or `null` (204)
+ * when there is none, because it was cancelled elsewhere or expired.
+ */
+export function useActiveTowRequest({ poll = false }: { poll?: boolean } = {}) {
+  return useQuery({
+    queryKey: ACTIVE_KEY,
+    queryFn: async () =>
+      (await apiRequest('/tow-requests/active', towRequestSchema.optional())) ?? null,
+    refetchInterval: poll ? ACTIVE_POLL_MS : false,
+  });
+}
+
+/**
+ * `POST /tow-requests/:id/cancel`. Fails with an `ApiError`: 404 when the
+ * request is not the customer's, 409 when it is no longer open.
+ */
+export function useCancelTowRequest() {
+  const invalidate = useInvalidateTowRequests();
+  return useMutation({
+    mutationFn: (id: string): Promise<TowRequest> =>
+      apiRequest(`/tow-requests/${id}/cancel`, towRequestSchema, { method: 'POST' }),
+    onSettled: () => void invalidate(),
+  });
+}
+
+const rawPageSchema = z.object({ items: z.array(z.unknown()), nextCursor: z.string().nullable() });
+
+export interface HistoryPage {
+  items: TowRequest[];
+  nextCursor: string | null;
+}
+
+/**
+ * Rows are parsed one by one so a row the app does not understand is skipped
+ * and logged instead of hiding the whole list.
+ */
+export function parseHistoryPage(raw: unknown): HistoryPage {
+  const page = rawPageSchema.parse(raw);
+  const items: TowRequest[] = [];
+  for (const row of page.items) {
+    const parsed = towRequestSchema.safeParse(row);
+    if (parsed.success) items.push(parsed.data);
+    else console.warn('Skipping a tow request the app could not read', parsed.error.issues);
+  }
+  return { items, nextCursor: page.nextCursor };
+}
+
+export const HISTORY_PAGE_SIZE = 20;
+
+/** `GET /tow-requests`: the customer's requests, newest first, a page at a time. */
+export function useTowRequestHistory() {
+  return useInfiniteQuery({
+    queryKey: HISTORY_KEY,
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) => {
+      const query = new URLSearchParams({ limit: String(HISTORY_PAGE_SIZE) });
+      if (pageParam) query.set('cursor', pageParam);
+      return apiRequest(`/tow-requests?${query}`, z.unknown().transform(parseHistoryPage));
+    },
+    getNextPageParam: (last) => last.nextCursor,
   });
 }

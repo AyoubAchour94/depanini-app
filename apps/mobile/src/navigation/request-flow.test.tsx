@@ -62,11 +62,20 @@ type CreateAnswer = () => Response;
 
 /** Fakes the API and Mapbox: reverse geocoding answers the pickup address, search the drop-off. */
 function mockApi(create: CreateAnswer = () => Response.json(created(), { status: 201 })) {
+  // The customer has an open request once a create was accepted (201) or refused as a duplicate (409).
+  let hasOpen = false;
   jest.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const url = new URL(input.toString());
     if (url.pathname === '/me') return Response.json(me);
     if (url.pathname === '/tow-requests/estimate') return Response.json(estimate);
-    if (url.pathname === '/tow-requests') return create();
+    if (url.pathname === '/tow-requests/active') {
+      return hasOpen ? Response.json(created()) : new Response(null, { status: 204 });
+    }
+    if (url.pathname === '/tow-requests') {
+      const response = create();
+      hasOpen = response.status === 201 || response.status === 409;
+      return response;
+    }
     const reverse = url.pathname.endsWith('/reverse');
     const feature = reverse
       ? { geometry: { coordinates: [10.18, 36.8] }, properties: { full_address: pickupAddress } }
@@ -89,7 +98,7 @@ function created() {
     distanceM: 12_400,
     suggestedFare: 65,
     proposedFare: 66,
-    expiresAt: '2026-01-01T10:15:00.000Z',
+    expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
     createdAt: '2026-01-01T10:00:00.000Z',
   };
 }
@@ -103,6 +112,7 @@ function renderApp() {
     'request/details': Details,
     'request/fare': Fare,
     'request/active': ActiveRequest,
+    'request/history': () => null,
     account: () => null,
     profile: () => null,
     'delete-account': () => null,
@@ -146,8 +156,7 @@ describe('request flow', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Increase fare' }));
     await press('Send request');
 
-    expect(await screen.findByText('Request sent')).toBeOnTheScreen();
-    expect(screen.getByText(requestId)).toBeOnTheScreen();
+    expect(await screen.findByText('Waiting for drivers…')).toBeOnTheScreen();
     expect(router.getPathname()).toBe('/request/active');
 
     const [, init] = jest
@@ -171,7 +180,7 @@ describe('request flow', () => {
     const router = await renderApp();
     await goToFare(router);
     await press('Send request');
-    await screen.findByText('Request sent');
+    await screen.findByText('Waiting for drivers…');
 
     expect(navigator.canGoBack()).toBe(true);
     await act(async () => navigator.back());
@@ -196,7 +205,7 @@ describe('request flow', () => {
 
     await press('Send request');
 
-    expect(await screen.findByText('Request sent')).toBeOnTheScreen();
+    expect(await screen.findByText('Waiting for drivers…')).toBeOnTheScreen();
     expect(router.getPathname()).toBe('/request/active');
   });
 

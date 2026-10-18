@@ -79,6 +79,7 @@ function RootNavigator() {
           name="request/active"
           options={{ title: requestStrings.activeTitle, headerBackVisible: false }}
         />
+        <Stack.Screen name="request/history" options={{ title: requestStrings.historyTitle }} />
       </Stack.Protected>
       <Stack.Protected guard={Boolean(account) && !onboarded}>
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />

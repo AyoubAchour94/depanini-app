@@ -6,6 +6,7 @@ import { useSignOut } from '@/auth/useSignOut';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
 import { profileFor } from '@/features/profile/onboarding';
+import { requestStrings } from '@/features/request/strings';
 import { describeTruck } from '@/features/profile/truck-types';
 import { variant } from '@/variant/variant';
 
@@ -39,6 +40,13 @@ export function AccountScreen() {
           <Button kind="link" title="Edit details" onPress={() => router.push('/profile')} />
         </View>
       ) : null}
+      {variant.isDriverApp ? null : (
+        <Button
+          kind="link"
+          title={requestStrings.myRequests}
+          onPress={() => router.push('/request/history')}
+        />
+      )}
       <Button title="Sign out" onPress={() => signOut.mutate()} loading={signOut.isPending} />
       <Button kind="link" title="Delete account" onPress={() => router.push('/delete-account')} />
     </View>

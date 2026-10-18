@@ -1,4 +1,4 @@
-import type { Place, ProblemType, VehicleType } from '@depanini/shared';
+import type { Place, ProblemType, TowRequest, VehicleType } from '@depanini/shared';
 import {
   createContext,
   type ReactNode,
@@ -41,6 +41,8 @@ interface RequestFlow extends RequestDraft {
     note: string;
   }) => void;
   setProposedFare: (fare: number) => void;
+  /** Fills the draft from an earlier request, without its fare: the customer picks that again. */
+  startFrom: (request: TowRequest) => void;
   /** Forgets everything entered (the request was sent or discarded). */
   reset: () => void;
   /** Ends the exit confirmation so the flow can be left on purpose; set by `useExitGuard`. */
@@ -84,11 +86,32 @@ export function RequestFlowProvider({
     (proposedFare: number) => setDraft((d) => ({ ...d, proposedFare })),
     [],
   );
+  const startFrom = useCallback(
+    (request: TowRequest) =>
+      setDraft({
+        pickup: request.pickup,
+        dropoff: request.dropoff,
+        vehicleType: request.vehicleType,
+        problemType: request.problemType,
+        note: request.note ?? '',
+        proposedFare: null,
+      }),
+    [],
+  );
   const reset = useCallback(() => setDraft(EMPTY_DRAFT), []);
 
   const value = useMemo(
-    () => ({ ...draft, setPickup, setDropoff, setDetails, setProposedFare, reset, exitGuardRef }),
-    [draft, setPickup, setDropoff, setDetails, setProposedFare, reset],
+    () => ({
+      ...draft,
+      setPickup,
+      setDropoff,
+      setDetails,
+      setProposedFare,
+      startFrom,
+      reset,
+      exitGuardRef,
+    }),
+    [draft, setPickup, setDropoff, setDetails, setProposedFare, startFrom, reset],
   );
   return <RequestFlowContext.Provider value={value}>{children}</RequestFlowContext.Provider>;
 }
