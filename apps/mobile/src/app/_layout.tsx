@@ -12,6 +12,7 @@ import { hasProfileFor } from '@/features/profile/onboarding';
 import { RequestFlowProvider } from '@/features/request/RequestFlowContext';
 import { requestStrings } from '@/features/request/strings';
 import { getFirebaseStatus } from '@/firebase/firebase';
+import { RealtimeProvider } from '@/realtime/RealtimeProvider';
 import { useTheme } from '@/theme/theme';
 import { variant } from '@/variant/variant';
 
@@ -28,9 +29,11 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <StatusBar style={theme.onBrand === '#FFFFFF' ? 'light' : 'dark'} />
-        <RequestFlowProvider>
-          <RootNavigator />
-        </RequestFlowProvider>
+        <RealtimeProvider>
+          <RequestFlowProvider>
+            <RootNavigator />
+          </RequestFlowProvider>
+        </RealtimeProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

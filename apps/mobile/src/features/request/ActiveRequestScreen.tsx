@@ -10,6 +10,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-nat
 
 import { ApiError } from '@/api/client';
 import { useActiveTowRequest, useCancelTowRequest } from '@/api/towRequests';
+import { LiveIndicator } from '@/realtime/LiveIndicator';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
 import { ChoiceField } from '@/ui/ChoiceField';
@@ -101,6 +102,7 @@ export function ActiveRequestScreen() {
         style={{ backgroundColor: theme.background }}
         contentContainerStyle={styles.content}
       >
+        <LiveIndicator live={t.live} reconnecting={t.reconnecting} />
         {open ? (
           <>
             <Text style={[styles.title, { color: theme.text }]}>{t.waitingForDrivers}</Text>

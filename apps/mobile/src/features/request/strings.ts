@@ -105,6 +105,8 @@ export const requestStrings = {
   offersFailed: 'Could not load offers. We will keep trying.',
 
   assignedTitle: 'Driver assigned',
+  live: 'Live',
+  reconnecting: 'Reconnecting…',
   assignedCardTitle: 'Your driver is on the way',
   driverLabel: 'Driver',
   phoneLabel: 'Phone',

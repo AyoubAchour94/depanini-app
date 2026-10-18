@@ -12,6 +12,8 @@ import {
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 
+import { usePollMs } from '@/realtime/status';
+
 import { apiRequest } from './client';
 
 /** `POST /tow-requests/estimate`: the distance and the fare bounds for a trip. */
@@ -29,10 +31,10 @@ export function useFareEstimate(input: FareEstimateInput | null) {
   });
 }
 
-const ACTIVE_KEY = ['tow-requests', 'active'] as const;
-const HISTORY_KEY = ['tow-requests', 'history'] as const;
+export const ACTIVE_KEY = ['tow-requests', 'active'] as const;
+export const HISTORY_KEY = ['tow-requests', 'history'] as const;
 
-const OFFERS_KEY = ['tow-requests', 'offers'] as const;
+export const OFFERS_KEY = ['tow-requests', 'offers'] as const;
 
 /** Refetches the active request, its offers and the history, which every create, cancel and accept changes. */
 function useInvalidateTowRequests() {
@@ -61,7 +63,7 @@ export function useCreateTowRequest() {
 
 /** How often the open request is re-read while its screen is showing. */
 export const ACTIVE_POLL_MS = 15_000;
-/** Faster while a driver is assigned, for the truck and the ETA; the WebSocket slice will lower it. */
+/** Faster while a driver is assigned, for the truck and the ETA; a live socket lowers every poll to 30 s. */
 export const ASSIGNED_POLL_MS = 10_000;
 
 /**
@@ -69,12 +71,14 @@ export const ASSIGNED_POLL_MS = 10_000;
  * when there is none, because it was cancelled elsewhere or expired.
  */
 export function useActiveTowRequest({ poll = false }: { poll?: boolean } = {}) {
+  const assignedMs = usePollMs(ASSIGNED_POLL_MS);
+  const openMs = usePollMs(ACTIVE_POLL_MS);
   return useQuery({
     queryKey: ACTIVE_KEY,
     queryFn: async () =>
       (await apiRequest('/tow-requests/active', towRequestSchema.optional())) ?? null,
     refetchInterval: (query) =>
-      poll ? (query.state.data?.status === 'assigned' ? ASSIGNED_POLL_MS : ACTIVE_POLL_MS) : false,
+      poll ? (query.state.data?.status === 'assigned' ? assignedMs : openMs) : false,
   });
 }
 
@@ -109,11 +113,12 @@ export const OFFERS_POLL_MS = 5_000;
  * Pass `poll` only while the screen is focused and the request is open.
  */
 export function useOffers(requestId: string, { poll = false }: { poll?: boolean } = {}) {
+  const pollMs = usePollMs(OFFERS_POLL_MS);
   return useQuery({
     queryKey: [...OFFERS_KEY, requestId],
     queryFn: (): Promise<CustomerOffer[]> =>
       apiRequest(`/tow-requests/${requestId}/offers`, z.array(customerOfferSchema)),
-    refetchInterval: poll ? OFFERS_POLL_MS : false,
+    refetchInterval: poll ? pollMs : false,
   });
 }
 

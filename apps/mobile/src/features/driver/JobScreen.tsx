@@ -16,6 +16,7 @@ import { env } from '@/config/env';
 import { MissingTokenView } from '@/features/map/MapScreen';
 import { TunisMap } from '@/features/map/TunisMap';
 import { requestStrings } from '@/features/request/strings';
+import { LiveIndicator } from '@/realtime/LiveIndicator';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
 import { ChoiceField } from '@/ui/ChoiceField';
@@ -114,6 +115,7 @@ export function JobScreen() {
   return (
     <ScrollView style={{ backgroundColor: theme.background }} contentContainerStyle={styles.body}>
       <Stack.Screen options={{ title: t.jobTitle }} />
+      <LiveIndicator live={t.live} reconnecting={t.reconnecting} />
       <View style={styles.map}>
         {env.mapboxAccessToken ? (
           <TunisMap
