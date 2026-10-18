@@ -7,8 +7,10 @@ import { useActiveTowRequest, useCancelTowRequest } from '@/api/towRequests';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
 
+import { AssignedDriver } from './AssignedDriver';
 import { confirmCancel } from './confirm';
 import { formatRemaining, useCountdown } from './countdown';
+import { OffersList } from './OffersList';
 import { useRequestFlow } from './RequestFlowContext';
 import { RequestSummary } from './RequestSummary';
 import { requestStrings as t } from './strings';
@@ -21,7 +23,8 @@ import { requestStrings as t } from './strings';
  */
 export function ActiveRequestScreen() {
   const theme = useTheme();
-  const active = useActiveTowRequest({ poll: useIsFocused() });
+  const focused = useIsFocused();
+  const active = useActiveTowRequest({ poll: focused });
   const cancel = useCancelTowRequest();
   const { startFrom } = useRequestFlow();
 
@@ -30,7 +33,8 @@ export function ActiveRequestScreen() {
   if (active.data && active.data !== lastSeen) setLastSeen(active.data);
 
   const open = active.data?.status === 'open' ? active.data : null;
-  const ended = open ? null : (active.data ?? lastSeen);
+  const assigned = active.data?.status === 'assigned' ? active.data : null;
+  const ended = open || assigned ? null : (active.data ?? lastSeen);
   // The device clock only decides when to ask; the server decides whether it expired.
   const remaining = useCountdown((open ?? ended)?.expiresAt, () => {
     if (open) void active.refetch();
@@ -55,28 +59,40 @@ export function ActiveRequestScreen() {
 
   const goHome = () => (router.canGoBack() ? router.back() : router.replace('/'));
 
-  if (open) {
+  const current = open ?? assigned;
+  if (current) {
     const onCancel = async () => {
       if (!(await confirmCancel())) return;
       // A 404 or 409 means it is already over; the refetch then shows how.
-      cancel.mutate(open.id, { onSuccess: goHome });
+      cancel.mutate(current.id, { onSuccess: goHome });
     };
     return (
       <ScrollView
         style={{ backgroundColor: theme.background }}
         contentContainerStyle={styles.content}
       >
-        <Text style={[styles.title, { color: theme.text }]}>{t.waitingForDrivers}</Text>
-        <Text accessibilityLiveRegion="polite" style={{ color: theme.textMuted }}>
-          {remaining === 0 ? t.expiring : `${t.expiresIn} ${formatRemaining(remaining ?? 0)}`}
-        </Text>
-        <RequestSummary request={open} />
+        {open ? (
+          <>
+            <Text style={[styles.title, { color: theme.text }]}>{t.waitingForDrivers}</Text>
+            <Text accessibilityLiveRegion="polite" style={{ color: theme.textMuted }}>
+              {remaining === 0 ? t.expiring : `${t.expiresIn} ${formatRemaining(remaining ?? 0)}`}
+            </Text>
+            <RequestSummary request={open} />
+            <OffersList request={open} focused={focused} />
+          </>
+        ) : (
+          <>
+            <Text style={[styles.title, { color: theme.text }]}>{t.assignedTitle}</Text>
+            <AssignedDriver request={current} />
+            <RequestSummary request={current} />
+          </>
+        )}
         {cancel.isError ? <Text style={{ color: theme.danger }}>{t.cancelFailed}</Text> : null}
         <Button
           kind="danger"
           title={t.cancelRequest}
           loading={cancel.isPending}
-          disabled={remaining === 0}
+          disabled={open ? remaining === 0 : false}
           onPress={() => void onCancel()}
         />
       </ScrollView>

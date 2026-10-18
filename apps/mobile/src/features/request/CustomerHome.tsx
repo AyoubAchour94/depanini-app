@@ -18,7 +18,8 @@ export function CustomerHome() {
   const theme = useTheme();
   const { reset } = useRequestFlow();
   const active = useActiveTowRequest({ poll: useIsFocused() });
-  const open = active.data?.status === 'open' ? active.data : null;
+  const open =
+    active.data?.status === 'open' || active.data?.status === 'assigned' ? active.data : null;
 
   return (
     <MapScreen>
@@ -31,7 +32,9 @@ export function CustomerHome() {
             style={[styles.card, { backgroundColor: theme.surface }]}
           >
             <View style={styles.cardHeader}>
-              <Text style={[styles.cardTitle, { color: theme.text }]}>{t.activeCardTitle}</Text>
+              <Text style={[styles.cardTitle, { color: theme.text }]}>
+                {open.status === 'assigned' ? t.assignedCardTitle : t.activeCardTitle}
+              </Text>
               <StatusBadge status={open.status} />
             </View>
             <Text style={{ color: theme.textMuted }}>

@@ -83,6 +83,13 @@ describe('HistoryScreen', () => {
     expect(warn).toHaveBeenCalledTimes(1);
   });
 
+  it('labels an assigned request', async () => {
+    mockPages({ first: { items: [row(1, 'assigned')], nextCursor: null } });
+    await renderHistory();
+
+    expect(await screen.findByText('Assigned')).toBeOnTheScreen();
+  });
+
   it('shows an empty state', async () => {
     mockPages({ first: { items: [], nextCursor: null } });
     await renderHistory();

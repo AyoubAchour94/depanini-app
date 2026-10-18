@@ -80,4 +80,16 @@ describe('CustomerHome', () => {
 
     expect(router.getPathname()).toBe('/request/active');
   });
+
+  it('says the driver is on the way once the request is assigned', async () => {
+    mockActive({ ...open, status: 'assigned' });
+    const router = await renderHome();
+
+    expect(await screen.findByText('Your driver is on the way')).toBeOnTheScreen();
+    expect(screen.getByText('Assigned')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Request a tow' })).toBeNull();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'View your request' }));
+    expect(router.getPathname()).toBe('/request/active');
+  });
 });
