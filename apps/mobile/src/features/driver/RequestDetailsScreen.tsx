@@ -1,7 +1,8 @@
-import { router, Stack } from 'expo-router';
+import { router, Stack, useIsFocused } from 'expo-router';
+import { useEffect } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { useCachedNearbyRequest } from '@/api/driver';
+import { useActiveOffers, useCachedNearbyRequest, useDriverJob } from '@/api/driver';
 import { env } from '@/config/env';
 import { CenterPin } from '@/features/map/CenterPin';
 import { MissingTokenView } from '@/features/map/MapScreen';
@@ -11,6 +12,7 @@ import { requestStrings } from '@/features/request/strings';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
 
+import { OfferPanel } from './OfferPanel';
 import { driverStrings as t } from './strings';
 
 const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
@@ -21,13 +23,43 @@ const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
  */
 export function RequestDetailsScreen({ id }: { id: string }) {
   const theme = useTheme();
+  const focused = useIsFocused();
   const request = useCachedNearbyRequest(id);
+  const offers = useActiveOffers({ poll: focused });
+  const job = useDriverJob({ poll: focused });
   const remaining = useCountdown(request?.expiresAt, () => {});
+  const offer = offers.data?.find((o) => o.requestId === id);
 
-  if (!request) {
+  // An accepted offer, or any job (our other offers are withdrawn when we get
+  // one), moves the driver on to the job.
+  const hasJob = offer?.status === 'accepted' || Boolean(job.data);
+  useEffect(() => {
+    if (hasJob && focused) router.replace('/job');
+  }, [hasJob, focused]);
+
+  if (!request && !offer) {
     return (
       <View style={[styles.fill, styles.center, { backgroundColor: theme.background }]}>
         <Text style={{ color: theme.textMuted }}>{t.notFound}</Text>
+        <Button title={t.backToRequests} kind="link" onPress={goBack} />
+      </View>
+    );
+  }
+
+  const offerPanel = (
+    <OfferPanel
+      requestId={id}
+      request={request}
+      offer={offer}
+      onOfferElapsed={() => void offers.refetch()}
+    />
+  );
+  if (!request) {
+    // The request left the list (the customer chose someone or it closed), but our offer is known.
+    return (
+      <View style={[styles.fill, styles.center, { backgroundColor: theme.background }]}>
+        <Stack.Screen options={{ title: t.detailsTitle }} />
+        <View style={styles.wide}>{offerPanel}</View>
         <Button title={t.backToRequests} kind="link" onPress={goBack} />
       </View>
     );
@@ -66,10 +98,7 @@ export function RequestDetailsScreen({ id }: { id: string }) {
           <Text style={{ color: theme.textMuted }}>{t.timeLeft(formatRemaining(remaining))}</Text>
         )}
       </View>
-      {/* PLACEHOLDER: the offer actions (accept or counter) land here in #38. */}
-      <View style={[styles.card, { backgroundColor: theme.surface }]}>
-        <Text style={{ color: theme.textMuted }}>{t.offerActionsPlaceholder}</Text>
-      </View>
+      {offerPanel}
     </ScrollView>
   );
 }
@@ -87,6 +116,7 @@ function Place({ label, address }: { label: string; address: string }) {
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   center: { alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },
+  wide: { alignSelf: 'stretch', gap: 12 },
   body: { padding: 16, gap: 16 },
   map: { height: 200, borderRadius: 12, overflow: 'hidden' },
   card: { borderRadius: 12, padding: 16, gap: 10 },

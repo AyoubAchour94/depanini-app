@@ -84,6 +84,10 @@ function RootNavigator() {
       </Stack.Protected>
       <Stack.Protected guard={onboarded && variant.isDriverApp}>
         <Stack.Screen name="job-offer/[id]" options={{ title: driverStrings.detailsTitle }} />
+        <Stack.Screen
+          name="job"
+          options={{ title: driverStrings.jobTitle, headerBackVisible: false }}
+        />
       </Stack.Protected>
       <Stack.Protected guard={Boolean(account) && !onboarded}>
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />

@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 
-import { useNearbyRequests } from '@/api/driver';
+import { useDriverJob, useNearbyRequests } from '@/api/driver';
 import { formatRemaining, useCountdown } from '@/features/request/countdown';
 import { requestStrings } from '@/features/request/strings';
 import { useTheme } from '@/theme/theme';
@@ -26,7 +26,8 @@ export function DriverHome() {
   const theme = useTheme();
   const focused = useIsFocused();
   const { online, problem, goOnline, goOffline } = useDriverPresence(focused);
-  const nearby = useNearbyRequests({ enabled: online, poll: focused });
+  const job = useDriverJob({ poll: focused });
+  const nearby = useNearbyRequests({ enabled: online && !job.data, poll: focused });
 
   return (
     <View style={[styles.fill, { backgroundColor: theme.background }]}>
@@ -46,7 +47,23 @@ export function DriverHome() {
           {problem === 'denied' ? t.locationDenied : t.locationUnavailable}
         </Text>
       ) : null}
-      {!online ? (
+      {job.data ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t.jobCardAction}
+          onPress={() => router.push('/job')}
+          style={[styles.card, styles.jobCard, { backgroundColor: theme.surface }]}
+        >
+          <Text style={{ color: theme.textMuted }}>{t.jobCard}</Text>
+          <Text style={[styles.distance, { color: theme.text }]}>{job.data.customer.fullName}</Text>
+          <Text style={{ color: theme.text }}>
+            {t.route(job.data.pickup.address, job.data.dropoff.address)}
+          </Text>
+          <Text style={[styles.fare, { color: theme.text }]}>
+            {requestStrings.fareAmount(job.data.agreedFare)}
+          </Text>
+        </Pressable>
+      ) : !online ? (
         <Text style={[styles.state, { color: theme.textMuted }]}>{t.offlineState}</Text>
       ) : nearby.data ? (
         <FlatList
@@ -126,6 +143,7 @@ const styles = StyleSheet.create({
   state: { padding: 24, textAlign: 'center' },
   loading: { padding: 24, alignItems: 'center', gap: 12 },
   list: { padding: 16, gap: 12 },
+  jobCard: { margin: 16 },
   card: { borderRadius: 12, padding: 16, gap: 6 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   distance: { fontSize: 16, fontWeight: '600' },
