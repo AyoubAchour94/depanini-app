@@ -1,3 +1,5 @@
+import type { DriverCancelReason, TripStage } from '@depanini/shared';
+
 /** User-facing text of the driver app, in one place until localization (Phase 9). */
 export const driverStrings = {
   homeTitle: 'Requests',
@@ -66,4 +68,45 @@ export const driverStrings = {
   cancelJobMessage: 'The customer will be told you are not coming.',
   keepJob: 'Keep job',
   cancelJobFailed: 'Could not cancel the job. Try again.',
+
+  cancelReasonLabel: 'Why are you cancelling?',
+  cancelReasonRequired: 'Pick a reason to cancel.',
+  cancelReasons: {
+    vehicle_not_there: 'Vehicle not there',
+    customer_unreachable: 'Customer unreachable',
+    unsafe: 'Unsafe situation',
+    truck_problem: 'Truck problem',
+    other: 'Other',
+  } satisfies Record<DriverCancelReason, string>,
+
+  /** The primary button for each stage: what the driver does next. */
+  nextStep: {
+    accepted: 'Start driving',
+    en_route: "I've arrived",
+    arrived: 'Vehicle loaded',
+    towing: 'Dropped off',
+  } satisfies Record<TripStage, string>,
+  stageConflict: 'The job has changed. We refreshed it, check the next step.',
+  stageFailed: 'Could not update the job. Try again.',
+  completeFailed: 'Could not finish the job. Try again.',
+  confirmDropoffTitle: 'Vehicle dropped off?',
+  confirmDropoffMessage: 'This ends the job.',
+  confirmDropoff: 'Yes, dropped off',
+  notYet: 'Not yet',
+
+  timelineTitle: 'Trip',
+  timeline: {
+    assigned: 'Accepted',
+    enRoute: 'On the way',
+    arrived: 'Arrived',
+    towing: 'Towing',
+    completed: 'Completed',
+  },
+  /** Local time of day, e.g. "10:05". */
+  time: (iso: string) =>
+    new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+
+  summaryTitle: 'Job done',
+  summaryHeading: 'Trip complete',
+  summaryRoute: 'Route',
 };

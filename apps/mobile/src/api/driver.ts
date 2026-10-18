@@ -1,5 +1,6 @@
 import {
   type DriverJob,
+  type DriverCancelReason,
   driverJobSchema,
   type DriverPresence,
   type DriverPresenceInput,
@@ -8,7 +9,9 @@ import {
   nearbyRequestSchema,
   type Offer,
   offerSchema,
+  type TowRequest,
   towRequestSchema,
+  type TripStage,
 } from '@depanini/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
@@ -120,12 +123,41 @@ export function useWithdrawOffer() {
   });
 }
 
-/** `POST /tow-requests/:id/cancel` as the assigned driver. */
+/**
+ * `POST /tow-requests/:id/cancel` as the assigned driver, with the required
+ * reason. Fails with 400 for a missing or unknown reason, 409 once towing.
+ */
 export function useCancelJob() {
   const invalidate = useInvalidateDriverQueries();
   return useMutation({
-    mutationFn: (requestId: string) =>
-      apiRequest(`/tow-requests/${requestId}/cancel`, towRequestSchema, { method: 'POST' }),
+    mutationFn: ({ requestId, reason }: { requestId: string; reason: DriverCancelReason }) =>
+      apiRequest(`/tow-requests/${requestId}/cancel`, towRequestSchema, {
+        method: 'POST',
+        json: { reason },
+      }),
+    onSettled: invalidate,
+  });
+}
+
+/**
+ * `POST /driver/job/stage`: moves the job to its next stage. Fails with 409
+ * when the stage is out of order (the job moved on), 404 without a job.
+ */
+export function useAdvanceJob() {
+  const invalidate = useInvalidateDriverQueries();
+  return useMutation({
+    mutationFn: (stage: Exclude<TripStage, 'accepted'>): Promise<DriverJob> =>
+      apiRequest('/driver/job/stage', driverJobSchema, { method: 'POST', json: { stage } }),
+    onSettled: invalidate,
+  });
+}
+
+/** `POST /driver/job/complete`: drops the vehicle off. Fails with 409 unless the job is `towing`. */
+export function useCompleteJob() {
+  const invalidate = useInvalidateDriverQueries();
+  return useMutation({
+    mutationFn: (): Promise<TowRequest> =>
+      apiRequest('/driver/job/complete', towRequestSchema, { method: 'POST' }),
     onSettled: invalidate,
   });
 }
