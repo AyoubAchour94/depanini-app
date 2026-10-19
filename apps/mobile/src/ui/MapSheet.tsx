@@ -24,7 +24,14 @@ import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme/theme';
 
 import { Sheet } from './Sheet';
-import { keyboardOverlap, nearestSnap, resolveSnapHeights, type SnapPoint } from './sheet-snap';
+import {
+  availableHeight,
+  keyboardOverlap,
+  nearestSnap,
+  releaseVelocity,
+  resolveSnapHeights,
+  type SnapPoint,
+} from './sheet-snap';
 
 export type { SnapPoint } from './sheet-snap';
 
@@ -35,7 +42,7 @@ interface MapSheetProps {
    * action). The sheet never gets shorter than the handle plus the footer.
    */
   footer?: ReactNode;
-  /** Ascending. Default `['peek', 'half', 'full']` (30%, 55%, 100% of the space under the top inset). */
+  /** Ascending. Default `['peek', 'half', 'full']` (30%, 55%, 100% of the space under the top controls row). */
   snapPoints?: readonly SnapPoint[];
   /** The snap point shown first (index into `snapPoints`). Default: the lowest. */
   defaultIndex?: number;
@@ -81,7 +88,10 @@ export function MapSheet({
   const index = controlledIndex ?? ownIndex;
   const last = snapPoints.length - 1;
 
-  const available = Math.max(0, containerHeight - overlap - insets.top - t.space[2]);
+  const available = availableHeight(containerHeight, {
+    keyboardOverlap: overlap,
+    topInset: insets.top,
+  });
   const minHeight = HANDLE_AREA + footerHeight;
   const heights = useMemo(
     () => resolveSnapHeights(snapPoints, { available, minHeight }),
@@ -125,6 +135,7 @@ export function MapSheet({
   const indexRef = useRef(index);
   const scrollY = useRef(0);
   const dragStart = useRef(0);
+  const lastMove = useRef(0);
   const lastRef = useRef(last);
 
   const settle = useCallback(
@@ -170,10 +181,17 @@ export function MapSheet({
         const all = heightsRef.current;
         const low = all[0] ?? 0;
         const high = all[all.length - 1] ?? low;
+        lastMove.current = Date.now();
         height.setValue(Math.min(high, Math.max(low, dragStart.current - g.dy)));
       },
       onPanResponderRelease: (_e, g) => {
-        settleRef.current(nearestSnap(heightsRef.current, current.current, g.vy));
+        settleRef.current(
+          nearestSnap(
+            heightsRef.current,
+            current.current,
+            releaseVelocity(g.vy, Date.now() - lastMove.current),
+          ),
+        );
       },
       onPanResponderTerminate: () => {
         settleRef.current(nearestSnap(heightsRef.current, current.current, 0));

@@ -1,4 +1,11 @@
-import { keyboardOverlap, nearestSnap, resolveSnapHeights } from './sheet-snap';
+import {
+  availableHeight,
+  CONTROLS_CLEARANCE,
+  keyboardOverlap,
+  nearestSnap,
+  releaseVelocity,
+  resolveSnapHeights,
+} from './sheet-snap';
 
 describe('resolveSnapHeights', () => {
   it('resolves names, percentages and pixels against the available height', () => {
@@ -45,5 +52,33 @@ describe('keyboardOverlap', () => {
 
   it('is zero when the window already resized for the keyboard', () => {
     expect(keyboardOverlap(500, 480)).toBe(0);
+  });
+});
+
+describe('availableHeight', () => {
+  it('stops below the top controls row', () => {
+    expect(availableHeight(844, { keyboardOverlap: 0, topInset: 47 })).toBe(
+      844 - 47 - CONTROLS_CLEARANCE,
+    );
+    expect(CONTROLS_CLEARANCE).toBeGreaterThanOrEqual(12 + 48);
+  });
+
+  it('shrinks with the keyboard and never goes negative', () => {
+    expect(availableHeight(844, { keyboardOverlap: 300, topInset: 0 })).toBe(
+      844 - 300 - CONTROLS_CLEARANCE,
+    );
+    expect(availableHeight(10, { keyboardOverlap: 0, topInset: 0 })).toBe(0);
+  });
+});
+
+describe('releaseVelocity', () => {
+  it('keeps the velocity of a release right after a move', () => {
+    expect(releaseVelocity(1.2, 16)).toBe(1.2);
+  });
+
+  it('ignores a stale velocity when the pointer rested before release', () => {
+    expect(releaseVelocity(1.2, 300)).toBe(0);
+    // Released at rest 400px down from full: the nearest snap, not a fling to peek.
+    expect(nearestSnap([200, 460, 836], 436, releaseVelocity(1.2, 300))).toBe(1);
   });
 });

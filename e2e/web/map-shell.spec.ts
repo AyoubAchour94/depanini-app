@@ -26,8 +26,12 @@ async function sheetHeight(page: Page): Promise<number> {
   return last;
 }
 
-/** A slow drag that ends at rest, so the sheet settles on the nearest snap point and does not fling. */
-async function drag(page: Page, dy: number) {
+/**
+ * A drag with the mouse, in small steps like a hand. `restMs` is how long the
+ * pointer rests before it is released; the sheet must then settle on the nearest
+ * snap point, not on a stale velocity.
+ */
+async function drag(page: Page, dy: number, restMs = 150) {
   const grabber = (await page.getByTestId('map-sheet-grabber').boundingBox())!;
   const x = grabber.x + grabber.width / 2;
   const y = grabber.y + grabber.height / 2;
@@ -38,16 +42,14 @@ async function drag(page: Page, dy: number) {
     await page.mouse.move(x, y + (dy * i) / steps);
     await page.waitForTimeout(25);
   }
-  await page.waitForTimeout(250);
-  await page.mouse.move(x, y + dy + Math.sign(dy));
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(restMs);
   await page.mouse.up();
 }
 
 async function footerInView(page: Page) {
   const box = (await page.getByTestId('map-sheet-footer').boundingBox())!;
   expect(box.y).toBeGreaterThanOrEqual(0);
-  expect(box.y + box.height).toBeLessThanOrEqual(844);
+  expect(box.y + box.height).toBeLessThanOrEqual(page.viewportSize()!.height);
 }
 
 test('the sheet drags between snap points and scrolls only at full', async ({ page }) => {
@@ -105,3 +107,38 @@ test('switching the theme restyles the same map without recreating it', async ({
   expect(await canvas.evaluate((el) => (el as HTMLElement & { keep?: boolean }).keep)).toBe(true);
   expect(errors).toEqual([]);
 });
+
+test('releasing after a pause settles on the nearest snap point, not on a stale velocity', async ({
+  page,
+}) => {
+  await openShell(page, 'theme=light&snap=2');
+  await sheetHeight(page);
+
+  // 400px down from full is closest to half; a 300 ms rest must cancel the speed of the drag.
+  await drag(page, 400, 300);
+
+  await expect(page.getByText('light · half')).toBeVisible();
+});
+
+for (const size of [
+  { width: 390, height: 844 },
+  { width: 360, height: 640 },
+]) {
+  test(`the top controls stay clickable at the full snap point (${size.width}x${size.height})`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(size);
+    await openShell(page, 'theme=light&snap=2');
+    await sheetHeight(page);
+    await expect(page.getByText('light · full')).toBeVisible();
+
+    const button = page.getByRole('button', { name: 'Appearance' });
+    const buttonBox = (await button.boundingBox())!;
+    const sheetBox = (await page.getByTestId('map-sheet-panel').boundingBox())!;
+    expect(sheetBox.y).toBeGreaterThanOrEqual(buttonBox.y + buttonBox.height);
+    // A real click fails if the sheet intercepts it.
+    await button.click({ timeout: 5_000 });
+    await expect(page.getByText('dark · full')).toBeVisible();
+    await footerInView(page);
+  });
+}

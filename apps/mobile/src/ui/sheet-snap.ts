@@ -43,3 +43,26 @@ export function nearestSnap(heights: readonly number[], height: number, velocity
 export function keyboardOverlap(keyboardTop: number, containerBottom: number): number {
   return Math.max(0, containerBottom - keyboardTop);
 }
+
+/**
+ * Space under the top inset that the sheet never covers: the floating controls
+ * row of `MapScreen` (12px from the inset, 48px tall) plus a gap, so back and
+ * menu stay reachable at the full snap point.
+ */
+export const CONTROLS_CLEARANCE = 12 + 48 + 8;
+
+/** Height the sheet may grow to. */
+export function availableHeight(
+  containerHeight: number,
+  { keyboardOverlap: overlap, topInset }: { keyboardOverlap: number; topInset: number },
+): number {
+  return Math.max(0, containerHeight - overlap - topInset - CONTROLS_CLEARANCE);
+}
+
+/** A release velocity older than this (ms since the last move) is stale: the pointer was resting. */
+const STALE_MS = 100;
+
+/** The velocity to throw the sheet with: zero when the pointer paused before release. */
+export function releaseVelocity(vy: number, msSinceLastMove: number): number {
+  return msSinceLastMove > STALE_MS ? 0 : vy;
+}
