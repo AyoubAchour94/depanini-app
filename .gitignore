@@ -13,6 +13,8 @@ coverage/
 # Playwright (pnpm e2e:web): reports, traces, screenshots
 playwright-report/
 test-results/
+playwright-report-admin/
+test-results-admin/
 
 # OS / editors
 .DS_Store

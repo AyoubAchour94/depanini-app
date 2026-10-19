@@ -28,3 +28,12 @@ test('CORS lists the localhost and public origin of every app', () => {
     'https://d.trycloudflare.com',
   ]);
 });
+
+test('admin starts the admin web app on 5173, and is not part of both', () => {
+  assert.deepEqual(planApps('admin'), [{ variant: 'admin', port: 5173 }]);
+  assert.ok(!planApps('both').some((app) => app.variant === 'admin'));
+  assert.deepEqual(corsOrigins(planApps('admin'), { admin: 'https://a.trycloudflare.com' }), [
+    'http://localhost:5173',
+    'https://a.trycloudflare.com',
+  ]);
+});
