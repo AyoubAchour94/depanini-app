@@ -99,7 +99,9 @@ describe('TripDetail', () => {
     expect(await screen.findByText('Cancelled')).toBeOnTheScreen();
     expect(await screen.findByText('60 TND')).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Share receipt' })).toBeNull();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).not.toContain(
+      `http://api.test/tow-requests/${ID}/receipt`,
+    );
   });
 
   it('says so when the receipt is not available, and retries when it fails otherwise', async () => {

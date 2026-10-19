@@ -152,7 +152,7 @@ export const requestStrings = {
   payQuestion: (fare: number, driver?: string) =>
     driver ? `Did you pay ${fare} TND to ${driver}?` : `Did you pay ${fare} TND to the driver?`,
   paidYes: 'Yes, I paid',
-  reportProblem: 'Report a problem',
+  reportProblem: 'Problem with the payment',
   disputeNoteLabel: 'What went wrong?',
   disputeNotePlaceholder: 'For example: the driver asked for more than the agreed fare',
   disputeCounter: (used: number, max: number) => `${used}/${max}`,

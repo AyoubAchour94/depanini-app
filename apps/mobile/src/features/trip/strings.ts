@@ -1,4 +1,4 @@
-import type { PaymentStatus } from '@depanini/shared';
+import type { PaymentStatus, ReportCategory, ReportStatus } from '@depanini/shared';
 
 /** User-facing text of the trip detail and receipt, shared by both apps. */
 export const tripStrings = {
@@ -58,4 +58,25 @@ export const tripStrings = {
   youRated: (n: number) => `You gave ${n === 1 ? '1 star' : `${n} stars`}`,
   ratingNew: 'New',
   ratingBadge: (average: number, count: number) => `★ ${average.toFixed(1)} (${count})`,
+
+  reportLink: 'Report a problem with this trip',
+  reportCategoryLabel: 'What went wrong?',
+  reportCategories: {
+    safety: 'Safety',
+    vehicle_damage: 'Vehicle damage',
+    overcharged: 'Overcharged',
+    no_show: 'No-show',
+    behaviour: 'Behaviour',
+    other: 'Other',
+  } satisfies Record<ReportCategory, string>,
+  reportNoteLabel: 'What happened?',
+  reportNoteCounter: (used: number, max: number) => `${used}/${max}`,
+  reportSend: 'Send report',
+  reportBack: 'Back',
+  reportSent: 'Report sent',
+  reportFailed: 'Could not send your report. Try again.',
+  reportConflict: 'This trip can no longer be reported, or you already have an open report on it.',
+  reportsTitle: 'Your reports',
+  reportStatus: { open: 'Open', resolved: 'Resolved' } satisfies Record<ReportStatus, string>,
+  reportResolution: (note: string) => `Resolution: ${note}`,
 };

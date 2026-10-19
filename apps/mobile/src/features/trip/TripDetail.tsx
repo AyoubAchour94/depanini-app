@@ -10,6 +10,7 @@ import { Button } from '@/ui/Button';
 
 import { formatTnd } from './money';
 import { RateTripCard, type RatingSide } from './RateTripCard';
+import { ReportProblemCard } from './ReportProblemCard';
 import { formatReceiptText, truckLabel, vehicleSummary } from './receiptText';
 import { shareText } from './share';
 import { tripStrings as t } from './strings';
@@ -62,6 +63,7 @@ export function TripDetail({ request, side }: { request: TowRequest; side: Ratin
           <ReceiptCard requestId={request.id} />
         </>
       ) : null}
+      <ReportProblemCard request={request} />
     </>
   );
 }
