@@ -29,6 +29,20 @@ const documentColumns = {
   createdAt: driverDocuments.createdAt,
 };
 
+/** The driver's pages, by kind then page number. Also what admins review. */
+export async function listDocuments(
+  db: Pick<Database, 'select'>,
+  driverId: string,
+): Promise<DriverDocument[]> {
+  const rows = await db
+    .select(documentColumns)
+    .from(driverDocuments)
+    .innerJoin(files, eq(files.id, driverDocuments.fileId))
+    .where(eq(driverDocuments.driverUserId, driverId))
+    .orderBy(asc(driverDocuments.kind), asc(driverDocuments.page));
+  return rows.map((row) => ({ ...row, createdAt: row.createdAt.toISOString() }));
+}
+
 /** A driver's documents and their check. Drivers need a driver profile. */
 @Injectable()
 export class VerificationService {
@@ -49,16 +63,7 @@ export class VerificationService {
       })
       .from(driverProfiles)
       .where(eq(driverProfiles.userId, driverId));
-    const rows = await this.db
-      .select(documentColumns)
-      .from(driverDocuments)
-      .innerJoin(files, eq(files.id, driverDocuments.fileId))
-      .where(eq(driverDocuments.driverUserId, driverId))
-      .orderBy(asc(driverDocuments.kind), asc(driverDocuments.page));
-    const documents: DriverDocument[] = rows.map((row) => ({
-      ...row,
-      createdAt: row.createdAt.toISOString(),
-    }));
+    const documents = await listDocuments(this.db, driverId);
     return {
       status: profile!.status,
       rejectionReason: profile!.rejectionReason,

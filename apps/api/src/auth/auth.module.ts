@@ -3,6 +3,7 @@ import { getAuth } from 'firebase-admin/auth';
 
 import type { Env } from '../config/env.js';
 import { ENV } from '../config/env.module.js';
+import { AdminGuard } from './admin.guard.js';
 import { firebaseApp } from './firebase-app.js';
 import {
   FirebaseAuthGuard,
@@ -20,7 +21,8 @@ import {
       useFactory: (env: Env): IdTokenVerifier => getAuth(firebaseApp(env)),
     },
     FirebaseAuthGuard,
+    AdminGuard,
   ],
-  exports: [ID_TOKEN_VERIFIER, FirebaseAuthGuard],
+  exports: [ID_TOKEN_VERIFIER, FirebaseAuthGuard, AdminGuard],
 })
 export class AuthModule {}

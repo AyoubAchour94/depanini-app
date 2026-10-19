@@ -13,11 +13,11 @@ import { z } from 'zod';
 
 import { AccountsService } from '../accounts/accounts.service.js';
 import { type AuthenticatedRequest, FirebaseAuthGuard } from '../auth/firebase-auth.guard.js';
-import { FILE_STORE, type FileStore } from './file-store.js';
+import { FILE_STORE, type FileStore, type StoredFile } from './file-store.js';
 
 /**
  * `GET /files/:id` streams the bytes straight from the API, for the signed-in owner
- * only (admins join in the admin slice). Clients fetch it with their ID token as a
+ * only (admins use `GET /admin/files/:id`). Clients fetch it with their ID token as a
  * blob, so there are no signed URLs to leak or expire. Anyone else gets `404`, as for
  * a file that does not exist.
  */
@@ -42,13 +42,21 @@ export class FilesController {
     });
     const file = await this.store.get(id);
     if (!file || file.ownerUserId !== account.id) throw new NotFoundException('File not found');
-    await reply
-      .headers({
-        'Content-Type': file.contentType,
-        'Content-Disposition': 'inline',
-        'X-Content-Type-Options': 'nosniff',
-        'Cache-Control': 'private, no-store',
-      })
-      .send(file.data);
+    await sendFile(reply, file);
   }
+}
+
+/**
+ * Sends a stored file's bytes, shown inline but never sniffed or cached. Shared by the
+ * owner route and `GET /admin/files/:id`.
+ */
+export async function sendFile(reply: FastifyReply, file: StoredFile): Promise<void> {
+  await reply
+    .headers({
+      'Content-Type': file.contentType,
+      'Content-Disposition': 'inline',
+      'X-Content-Type-Options': 'nosniff',
+      'Cache-Control': 'private, no-store',
+    })
+    .send(file.data);
 }

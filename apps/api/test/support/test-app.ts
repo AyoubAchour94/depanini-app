@@ -18,15 +18,23 @@ import { type Database, DB } from '../../src/db/database.module.js';
 import { registerMultipart } from '../../src/files/multipart.js';
 import { TEST_DATABASE_URL } from './test-database.js';
 
-/** Accepts `token-<uid>` (with an optional `:<email>`) as a valid ID token, valid for an hour. */
+/**
+ * Accepts `token-<uid>` (with an optional `:<email>`, then optional custom claims as
+ * `|<json>`, e.g. `|{"admin":true}`) as a valid ID token, valid for an hour.
+ */
 export const fakeVerifier: IdTokenVerifier = {
   verifyIdToken: async (token) => {
-    const match = /^token-([^:]+)(?::(.+))?$/.exec(token);
+    const match = /^token-([^:|]+)(?::([^|]+))?(?:\|(.+))?$/.exec(token);
     if (!match) throw new Error('auth/argument-error');
     const exp = Math.floor(Date.now() / 1000) + 3600;
-    return { uid: match[1], email: match[2], exp } as DecodedIdToken;
+    const claims = match[3] ? (JSON.parse(match[3]) as object) : {};
+    return { ...claims, uid: match[1], email: match[2], exp } as DecodedIdToken;
   },
 };
+
+/** A fake ID token (see {@link fakeVerifier}) of an admin: custom claim `admin: true`. */
+export const adminToken = (uid: string, email = `${uid}@example.com`) =>
+  `token-${uid}:${email}|${JSON.stringify({ admin: true })}`;
 
 /**
  * The whole API over the test database, with Firebase replaced by

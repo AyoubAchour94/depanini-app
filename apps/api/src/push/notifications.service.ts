@@ -100,8 +100,12 @@ export function offerPush(offerId: string, event: OfferEvent, offer: OfferPartie
   }
 }
 
-/** Offers and nearby requests share a key per request, trips and payments another. */
+/**
+ * Offers and nearby requests share a key per request, trips and payments another; the
+ * verification result has its own (a newer review replaces an older one).
+ */
 function collapseKeyOf({ kind, requestId }: PushData): string {
+  if (kind.startsWith('verification_')) return 'verification';
   return kind === 'nearby_request' || kind.startsWith('offer_')
     ? `offer:${requestId}`
     : `trip:${requestId}`;
@@ -202,8 +206,28 @@ export class NotificationsService implements OnApplicationShutdown {
     });
   }
 
-  private async deliver(push: Push | null): Promise<void> {
-    if (!push || this.realtime.isConnected(push.userId)) return;
+  /**
+   * An admin approved or rejected the driver's documents. Pushed even while the driver is
+   * connected: there is no `/ws` event for it, so the push is their only news of it.
+   */
+  verificationReviewed(driverId: string, approved: boolean): void {
+    this.dispatch('verification', `verification:${driverId}`, () =>
+      this.deliver(
+        {
+          userId: driverId,
+          appVariant: 'driver',
+          data: { kind: approved ? 'verification_approved' : 'verification_rejected' },
+        },
+        { evenIfConnected: true },
+      ),
+    );
+  }
+
+  private async deliver(
+    push: Push | null,
+    { evenIfConnected = false }: { evenIfConnected?: boolean } = {},
+  ): Promise<void> {
+    if (!push || (!evenIfConnected && this.realtime.isConnected(push.userId))) return;
     const tokens = await this.tokens.forUser(push.userId, push.appVariant);
     if (tokens.length === 0) return;
     const message = PUSH_MESSAGES[push.data.kind];
