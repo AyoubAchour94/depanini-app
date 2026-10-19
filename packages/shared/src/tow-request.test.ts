@@ -251,3 +251,38 @@ describe('towRequestSchema, trip', () => {
     expect(towRequestSchema.safeParse({ ...base, ...patch }).success).toBe(false);
   });
 });
+
+describe('towRequestSchema, payment', () => {
+  const request = {
+    ...input,
+    id: '0b8e3f3e-6a52-4a39-9b1c-0d6f3c3f7f10',
+    status: 'completed',
+    distanceM: 12_345,
+    suggestedFare: 65,
+    expiresAt: '2026-01-01T10:15:00.000Z',
+    createdAt: '2026-01-01T10:00:00.000Z',
+  };
+  const payment = { status: 'driver_confirmed', amountTnd: 60, receiptNo: 'DPN-2026-000123' };
+
+  it('still parses Phase 3-5 payloads without payment', () => {
+    expect(towRequestSchema.parse(request).payment).toBeUndefined();
+    expect(towRequestSchema.parse({ ...request, payment: null }).payment).toBeNull();
+  });
+
+  it('parses a payment summary and strips the rest of the payment', () => {
+    const parsed = towRequestSchema.parse({
+      ...request,
+      payment: { ...payment, method: 'cash', disputeNote: 'secret' },
+    });
+    expect(parsed.payment).toEqual(payment);
+  });
+
+  it('rejects a malformed summary', () => {
+    expect(
+      towRequestSchema.safeParse({ ...request, payment: { ...payment, receiptNo: 'x' } }).success,
+    ).toBe(false);
+    expect(towRequestSchema.safeParse({ ...request, payment: { status: 'paid' } }).success).toBe(
+      false,
+    );
+  });
+});

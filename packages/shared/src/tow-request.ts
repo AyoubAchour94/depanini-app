@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { truckTypeSchema } from './account';
 import { isInTunisia } from './geo';
+import { paymentSummarySchema } from './payment';
 import { latLngSchema } from './presence';
 
 /** The kinds of vehicle a customer can have towed. */
@@ -150,6 +151,8 @@ export const towRequestSchema = z.object({
   driverLocation: latLngSchema.and(z.object({ updatedAt: z.iso.datetime() })).nullish(),
   /** Minutes until the truck reaches the pickup (before `arrived`) or the drop-off (`towing`). */
   etaMin: z.number().int().positive().nullish(),
+  /** The cash payment, once the driver has completed the trip. */
+  payment: paymentSummarySchema.nullish(),
 });
 
 export type TowRequest = z.infer<typeof towRequestSchema>;
