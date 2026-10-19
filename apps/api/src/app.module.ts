@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { AccountsModule } from './accounts/accounts.module.js';
+import { AdminModule } from './admin/admin.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { EnvModule } from './config/env.module.js';
 import { DatabaseModule } from './db/database.module.js';
@@ -31,6 +32,7 @@ import { VerificationModule } from './verification/verification.module.js';
     RealtimeModule,
     FilesModule,
     VerificationModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

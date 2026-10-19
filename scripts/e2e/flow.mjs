@@ -1,12 +1,14 @@
 // End-to-end flow check against a running stack (API + Auth emulator + Postgres).
-// Creates two throwaway emulator accounts, walks the customer + driver flow over
+// Creates throwaway emulator accounts (customer, driver, admin), walks the flow over
 // HTTP, checks every response against the @depanini/shared schemas, then deletes
-// both accounts. See README "End-to-end flow check".
+// the accounts. See README "End-to-end flow check".
 //
 // To add a step, append `{ name, run(ctx) }` to STEPS. Steps run in order and share `ctx`.
 import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
 import { crc32, deflateSync } from 'node:zlib';
+
+import { grantAdmin } from '../admin-grant.mjs';
 
 const require = createRequire(import.meta.url);
 // Built shared package (`pnpm --filter @depanini/shared build`).
@@ -19,11 +21,8 @@ const WS = process.env.E2E_WS !== 'off';
 /** How long a `/ws` event may take to arrive after the change that causes it. */
 const WS_EVENT_MS = 2000;
 const run = Date.now().toString(36);
-/**
- * Postgres of the API under test. Only needed to approve the driver's documents directly
- * until the admin API exists; point it at the same database as the API.
- */
-const DATABASE_URL = process.env.E2E_DATABASE_URL;
+/** Password of every throwaway emulator account. */
+const PASSWORD = 'e2e-password-1';
 
 const TUNIS_PICKUP = {
   latitude: 36.8065,
@@ -101,29 +100,19 @@ async function uploadDocument(user, kind, bytes, contentType, { expect = 201 } =
   return parsed.data;
 }
 
-/** Approves the driver's documents straight in Postgres (until the admin API replaces this). */
-async function approveInDatabase(userId) {
-  assert.ok(
-    DATABASE_URL,
-    'Set E2E_DATABASE_URL to the API database (e.g. postgres://depanini:depanini@localhost:5432/depanini) ' +
-      'so the flow can approve the driver; the admin API will replace this step.',
+/** Signs `user` in again, for a fresh ID token that carries their current custom claims. */
+async function signInAgain(user) {
+  const res = await fetch(
+    `${EMULATOR}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake-api-key`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: user.email, password: PASSWORD, returnSecureToken: true }),
+    },
   );
-  const pg = createRequire(new URL('../../apps/api/package.json', import.meta.url))('pg');
-  const client = new pg.Client({ connectionString: DATABASE_URL });
-  await client.connect();
-  try {
-    const { rowCount } = await client.query(
-      "update driver_profiles set verification_status = 'approved', reviewed_at = now() where user_id = $1",
-      [userId],
-    );
-    assert.equal(
-      rowCount,
-      1,
-      'no driver profile to approve; is E2E_DATABASE_URL the API database?',
-    );
-  } finally {
-    await client.end();
-  }
+  const text = await res.text();
+  assert.equal(res.status, 200, `emulator sign-in failed: ${res.status} ${text}`);
+  user.idToken = JSON.parse(text).idToken;
 }
 
 /** A fetch against the API as `user`; checks the status and, if given, the response schema. */
@@ -240,7 +229,7 @@ async function signUp(label) {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         email: `e2e-${label}-${run}@example.test`,
-        password: 'e2e-password-1',
+        password: PASSWORD,
         returnSecureToken: true,
       }),
     },
@@ -260,10 +249,24 @@ async function deleteEmulatorUser(user) {
 
 const STEPS = [
   {
-    name: 'sign up customer and driver in the Auth emulator',
+    name: 'sign up customer, driver and admin in the Auth emulator',
     async run(ctx) {
       ctx.customer = await signUp('customer');
       ctx.driver = await signUp('driver');
+      ctx.admin = await signUp('admin');
+    },
+  },
+  {
+    name: 'grant the admin claim in the emulator; only that account gets into /admin',
+    async run({ customer, driver, admin }) {
+      // Without the claim (the token predates it): 403, like any other account.
+      for (const user of [customer, driver, admin]) {
+        await api(user, 'GET', '/admin/drivers', { expect: 403 });
+      }
+      await grantAdmin(admin.email, { emulatorHost: new URL(EMULATOR).host });
+      await signInAgain(admin);
+      await api(admin, 'GET', '/admin/drivers', { schema: shared.adminDriverPageSchema });
+      await api(customer, 'GET', '/admin/drivers', { expect: 403 });
     },
   },
   {
@@ -326,7 +329,8 @@ const STEPS = [
   },
   {
     name: 'driver uploads the four documents, submits them, and is not approved yet',
-    async run({ driver }) {
+    async run(ctx) {
+      const { driver } = ctx;
       const png = tinyPng();
       const pdf = tinyPdf();
       // A text file claiming to be a PNG is refused by its bytes.
@@ -334,6 +338,7 @@ const STEPS = [
         expect: 415,
       });
       const page = await uploadDocument(driver, 'licence', png, 'image/png');
+      ctx.page = { id: page.id, bytes: png };
       await uploadDocument(driver, 'licence', pdf, 'application/pdf');
       await uploadDocument(driver, 'registration', pdf, 'application/pdf');
       await uploadDocument(driver, 'insurance', png, 'image/png');
@@ -374,11 +379,46 @@ const STEPS = [
     },
   },
   {
-    name: 'approve the driver in the database (the admin API replaces this)',
-    async run({ driver }) {
-      await approveInDatabase(driver.id);
+    name: 'the admin finds the driver in the queue, reads a page and approves them',
+    async run(ctx) {
+      const { admin, driver } = ctx;
+      const queue = await api(admin, 'GET', '/admin/drivers?status=pending&limit=50', {
+        schema: shared.adminDriverPageSchema,
+      });
+      assert.ok(
+        queue.items.some((item) => item.userId === driver.id),
+        'the driver is not in the pending queue',
+      );
+      const detail = await api(admin, 'GET', `/admin/drivers/${driver.id}`, {
+        schema: shared.adminDriverDetailSchema,
+      });
+      assert.equal(detail.documents.length, 5);
+
+      const res = await fetch(`${API}/admin/files/${ctx.page.id}`, {
+        headers: { authorization: `Bearer ${admin.idToken}` },
+      });
+      assert.equal(res.status, 200);
+      assert.equal(res.headers.get('x-content-type-options'), 'nosniff');
+      assert.deepEqual(Buffer.from(await res.arrayBuffer()), ctx.page.bytes);
+
+      // Only from pending, so a second review is refused.
+      const reviewed = await api(admin, 'POST', `/admin/drivers/${driver.id}/review`, {
+        body: { decision: 'approve' },
+        schema: shared.adminDriverDetailSchema,
+      });
+      assert.equal(reviewed.verificationStatus, 'approved');
+      await api(admin, 'POST', `/admin/drivers/${driver.id}/review`, {
+        expect: 409,
+        body: { decision: 'reject', reason: 'Too late' },
+      });
       const me = await api(driver, 'GET', '/me', { schema: shared.meResponseSchema });
       assert.equal(me.driverProfile?.verificationStatus, 'approved');
+      if (ctx.inbox) await expectPush(driver, 'verification_approved', 'driver', undefined);
+
+      const audit = await api(admin, 'GET', '/admin/audit', { schema: shared.auditPageSchema });
+      const entry = audit.items.find((item) => item.targetId === driver.id);
+      assert.equal(entry?.action, 'driver_approved');
+      assert.equal(entry?.adminEmail, admin.email);
     },
   },
   {
@@ -912,7 +952,7 @@ const STEPS = [
 async function cleanup(ctx) {
   ctx.realtime?.close();
   const problems = [];
-  for (const user of [ctx.customer, ctx.driver, ctx.stranger]) {
+  for (const user of [ctx.customer, ctx.driver, ctx.admin, ctx.stranger]) {
     if (!user) continue;
     try {
       await api(user, 'DELETE', '/me', { expect: 204 });
@@ -945,10 +985,10 @@ async function main() {
   const problems = await cleanup(ctx);
   const took = `${Math.round(performance.now() - started)} ms`;
   if (problems.length) {
-    console.log(`✗ cleanup: DELETE /me for both accounts (${took})`);
+    console.log(`✗ cleanup: DELETE /me for every account (${took})`);
     for (const problem of problems) console.log(`  ${problem}`);
   } else {
-    console.log(`✓ cleanup: DELETE /me for both accounts (${took})`);
+    console.log(`✓ cleanup: DELETE /me for every account (${took})`);
   }
   if (failed || problems.length) process.exit(1);
   console.log('All steps passed.');
