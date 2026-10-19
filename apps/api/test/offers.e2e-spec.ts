@@ -25,6 +25,7 @@ const tunis = { latitude: 36.8065, longitude: 10.1815, address: 'Tunis' };
 const sousse = { latitude: 35.8256, longitude: 10.6084, address: 'Sousse' };
 const laMarsa = { latitude: 36.878, longitude: 10.325 }; // ~15 km from Tunis
 const ariana = { latitude: 36.8625, longitude: 10.1956 }; // ~6 km from Tunis
+const NEW = { average: null, count: 0 };
 const sfax = { latitude: 34.74, longitude: 10.76 }; // out of range
 
 const unknownId = '00000000-0000-4000-8000-000000000000';
@@ -357,8 +358,8 @@ describe('offers, accept/decline and driver job (e2e)', () => {
       const res = await api('get', `/tow-requests/${req.id}/offers`, alice).expect(200);
       const list = z.array(customerOfferSchema).parse(res.body);
       expect(list).toEqual([
-        { ...fromEve, driver: { fullName: 'Eve Driver', truckType: 'wheel_lift' } },
-        { ...fromDan, driver: { fullName: 'Dan Driver', truckType: 'flatbed' } },
+        { ...fromEve, driver: { fullName: 'Eve Driver', truckType: 'wheel_lift', rating: NEW } },
+        { ...fromDan, driver: { fullName: 'Dan Driver', truckType: 'flatbed', rating: NEW } },
       ]);
       expect(res.body[0].driver).not.toHaveProperty('phone');
 

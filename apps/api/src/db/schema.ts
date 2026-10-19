@@ -4,6 +4,7 @@
  */
 import type {
   CancelledBy,
+  RatingTag,
   OfferStatus,
   PaymentMethod,
   PaymentStatus,
@@ -15,12 +16,15 @@ import type {
 } from '@depanini/shared';
 import { sql } from 'drizzle-orm';
 import {
+  check,
   customType,
   boolean,
   index,
   integer,
   pgSequence,
   pgTable,
+  primaryKey,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -215,3 +219,32 @@ export const payments = pgTable('payments', {
   customerAnsweredAt: timestamp('customer_answered_at', { withTimezone: true }),
   disputeNote: text('dispute_note'),
 });
+
+/**
+ * What a customer and a driver say about each other after a completed trip: at most one
+ * rating per side (`rater_role`). Deleting an account cascades to the ratings it received
+ * and, through the requests it was a party to, to the ones it gave. `comment` is private:
+ * only its author reads it back.
+ */
+export const ratings = pgTable(
+  'ratings',
+  {
+    requestId: uuid('request_id')
+      .notNull()
+      .references(() => towRequests.id, { onDelete: 'cascade' }),
+    raterRole: text('rater_role').$type<'customer' | 'driver'>().notNull(),
+    rateeUserId: uuid('ratee_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    stars: smallint().notNull(),
+    tags: text().array().$type<RatingTag[]>().notNull(),
+    comment: text(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.requestId, table.raterRole] }),
+    check('ratings_stars_check', sql`${table.stars} between 1 and 5`),
+    // Summaries average everything a user received from one side.
+    index('ratings_ratee_idx').on(table.rateeUserId, table.raterRole),
+  ],
+);
