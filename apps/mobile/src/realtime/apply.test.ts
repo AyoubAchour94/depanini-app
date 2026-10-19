@@ -1,6 +1,6 @@
 import type { DriverJob, TowRequest } from '@depanini/shared';
 
-import { JOB_KEY, OFFERS_KEY as DRIVER_OFFERS_KEY } from '@/api/driver';
+import { JOB_KEY, NEARBY_KEY, OFFERS_KEY as DRIVER_OFFERS_KEY } from '@/api/driver';
 import { ACTIVE_KEY, HISTORY_KEY, OFFERS_KEY } from '@/api/towRequests';
 import { createTestQueryClient } from '@/test/queryClient';
 
@@ -173,5 +173,19 @@ describe('driver.location', () => {
     });
     applyRealtimeMessage(queryClient, message, 'customer');
     expect(queryClient.getQueryData<TowRequest>(ACTIVE_KEY)?.etaMin).toBeUndefined();
+  });
+});
+
+describe('nearby.changed', () => {
+  it('refreshes the driver nearby list', () => {
+    const { queryClient, invalidated } = setup();
+    applyRealtimeMessage(queryClient, { type: 'nearby.changed' }, 'driver');
+    expect(invalidated()).toEqual([NEARBY_KEY]);
+  });
+
+  it('is ignored in the customer app', () => {
+    const { queryClient, invalidated } = setup();
+    applyRealtimeMessage(queryClient, { type: 'nearby.changed' }, 'customer');
+    expect(invalidated()).toEqual([]);
   });
 });

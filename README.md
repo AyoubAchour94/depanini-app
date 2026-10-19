@@ -201,8 +201,8 @@ Both URLs default to the values above. The browsers report a position in
 Tunis, the driver uses the **Test location** row (dev builds), and the
 drop-off search is answered with a fixed La Marsa, Tunis (Mapbox can rank a
 namesake 400 km away first). A leftover request from an earlier run does not
-disturb it. New requests reach a driver by polling (up to 30 s), so a run
-takes about a minute.
+disturb it. A new request reaches a driver as a `nearby.changed` push (see
+`docs/realtime.md`), not by polling, so a run takes about a minute.
 
 ### Mobile
 

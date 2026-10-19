@@ -140,6 +140,7 @@ export class TowRequestsService {
           updatedAt: now,
         })
         .returning(columns);
+      await this.events.nearbyChanged([created!.id]);
       return toTowRequest(created!);
     } catch (error) {
       if (isUniqueViolation(error)) throw new ConflictException('You already have an open request');
@@ -216,7 +217,7 @@ export class TowRequestsService {
   async cancel(accountId: string, id: string, { reason }: CancelInput = {}): Promise<TowRequest> {
     await this.expireStale(accountId);
     const now = this.now();
-    const { cancelled, rejected } = await this.db.transaction(async (tx) => {
+    const { cancelled, rejected, wasOpen } = await this.db.transaction(async (tx) => {
       // Locks out a concurrent accept, so a request is never both assigned and cancelled.
       const [row] = await tx
         .select({
@@ -265,16 +266,22 @@ export class TowRequestsService {
         .set({ status: 'rejected', updatedAt: now })
         .where(and(eq(towOffers.requestId, id), eq(towOffers.status, 'pending')))
         .returning({ id: towOffers.id });
-      return { cancelled: updated!, rejected: rejected.map((offer) => offer.id) };
+      return {
+        cancelled: updated!,
+        rejected: rejected.map((offer) => offer.id),
+        wasOpen: !assigned,
+      };
     });
     await this.events.requestsUpdated([id]);
     await this.events.offersUpdated(rejected);
+    if (wasOpen) await this.events.nearbyChanged([id]);
     return toTowRequest(cancelled);
   }
 
   /** Marks the customer's open requests past their expiry as expired. */
-  private expireStale(customerId: string): Promise<void> {
-    return expireStaleRequests(this.db, this.now(), customerId);
+  private async expireStale(customerId: string): Promise<void> {
+    const expired = await expireStaleRequests(this.db, this.now(), customerId);
+    await this.events.nearbyChanged(expired);
   }
 
   /** The estimated road distance in whole metres: PostGIS straight line times the road factor. */

@@ -53,6 +53,11 @@ export function applyRealtimeMessage(
       });
       return;
     }
+    case 'nearby.changed': {
+      // A hint for the driver app only: the customer app has no nearby list.
+      if (role === 'driver') void queryClient.invalidateQueries({ queryKey: NEARBY_KEY });
+      return;
+    }
     case 'driver.location': {
       queryClient.setQueryData<TowRequest | null | undefined>(ACTIVE_KEY, (current) =>
         current && current.id === message.requestId

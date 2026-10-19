@@ -15,6 +15,8 @@ export type WsClientMessage = z.infer<typeof wsClientMessageSchema>;
 /** Pushed by the API on `/ws` to the people involved in a request. */
 export const wsServerMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('auth.ok') }),
+  /** A hint, not data: the open requests near this driver changed, so refetch the nearby list. */
+  z.object({ type: z.literal('nearby.changed') }),
   z.object({ type: z.literal('auth.error'), message: z.string().nullish() }),
   z.object({
     type: z.literal('request.updated'),

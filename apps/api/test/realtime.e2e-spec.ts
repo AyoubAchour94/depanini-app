@@ -4,6 +4,7 @@ import {
   estimateRoadDistanceM,
   etaMinutes,
   offerSchema,
+  PRESENCE_STALE_MS,
   suggestFare,
   towRequestSchema,
 } from '@depanini/shared';
@@ -84,8 +85,8 @@ describe('realtime /ws (e2e)', () => {
     api('put', '/driver/presence', token).send({ online: true, location }).expect(200);
   const suggested = suggestFare(estimateRoadDistanceM(tunis, sousse), 'car');
 
-  /** Profiles for everyone, drivers online, and Alice's open request. */
-  const setUp = async () => {
+  /** Profiles for everyone, and the drivers online (Dan and the others near the pickup). */
+  const setUpPeople = async () => {
     await api('put', '/me/customer-profile', alice)
       .send({ fullName: 'Alice Customer', phone: '+21698111111' })
       .expect(200);
@@ -104,6 +105,8 @@ describe('realtime /ws (e2e)', () => {
         .expect(200);
       await goOnline(token, token === dan ? laMarsa : ariana);
     }
+  };
+  const createRequest = async () => {
     const created = await api('post', '/tow-requests', alice)
       .send({
         pickup: tunis,
@@ -114,6 +117,11 @@ describe('realtime /ws (e2e)', () => {
       })
       .expect(201);
     return towRequestSchema.parse(created.body);
+  };
+  /** Profiles for everyone, drivers online, and Alice's open request. */
+  const setUp = async () => {
+    await setUpPeople();
+    return createRequest();
   };
   const makeOffer = async (token: string, requestId: string) =>
     offerSchema.parse(
@@ -130,7 +138,15 @@ describe('realtime /ws (e2e)', () => {
   };
   const stage = (to: string) =>
     api('post', '/driver/job/stage', dan).send({ stage: to }).expect(200);
+  /** Nothing arrived, bar `nearby.changed` hints: online drivers near a request get those on any open-list change. */
   const expectQuiet = async (...clients: TestSocket[]) => {
+    await pause(QUIET_MS);
+    for (const client of clients) {
+      expect(client.inbox.filter((message) => message.type !== 'nearby.changed')).toEqual([]);
+    }
+  };
+  /** Nothing at all arrived, hints included. */
+  const expectSilent = async (...clients: TestSocket[]) => {
     await pause(QUIET_MS);
     for (const client of clients) expect(client.inbox).toEqual([]);
   };
@@ -602,6 +618,77 @@ describe('realtime /ws (e2e)', () => {
       });
       // Dan was never assigned: the request itself is none of his business.
       await expectQuiet(danSocket);
+    });
+  });
+
+  describe('nearby.changed', () => {
+    const hint = { type: 'nearby.changed' };
+
+    it('goes to online, fresh drivers in range when a request is created, and nobody else', async () => {
+      await setUpPeople();
+      // Eve is too far and Zed offline. Alice is the requester, though also online as a driver.
+      await goOnline(eve, sousse);
+      await api('put', '/driver/presence', zed).send({ online: false }).expect(200);
+      await api('put', '/me/driver-profile', alice)
+        .send({
+          fullName: 'Alice Driver',
+          phone: '+21698333333',
+          truckType: 'flatbed',
+          plateNumber: '1 TU 3',
+        })
+        .expect(200);
+      await goOnline(alice, ariana);
+      const [inRange, far, offline, customer] = await Promise.all([
+        connect(dan),
+        connect(eve),
+        connect(zed),
+        connect(alice),
+      ]);
+
+      await createRequest();
+
+      expect(await inRange.next('nearby.changed')).toEqual(hint);
+      await expectSilent(far, offline, customer);
+    });
+
+    it('is not sent to a driver whose location went stale', async () => {
+      await setUpPeople();
+      now = new Date(now.getTime() + PRESENCE_STALE_MS + 1_000);
+      const driver = await connect(dan);
+      await createRequest();
+      await expectSilent(driver);
+    });
+
+    it('goes to the drivers in range when an offer is accepted, but not when the job is cancelled', async () => {
+      const req = await setUp();
+      const [danSocket, eveSocket] = await Promise.all([connect(dan), connect(eve)]);
+      const danOffer = await makeOffer(dan, req.id);
+      await danSocket.next('offer.updated');
+
+      await api('post', `/offers/${danOffer.id}/accept`, alice).expect(200);
+      expect(await eveSocket.next('nearby.changed')).toEqual(hint);
+
+      await api('post', `/tow-requests/${req.id}/cancel`, alice).expect(200);
+      // Cancelling an assigned request does not change what is open.
+      await expectSilent(eveSocket);
+    });
+
+    it('goes to the drivers in range when an open request is cancelled', async () => {
+      const req = await setUp();
+      const driver = await connect(eve);
+      await api('post', `/tow-requests/${req.id}/cancel`, alice).expect(200);
+      expect(await driver.next('nearby.changed')).toEqual(hint);
+    });
+
+    it('goes to the drivers in range when a request expires, once', async () => {
+      await setUp();
+      const driver = await connect(eve);
+      now = new Date(now.getTime() + 16 * 60_000);
+      await goOnline(eve, ariana);
+      await api('get', '/driver/requests/nearby', eve).expect(200);
+      expect(await driver.next('nearby.changed')).toEqual(hint);
+      await api('get', '/driver/requests/nearby', eve).expect(200);
+      await expectSilent(driver);
     });
   });
 

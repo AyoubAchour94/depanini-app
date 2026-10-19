@@ -156,11 +156,11 @@ test('customer requests a tow and a driver completes it', async ({ browser }, te
     await expect(shown(c, 'Waiting for drivers…')).toBeVisible();
 
     // 4. The driver sees it and sends an offer; the customer accepts.
-    // New requests are not pushed over the socket; with it live the list polls every 30 s.
+    // A new request reaches the driver as a `nearby.changed` push over the socket.
     // The drop-off is unique to this run, so requests left by other runs are ignored.
     await button(d, /^View request/)
       .filter({ hasText: DROPOFF_ADDRESS })
-      .click({ timeout: 45_000 });
+      .click({ timeout: 10_000 });
     const acceptFor = d.getByRole('button', { name: /^Accept for \d+ TND$/ });
     const fare = Number(/\d+/.exec(await acceptFor.innerText())![0]);
     await acceptFor.click();

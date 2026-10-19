@@ -1,8 +1,9 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { and, eq, inArray } from 'drizzle-orm';
+import { NEARBY_RADIUS_M, PRESENCE_STALE_MS } from '@depanini/shared';
+import { and, eq, gt, inArray, ne, sql } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/database.module.js';
-import { driverProfiles, towOffers, towRequests } from '../db/schema.js';
+import { driverPresence, driverProfiles, towOffers, towRequests } from '../db/schema.js';
 import { customerOfferColumns, toCustomerOffer, toOffer } from '../offers/offer-rows.js';
 import { CLOCK, type Clock } from '../tow-requests/clock.js';
 import {
@@ -117,6 +118,37 @@ export class TripEvents {
         location: { latitude: driverLocation.latitude, longitude: driverLocation.longitude },
         etaMin,
       });
+    });
+  }
+
+  /**
+   * `nearby.changed` to every online driver with a fresh location within `NEARBY_RADIUS_M`
+   * of any of these requests' pickups, bar the request's own customer (the same test as
+   * `GET /driver/requests/nearby`, reversed). Call it when a request is created, cancelled,
+   * assigned or expired. It carries no data: the app refetches its list.
+   */
+  async nearbyChanged(requestIds: string[]): Promise<void> {
+    await this.bestEffort('nearby.changed', async () => {
+      if (requestIds.length === 0) return;
+      const drivers = await this.db
+        .selectDistinct({ userId: driverPresence.userId })
+        .from(driverPresence)
+        .innerJoin(
+          towRequests,
+          sql`ST_DWithin(${towRequests.pickup}, ${driverPresence.location}, ${NEARBY_RADIUS_M}::float8)`,
+        )
+        .where(
+          and(
+            inArray(towRequests.id, requestIds),
+            eq(driverPresence.online, true),
+            gt(
+              driverPresence.locationUpdatedAt,
+              new Date(this.now().getTime() - PRESENCE_STALE_MS),
+            ),
+            ne(driverPresence.userId, towRequests.customerId),
+          ),
+        );
+      for (const { userId } of drivers) this.realtime.send(userId, { type: 'nearby.changed' });
     });
   }
 
