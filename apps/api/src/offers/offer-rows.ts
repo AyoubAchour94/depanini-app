@@ -2,6 +2,7 @@ import type { CustomerOffer, Offer } from '@depanini/shared';
 import type { SelectResultFields } from 'drizzle-orm/query-builders/select.types';
 
 import { driverProfiles, towOffers } from '../db/schema.js';
+import { ratingColumns, type RatingRow, toRatingSummary } from '../ratings/rating-summary.js';
 
 // How a `tow_offers` row becomes what each side sees, shared by the REST endpoints and
 // the realtime events. The mappers pick their fields, so extra columns never leak out.
@@ -39,14 +40,24 @@ export const customerOfferColumns = {
   ...offerColumns,
   driverFullName: driverProfiles.fullName,
   driverTruckType: driverProfiles.truckType,
+  // What customers rated the driver, in the same query.
+  ...ratingColumns(towOffers.driverId, 'customer'),
 };
 
-/** An offer as the customer sees it: the offer plus the driver's name and truck. */
+/** An offer as the customer sees it: the offer plus the driver's name, truck and rating. */
 export function toCustomerOffer(
-  row: OfferRow & { driverFullName: string; driverTruckType: CustomerOffer['driver']['truckType'] },
+  row: OfferRow &
+    RatingRow & {
+      driverFullName: string;
+      driverTruckType: CustomerOffer['driver']['truckType'];
+    },
 ): CustomerOffer {
   return {
     ...toOffer(row),
-    driver: { fullName: row.driverFullName, truckType: row.driverTruckType },
+    driver: {
+      fullName: row.driverFullName,
+      truckType: row.driverTruckType,
+      rating: toRatingSummary(row),
+    },
   };
 }

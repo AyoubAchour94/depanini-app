@@ -215,7 +215,8 @@ describe('driver presence and nearby requests (e2e)', () => {
       const expected = haversineM(tunis, laMarsa) * ROAD_FACTOR;
       expect(Math.abs(item!.distanceToPickupM - expected)).toBeLessThan(expected * 0.01);
       expect(item!.myOffer ?? null).toBeNull();
-      expect(res.body[0]).not.toHaveProperty('customer');
+      // Only the customer's rating, never contact details.
+      expect(res.body[0].customer).toEqual({ rating: { average: null, count: 0 } });
       expect(res.body[0]).not.toHaveProperty('customerId');
     });
 

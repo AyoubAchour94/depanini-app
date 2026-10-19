@@ -509,7 +509,11 @@ describe('realtime /ws (e2e)', () => {
       const forCustomer = customerOfferSchema.parse((await customer.next('offer.updated')).offer);
       expect(forCustomer).toEqual({
         ...offer,
-        driver: { fullName: 'Dan Driver', truckType: 'flatbed' },
+        driver: {
+          fullName: 'Dan Driver',
+          truckType: 'flatbed',
+          rating: { average: null, count: 0 },
+        },
       });
       await expectQuiet(stranger);
     });

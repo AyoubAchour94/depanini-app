@@ -14,6 +14,7 @@ import { and, asc, desc, eq, gt, inArray, ne, sql } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/database.module.js';
 import { driverPresence, payments, towOffers, towRequests } from '../db/schema.js';
+import { ratingColumns, toRatingSummary } from '../ratings/rating-summary.js';
 import { CLOCK, type Clock } from '../tow-requests/clock.js';
 import { expireStaleOffers, expireStaleRequests } from '../tow-requests/expiry.js';
 import { TripEvents } from '../realtime/trip-events.service.js';
@@ -209,6 +210,8 @@ export class DriversService {
         offerStatus: towOffers.status,
         offerExpiresAt: towOffers.expiresAt,
         offerCreatedAt: towOffers.createdAt,
+        // What drivers rated the customer, in the same query.
+        ...ratingColumns(towRequests.customerId, 'driver'),
       })
       .from(towRequests)
       .leftJoin(
@@ -267,6 +270,7 @@ export class DriversService {
               createdAt: r.offerCreatedAt!.toISOString(),
             }
           : null,
+        customer: { rating: toRatingSummary(r) },
       };
     });
   }

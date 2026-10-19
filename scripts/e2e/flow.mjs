@@ -466,6 +466,91 @@ const STEPS = [
     },
   },
   {
+    name: 'both parties rate each other once; strangers get 404 and a second rating 409',
+    async run(ctx) {
+      ctx.stranger = await signUp('stranger');
+      const path = `/tow-requests/${ctx.request.id}/rating`;
+      const mine = (user) => api(user, 'GET', path, { schema: shared.myRatingSchema });
+
+      await api(ctx.stranger, 'POST', path, { expect: 404, body: { stars: 5 } });
+      await api(ctx.stranger, 'GET', path, { expect: 404 });
+      const before = await mine(ctx.customer);
+      assert.equal(before.canRate, true);
+      assert.equal(before.mine, null);
+
+      // Each side has its own tags; a low rating needs one.
+      await api(ctx.customer, 'POST', path, {
+        expect: 400,
+        body: { stars: 5, tags: ['made_me_wait'] },
+      });
+      await api(ctx.driver, 'POST', path, { expect: 400, body: { stars: 2 } });
+      await api(ctx.driver, 'POST', path, { expect: 400, body: { stars: 2, tags: ['late'] } });
+
+      const secret = `e2e comment ${run}`;
+      const byCustomer = await api(ctx.customer, 'POST', path, {
+        expect: 201,
+        body: { stars: 5, tags: ['on_time', 'friendly'], comment: secret },
+        schema: shared.myRatingSchema,
+      });
+      assert.equal(byCustomer.mine.stars, 5);
+      assert.equal(byCustomer.otherSideRated, false);
+      const byDriver = await api(ctx.driver, 'POST', path, {
+        expect: 201,
+        body: { stars: 2, tags: ['made_me_wait'] },
+        schema: shared.myRatingSchema,
+      });
+      assert.equal(byDriver.otherSideRated, true);
+
+      await api(ctx.customer, 'POST', path, { expect: 409, body: { stars: 1, tags: ['rude'] } });
+      await api(ctx.driver, 'POST', path, { expect: 409, body: { stars: 5 } });
+      // The author reads their comment back; the other side never sees it nor the stars.
+      assert.equal((await mine(ctx.customer)).mine.comment, secret);
+      const driverView = await mine(ctx.driver);
+      assert.equal(driverView.otherSideRated, true);
+      assert.ok(!JSON.stringify(driverView).includes(secret));
+    },
+  },
+  {
+    name: 'the same pair again: the offer shows the driver rating count, nearby the customer one',
+    async run(ctx) {
+      const request = await api(ctx.customer, 'POST', '/tow-requests', {
+        expect: 201,
+        body: {
+          pickup: TUNIS_PICKUP,
+          dropoff: TUNIS_DROPOFF,
+          vehicleType: 'car',
+          problemType: 'breakdown',
+          note: `e2e ${run} rated`,
+          proposedFare: ctx.estimate.suggestedFare,
+        },
+        schema: shared.towRequestSchema,
+      });
+      const offer = await api(ctx.driver, 'POST', `/tow-requests/${request.id}/offers`, {
+        expect: 201,
+        body: { fare: ctx.estimate.suggestedFare },
+        schema: shared.offerSchema,
+      });
+      const offers = await api(ctx.customer, 'GET', `/tow-requests/${request.id}/offers`);
+      const nearby = await api(ctx.driver, 'GET', '/driver/requests/nearby');
+      for (const item of offers) assert.ok(shared.customerOfferSchema.safeParse(item).success);
+      for (const item of nearby) assert.ok(shared.nearbyRequestSchema.safeParse(item).success);
+      // One rating is below the threshold: the count, and no average.
+      assert.deepEqual(offers.find((item) => item.id === offer.id)?.driver.rating, {
+        average: null,
+        count: 1,
+      });
+      const seen = nearby.find((item) => item.id === request.id);
+      assert.deepEqual(seen?.customer?.rating, { average: null, count: 1 });
+      // No comment reaches either list.
+      assert.ok(!JSON.stringify([offers, nearby]).includes('e2e comment'));
+
+      await api(ctx.customer, 'POST', `/tow-requests/${request.id}/cancel`, {
+        body: {},
+        schema: shared.towRequestSchema,
+      });
+    },
+  },
+  {
     name: 'a second request is accepted and the driver cancels it, which needs a reason',
     async run(ctx) {
       const request = await api(ctx.customer, 'POST', '/tow-requests', {
@@ -570,7 +655,7 @@ const STEPS = [
 async function cleanup(ctx) {
   ctx.realtime?.close();
   const problems = [];
-  for (const user of [ctx.customer, ctx.driver]) {
+  for (const user of [ctx.customer, ctx.driver, ctx.stranger]) {
     if (!user) continue;
     try {
       await api(user, 'DELETE', '/me', { expect: 204 });

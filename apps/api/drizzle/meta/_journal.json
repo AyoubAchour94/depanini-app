@@ -71,6 +71,13 @@
       "when": 1792376373277,
       "tag": "0009_driver_history_index",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792388856887,
+      "tag": "0010_ratings",
+      "breakpoints": true
     }
   ]
 }
