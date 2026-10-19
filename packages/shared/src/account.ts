@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { tunisianPhoneSchema } from './phone';
+import { verificationStatusSchema } from './verification';
 
 const fullNameSchema = z.string().trim().min(1, 'Enter your name').max(100, 'Name is too long');
 
@@ -58,6 +59,8 @@ export const driverProfileSchema = z.object({
   truckType: truckTypeSchema,
   /** Trimmed and upper-cased. */
   plateNumber: z.string(),
+  /** The document check; missing in old payloads. */
+  verificationStatus: verificationStatusSchema.nullish(),
 });
 
 export type DriverProfile = z.infer<typeof driverProfileSchema>;

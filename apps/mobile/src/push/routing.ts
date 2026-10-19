@@ -36,8 +36,12 @@ function customerRoute({ kind }: PushData): Href | null {
 
 function driverRoute(data: PushData, context: PushRouteContext): Href | null {
   switch (data.kind) {
+    case 'verification_approved':
+    case 'verification_rejected':
+      // The screen arrives with the driver verification slice; typed routes don't know it yet.
+      return '/verification' as Href;
     case 'nearby_request':
-      return context.hasNearbyRequest(data.requestId)
+      return data.requestId && context.hasNearbyRequest(data.requestId)
         ? { pathname: '/job-offer/[id]', params: { id: data.requestId } }
         : '/';
     case 'offer_accepted':
@@ -51,7 +55,7 @@ function driverRoute(data: PushData, context: PushRouteContext): Href | null {
         ? { pathname: '/', params: { notice: REQUEST_CANCELLED_NOTICE } }
         : '/job';
     case 'payment_answered':
-      return { pathname: '/jobs/[id]', params: { id: data.requestId } };
+      return data.requestId ? { pathname: '/jobs/[id]', params: { id: data.requestId } } : '/';
     default:
       return null;
   }
