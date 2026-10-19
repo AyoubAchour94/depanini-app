@@ -78,11 +78,13 @@ describe('TripDetail', () => {
     const fetchMock = mockReceipt();
     await renderDetail();
 
-    expect(screen.getByText('Avenue Bourguiba')).toBeOnTheScreen();
+    expect(await screen.findByText('Avenue Bourguiba')).toBeOnTheScreen();
     expect(screen.getByText('La Marsa')).toBeOnTheScreen();
-    expect(screen.getByText('85 TND')).toBeOnTheScreen();
     expect(screen.getByText('Cash received')).toBeOnTheScreen();
     expect(await screen.findByText('DPN-2026-000123')).toBeOnTheScreen();
+    // The fare shows in the trip block and again as "Paid in cash" in the receipt,
+    // so wait for the receipt to settle before counting the matches.
+    expect(screen.getAllByText('85 TND')).toHaveLength(2);
     expect(screen.getByText('Sami Trabelsi (Wheel-lift)')).toBeOnTheScreen();
     expect(screen.getByText('Ali Ben Salah')).toBeOnTheScreen();
     expect(String(fetchMock.mock.calls[0]![0])).toBe(`http://api.test/tow-requests/${ID}/receipt`);
@@ -92,7 +94,7 @@ describe('TripDetail', () => {
     const fetchMock = mockReceipt();
     await renderDetail({ ...request, status: 'cancelled', payment: null } as TowRequest);
 
-    expect(screen.getByText('Cancelled')).toBeOnTheScreen();
+    expect(await screen.findByText('Cancelled')).toBeOnTheScreen();
     expect(screen.getByText('60 TND')).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Share receipt' })).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
