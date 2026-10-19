@@ -1,5 +1,5 @@
 import type { NearbyRequest } from '@depanini/shared';
-import { router, useIsFocused } from 'expo-router';
+import { router, useIsFocused, useLocalSearchParams } from 'expo-router';
 import {
   ActivityIndicator,
   FlatList,
@@ -14,6 +14,7 @@ import { useDriverJob, useNearbyRequests } from '@/api/driver';
 import { formatRemaining, useCountdown } from '@/features/request/countdown';
 import { requestStrings } from '@/features/request/strings';
 import { RatingBadge } from '@/features/trip/RatingBadge';
+import { REQUEST_CANCELLED_NOTICE } from '@/push/routing';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
 
@@ -28,6 +29,7 @@ import { useDriverPresence } from './usePresence';
 export function DriverHome() {
   const theme = useTheme();
   const focused = useIsFocused();
+  const { notice } = useLocalSearchParams<{ notice?: string }>();
   const job = useDriverJob({ poll: focused });
   // The location keeps going (faster) while a job is open, also on the job screen.
   const { online, problem, goOnline, goOffline } = useDriverPresence(
@@ -53,6 +55,16 @@ export function DriverHome() {
         <Button title={t.myJobs} kind="link" onPress={() => router.push('/jobs')} />
         <Button title={t.earnings} kind="link" onPress={() => router.push('/earnings')} />
       </View>
+      {notice === REQUEST_CANCELLED_NOTICE ? (
+        <View style={[styles.testRow, { backgroundColor: theme.surface }]}>
+          <Text style={{ color: theme.text }}>{t.requestCancelledNotice}</Text>
+          <Button
+            title={t.dismissNotice}
+            kind="link"
+            onPress={() => router.setParams({ notice: undefined })}
+          />
+        </View>
+      ) : null}
       {isTestLocationEnabled() ? <TestLocationRow /> : null}
       {problem ? (
         <Text style={[styles.note, { color: theme.danger }]}>

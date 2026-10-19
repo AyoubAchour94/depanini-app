@@ -5,6 +5,7 @@ import { act, fireEvent, renderRouter, screen } from 'expo-router/testing-librar
 
 import { DriverHome } from './DriverHome';
 import { RequestDetailsScreen } from './RequestDetailsScreen';
+import { registerForPush } from '@/push';
 import { createTestQueryClient } from '@/test/queryClient';
 
 jest.mock('expo-location', () => ({
@@ -13,6 +14,7 @@ jest.mock('expo-location', () => ({
   watchPositionAsync: jest.fn(),
   Accuracy: { Balanced: 3 },
 }));
+jest.mock('@/push', () => ({ registerForPush: jest.fn(async () => {}) }));
 jest.mock('@/firebase/firebase', () => ({
   getFirebaseStatus: () => ({ configured: true }),
   getCurrentIdToken: async () => 'id-token',
@@ -75,18 +77,21 @@ function mockApi() {
   };
 }
 
-function renderHome() {
+function renderHome(initialUrl = '/') {
   const queryClient = createTestQueryClient();
-  return renderRouter({
-    _layout: () => (
-      <QueryClientProvider client={queryClient}>
-        <Stack screenOptions={{ headerShown: false }} />
-      </QueryClientProvider>
-    ),
-    index: DriverHome,
-    account: () => null,
-    'job-offer/[id]': () => <RequestDetailsScreen id={request.id} />,
-  });
+  return renderRouter(
+    {
+      _layout: () => (
+        <QueryClientProvider client={queryClient}>
+          <Stack screenOptions={{ headerShown: false }} />
+        </QueryClientProvider>
+      ),
+      index: DriverHome,
+      account: () => null,
+      'job-offer/[id]': () => <RequestDetailsScreen id={request.id} />,
+    },
+    { initialUrl },
+  );
 }
 
 /** Lets pending promises (permission, position, fetch) settle under fake timers. */
@@ -187,6 +192,39 @@ describe('DriverHome presence', () => {
     expect(api.calls('PUT /driver/presence')).toHaveLength(0);
     expect(api.calls('GET /driver/requests/nearby')).toHaveLength(0);
     expect(location.requestForegroundPermissionsAsync).not.toHaveBeenCalled();
+  });
+
+  it('tells the driver a request was cancelled after tapping that push, until dismissed', async () => {
+    mockApi();
+    await renderHome('/?notice=request-cancelled');
+    await flush();
+
+    expect(await screen.findByText('The customer cancelled that request.')).toBeOnTheScreen();
+
+    await act(async () => fireEvent.press(screen.getByRole('button', { name: 'Dismiss' })));
+    expect(screen.queryByText('The customer cancelled that request.')).not.toBeOnTheScreen();
+  });
+
+  it('shows no notice by default', async () => {
+    mockApi();
+    await renderHome();
+    await flush();
+
+    expect(screen.queryByText('The customer cancelled that request.')).not.toBeOnTheScreen();
+  });
+
+  it('asks for notifications when going online, not before and not when denied', async () => {
+    mockApi();
+    await renderHome();
+    await flush();
+    expect(registerForPush).not.toHaveBeenCalled();
+
+    location.requestForegroundPermissionsAsync.mockResolvedValueOnce({ granted: false } as never);
+    await goOnline();
+    expect(registerForPush).not.toHaveBeenCalled();
+
+    await goOnline();
+    expect(registerForPush).toHaveBeenCalledTimes(1);
   });
 
   it('stays offline with a message when permission is denied', async () => {

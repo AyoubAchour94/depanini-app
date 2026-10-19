@@ -12,6 +12,8 @@ export const driverStrings = {
     'Location access is needed to go online. Allow it in your settings and try again.',
   locationUnavailable: 'Could not read your location. Try again.',
   offlineState: 'Go online to see requests',
+  requestCancelledNotice: 'The customer cancelled that request.',
+  dismissNotice: 'Dismiss',
   loading: 'Looking for requests…',
   loadFailed: 'Could not load requests. Retrying…',
   empty: 'No requests nearby right now',

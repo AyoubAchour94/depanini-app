@@ -227,6 +227,34 @@ pnpm start:user          # or start:driver
 The variant must match on both sides: a driver dev build needs `start:driver`.
 The dev server serves the app config (name, `extra.appVariant`).
 
+### Testing push on a device
+
+Push needs a development build on a **physical phone** (simulators and the web build
+do nothing), a Firebase project with the variant's config files (§3), an APNs key
+for iOS (#100), and the native build itself (#2). The API sends with
+`PUSH_PROVIDER=fcm` (see `docs/push.md`).
+
+The token is an **FCM registration token on both platforms** (the API sends through
+FCM, which maps it to APNs on iOS): `@react-native-firebase/messaging` provides it,
+`expo-notifications` does the permission prompt (one prompt), the Android channel, the
+foreground behaviour and tap handling.
+
+1. Install the dev build of the variant and sign in. If notifications were already
+   allowed on this phone, the token is registered right after sign-in.
+2. Otherwise the permission prompt comes at the first useful moment, never at app
+   start: the customer app after the first successful request submit, the driver
+   app the first time the driver goes online.
+3. Put the app in the background and cause an event (a driver offers, the customer
+   accepts, the trip moves on, ...). Tapping the notification opens the screen for
+   it, also when the app was closed. While the app is open the push only joins
+   the notification list; the screens update over `/ws`.
+4. Signing out removes the token from the account. A token refreshed by the OS is
+   registered again on its own.
+
+Code: `apps/mobile/src/push/` (`index.ts` talks to `expo-notifications`,
+`routing.ts` maps a push to a screen, `PushProvider.tsx` ties it to sign-in and
+navigation). `index.web.ts` is the web stand-in, which does nothing.
+
 ### Web (quick UI checks, no emulator)
 
 ```bash
@@ -321,6 +349,8 @@ Already configured in `app.config.ts`:
 - **Firebase**: `@react-native-firebase/{app,auth,messaging}` plugins, and
   `expo-build-properties` with `useFrameworks: "dynamic"` on iOS (required by
   React Native Firebase's Swift Package Manager setup).
+- **Push**: the `expo-notifications` plugin (Android icon, tint = the variant's brand
+  colour, default channel `default`).
 
 ---
 

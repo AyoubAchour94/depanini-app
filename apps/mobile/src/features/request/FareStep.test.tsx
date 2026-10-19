@@ -1,10 +1,13 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
+import { registerForPush } from '@/push';
+
 import { FareStep } from './FareStep';
 import { RequestFlowProvider } from './RequestFlowContext';
 import { createTestQueryClient } from '@/test/queryClient';
 
+jest.mock('@/push', () => ({ registerForPush: jest.fn(async () => {}) }));
 jest.mock('@/firebase/firebase', () => ({ getCurrentIdToken: async () => 'id-token' }));
 jest.mock('@/config/env', () => ({
   env: { mapboxAccessToken: undefined, apiUrl: 'http://api.test', environment: 'dev' },
@@ -67,6 +70,7 @@ async function renderStep(handlers: Partial<Parameters<typeof FareStep>[0]> = {}
   return props;
 }
 
+beforeEach(() => jest.mocked(registerForPush).mockClear());
 afterEach(() => jest.restoreAllMocks());
 
 describe('FareStep', () => {
@@ -129,6 +133,29 @@ describe('FareStep', () => {
       note: 'rear left',
       proposedFare: 66,
     });
+  });
+
+  it('asks for notifications once the request was created', async () => {
+    mockApi();
+    const { onCreated } = await renderStep();
+    await screen.findByText('65 TND');
+    expect(registerForPush).not.toHaveBeenCalled();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Send request' }));
+
+    await waitFor(() => expect(onCreated).toHaveBeenCalled());
+    expect(registerForPush).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not ask for notifications when the request is rejected', async () => {
+    mockApi(() => new Response(null, { status: 409 }));
+    const { onAlreadyOpen } = await renderStep();
+    await screen.findByText('65 TND');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Send request' }));
+
+    await waitFor(() => expect(onAlreadyOpen).toHaveBeenCalled());
+    expect(registerForPush).not.toHaveBeenCalled();
   });
 
   it('opens the existing request on 409', async () => {

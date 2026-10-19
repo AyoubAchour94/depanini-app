@@ -12,12 +12,16 @@ import { hasProfileFor } from '@/features/profile/onboarding';
 import { RequestFlowProvider } from '@/features/request/RequestFlowContext';
 import { requestStrings } from '@/features/request/strings';
 import { getFirebaseStatus } from '@/firebase/firebase';
+import { configurePush } from '@/push';
+import { PushProvider } from '@/push/PushProvider';
 import { RealtimeProvider } from '@/realtime/RealtimeProvider';
 import { useTheme } from '@/theme/theme';
 import { variant } from '@/variant/variant';
 
 // Surface Firebase misconfiguration once at startup (logs a warning in dev).
 getFirebaseStatus();
+// Foreground behaviour and the Android channel; never asks for permission.
+configurePush();
 // Keep the splash up until Firebase has restored (or ruled out) a session.
 void SplashScreen.preventAutoHideAsync();
 
@@ -30,9 +34,11 @@ export default function RootLayout() {
       <AuthProvider>
         <StatusBar style={theme.onBrand === '#FFFFFF' ? 'light' : 'dark'} />
         <RealtimeProvider>
-          <RequestFlowProvider>
-            <RootNavigator />
-          </RequestFlowProvider>
+          <PushProvider>
+            <RequestFlowProvider>
+              <RootNavigator />
+            </RequestFlowProvider>
+          </PushProvider>
         </RealtimeProvider>
       </AuthProvider>
     </QueryClientProvider>

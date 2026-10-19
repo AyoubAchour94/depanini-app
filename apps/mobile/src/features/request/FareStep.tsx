@@ -3,6 +3,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-nat
 
 import { ApiError } from '@/api/client';
 import { useCreateTowRequest, useFareEstimate } from '@/api/towRequests';
+import { registerForPush } from '@/push';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
 import { FareStepper } from '@/ui/FareStepper';
@@ -65,7 +66,11 @@ export function FareStep({ onCreated, onAlreadyOpen, onNoProfile }: FareStepProp
         proposedFare: fare,
       },
       {
-        onSuccess: (request) => onCreated(request),
+        onSuccess: (request) => {
+          // Now there is something to be told about: the moment to ask for notifications.
+          void registerForPush();
+          onCreated(request);
+        },
         onError: (error) => {
           const status = error instanceof ApiError ? error.status : undefined;
           if (status === 409) onAlreadyOpen();
