@@ -43,6 +43,25 @@ describe('request.updated', () => {
     expect(invalidated()).toEqual(expect.arrayContaining([HISTORY_KEY, OFFERS_KEY]));
   });
 
+  it('puts an answered payment into the customer active request', () => {
+    const { queryClient, invalidated } = setup();
+    const done = {
+      ...request,
+      status: 'completed',
+      payment: { status: 'driver_confirmed', amountTnd: 75, receiptNo: 'DPN-2026-000001' },
+    } as TowRequest;
+    queryClient.setQueryData(ACTIVE_KEY, done);
+    const answered = {
+      ...done,
+      payment: { ...done.payment!, status: 'customer_confirmed' },
+    } as TowRequest;
+    applyRealtimeMessage(queryClient, { type: 'request.updated', request: answered }, 'customer');
+    expect(queryClient.getQueryData<TowRequest>(ACTIVE_KEY)?.payment?.status).toBe(
+      'customer_confirmed',
+    );
+    expect(invalidated()).toEqual(expect.arrayContaining([HISTORY_KEY]));
+  });
+
   it('keeps a newer open request when an older one ends late', () => {
     const { queryClient } = setup();
     const open = { ...request, id: '1b8e3f3e-6a52-4a39-9b1c-0d6f3c3f7f11', status: 'open' };

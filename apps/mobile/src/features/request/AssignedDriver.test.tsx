@@ -1,6 +1,9 @@
 import type { TowRequest } from '@depanini/shared';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { Linking } from 'react-native';
+
+import { createTestQueryClient } from '@/test/queryClient';
 
 import { AssignedDriver } from './AssignedDriver';
 import { CompletedSummary } from './CompletedSummary';
@@ -60,11 +63,13 @@ describe('AssignedDriver', () => {
 describe('CompletedSummary', () => {
   it('renders a completed request whose driver has no phone or plate', async () => {
     await render(
-      <CompletedSummary
-        request={request({ ...withContact, phone: null, plateNumber: null }, 'completed')}
-        driverName="Ali Ben Salah"
-        onDone={() => undefined}
-      />,
+      <QueryClientProvider client={createTestQueryClient()}>
+        <CompletedSummary
+          request={request({ ...withContact, phone: null, plateNumber: null }, 'completed')}
+          driverName="Ali Ben Salah"
+          onDone={() => undefined}
+        />
+      </QueryClientProvider>,
     );
 
     expect(screen.getByText('Ali Ben Salah')).toBeTruthy();

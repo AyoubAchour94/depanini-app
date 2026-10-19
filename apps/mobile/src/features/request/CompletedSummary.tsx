@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
 
+import { PaymentPrompt } from './PaymentPrompt';
 import { requestStrings as t } from './strings';
 import { Timeline } from './TripProgress';
 
@@ -40,6 +41,7 @@ export function CompletedSummary({
           </Text>
         </View>
       </View>
+      <PaymentPrompt request={request} driverName={driverName} />
       <Timeline request={request} withCompleted />
       <Button title={t.done} onPress={onDone} />
     </ScrollView>

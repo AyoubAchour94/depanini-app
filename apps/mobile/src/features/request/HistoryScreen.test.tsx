@@ -100,6 +100,31 @@ describe('HistoryScreen', () => {
     expect(screen.queryByText('51 TND')).toBeNull();
   });
 
+  it('shows the payment status on completed requests only', async () => {
+    const paid = (n: number, status: string) => ({
+      ...row(n, 'completed'),
+      agreedFare: 77,
+      payment: { status, amountTnd: 77, receiptNo: `DPN-2026-00000${n}` },
+    });
+    mockPages({
+      first: {
+        items: [
+          paid(1, 'driver_confirmed'),
+          paid(2, 'customer_confirmed'),
+          paid(3, 'disputed'),
+          row(4),
+        ],
+        nextCursor: null,
+      },
+    });
+    await renderHistory();
+
+    expect(await screen.findByText('Payment to confirm')).toBeOnTheScreen();
+    expect(screen.getByText('Payment confirmed')).toBeOnTheScreen();
+    expect(screen.getByText('Payment disputed')).toBeOnTheScreen();
+    expect(screen.getAllByText(/^Payment /)).toHaveLength(3);
+  });
+
   it('shows an empty state', async () => {
     mockPages({ first: { items: [], nextCursor: null } });
     await renderHistory();

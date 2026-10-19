@@ -1,4 +1,4 @@
-import type { CustomerCancelReason } from '@depanini/shared';
+import type { CustomerCancelReason, PaymentStatus } from '@depanini/shared';
 
 /** User-facing text of the request flow, in one place until localization (Phase 9). */
 export const requestStrings = {
@@ -148,12 +148,32 @@ export const requestStrings = {
   completedTitle: 'Trip complete',
   completedFare: 'Fare',
   done: 'Done',
+  payQuestion: (fare: number, driver?: string) =>
+    driver ? `Did you pay ${fare} TND to ${driver}?` : `Did you pay ${fare} TND to the driver?`,
+  paidYes: 'Yes, I paid',
+  reportProblem: 'Report a problem',
+  disputeNoteLabel: 'What went wrong?',
+  disputeNotePlaceholder: 'For example: the driver asked for more than the agreed fare',
+  disputeCounter: (used: number, max: number) => `${used}/${max}`,
+  disputeNoteRequired: 'Tell us what went wrong.',
+  sendReport: 'Send',
+  cancelReport: 'Back',
+  paymentConfirmed: 'Payment confirmed',
+  paymentDisputed: 'Problem reported. Our team will contact you.',
+  paymentFailed: 'Could not send your answer. Try again.',
+  paymentAnswered: 'This payment was already answered. We refreshed it.',
 
   myRequests: 'My requests',
   historyTitle: 'My requests',
+  tripTitle: 'Trip',
   historyEmpty: 'You have not requested a tow yet.',
   historyFailed: 'Could not load your requests. Check your connection and try again.',
   loadMore: 'Load more',
+  paymentStatus: {
+    driver_confirmed: 'Payment to confirm',
+    customer_confirmed: 'Payment confirmed',
+    disputed: 'Payment disputed',
+  } satisfies Record<PaymentStatus, string>,
   statusLabels: {
     open: 'Open',
     assigned: 'Assigned',
