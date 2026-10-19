@@ -120,7 +120,14 @@ export class AdminLookupsService {
       rows,
       limit,
       (row) => ({ createdAt: row.createdAtMicros, id: row.id }),
-      ({ createdAtMicros: _, ...row }) => ({ ...row, createdAt: row.createdAt.toISOString() }),
+      (row) => ({
+        id: row.id,
+        email: row.email,
+        phone: row.phone,
+        customerName: row.customerName,
+        driverName: row.driverName,
+        createdAt: row.createdAt.toISOString(),
+      }),
     );
   }
 

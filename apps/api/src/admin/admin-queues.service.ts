@@ -172,7 +172,16 @@ export class AdminQueuesService {
       rows,
       limit,
       (row) => ({ createdAt: row.sortKey, id: row.id }),
-      ({ sortKey: _, ...row }) => ({ ...row, createdAt: row.createdAt.toISOString() }),
+      (row) => ({
+        id: row.id,
+        adminUserId: row.adminUserId,
+        adminEmail: row.adminEmail,
+        action: row.action,
+        targetType: row.targetType,
+        targetId: row.targetId,
+        details: row.details,
+        createdAt: row.createdAt.toISOString(),
+      }),
     );
   }
 
@@ -186,19 +195,22 @@ export class AdminQueuesService {
   }
 }
 
-function toDispute({
-  sortKey: _,
-  disputedAt,
-  resolvedAt,
-  ...row
-}: Omit<SelectResultFields<typeof disputeColumns>, 'customerName' | 'driverName'> & {
-  customerName: string | null;
-  driverName: string | null;
-}): AdminDisputeItem {
+function toDispute(
+  row: Omit<SelectResultFields<typeof disputeColumns>, 'customerName' | 'driverName'> & {
+    customerName: string | null;
+    driverName: string | null;
+  },
+): AdminDisputeItem {
   return {
-    ...row,
+    requestId: row.requestId,
+    receiptNo: row.receiptNo,
+    amountTnd: row.amountTnd,
+    disputeNote: row.disputeNote,
+    customerName: row.customerName,
+    driverName: row.driverName,
     status: row.resolutionNote === null ? 'open' : 'resolved',
-    disputedAt: disputedAt?.toISOString() ?? null,
-    resolvedAt: resolvedAt?.toISOString() ?? null,
+    resolutionNote: row.resolutionNote,
+    disputedAt: row.disputedAt?.toISOString() ?? null,
+    resolvedAt: row.resolvedAt?.toISOString() ?? null,
   };
 }

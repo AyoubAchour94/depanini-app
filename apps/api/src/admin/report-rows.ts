@@ -38,14 +38,19 @@ export const selectReports = (db: Pick<Database, 'select'>) =>
 
 export type ReportRow = SelectResultFields<typeof reportColumns>;
 
-export function toAdminReport({
-  pickupAddress: _,
-  createdAtMicros: __,
-  ...row
-}: ReportRow): AdminReport {
+export function toAdminReport(row: ReportRow): AdminReport {
   return {
-    ...row,
+    id: row.id,
+    requestId: row.requestId,
+    category: row.category,
+    note: row.note,
+    status: row.status,
+    resolutionNote: row.resolutionNote,
     createdAt: row.createdAt.toISOString(),
     resolvedAt: row.resolvedAt?.toISOString() ?? null,
+    reporterUserId: row.reporterUserId,
+    reporterRole: row.reporterRole,
+    reporterName: row.reporterName,
+    resolvedBy: row.resolvedBy,
   };
 }

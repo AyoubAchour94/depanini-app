@@ -29,7 +29,13 @@ const driverColumns = {
 };
 
 const toItem = (row: SelectResultFields<typeof driverColumns>): AdminDriverItem => ({
-  ...row,
+  userId: row.userId,
+  fullName: row.fullName,
+  email: row.email,
+  phone: row.phone,
+  truckType: row.truckType,
+  plateNumber: row.plateNumber,
+  verificationStatus: row.verificationStatus,
   submittedAt: row.submittedAt?.toISOString() ?? null,
 });
 
@@ -62,12 +68,7 @@ export class AdminDriversService {
       .where(and(status ? eq(driverProfiles.verificationStatus, status) : undefined, page.after))
       .orderBy(...page.orderBy)
       .limit(limit + 1);
-    return toPage(
-      rows,
-      limit,
-      (row) => ({ createdAt: row.sortKey, id: row.userId }),
-      ({ sortKey: _, ...row }) => toItem(row),
-    );
+    return toPage(rows, limit, (row) => ({ createdAt: row.sortKey, id: row.userId }), toItem);
   }
 
   /** One driver's profile, check and documents; `404` without a driver profile. */
