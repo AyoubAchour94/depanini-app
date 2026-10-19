@@ -25,6 +25,8 @@ export const PUSH_KINDS = [
   'trip_cancelled',
   'trip_completed',
   'payment_answered',
+  'verification_approved',
+  'verification_rejected',
 ] as const;
 
 export const pushKindSchema = z.enum(PUSH_KINDS);
@@ -32,10 +34,16 @@ export const pushKindSchema = z.enum(PUSH_KINDS);
 export type PushKind = z.infer<typeof pushKindSchema>;
 
 /** The data payload of a push: what the app needs to open the right screen. */
-export const pushDataSchema = z.object({
-  kind: pushKindSchema,
-  requestId: z.uuid(),
-  offerId: z.uuid().optional(),
-});
+export const pushDataSchema = z
+  .object({
+    kind: pushKindSchema,
+    /** Absent only for the verification kinds, which are not about a trip. */
+    requestId: z.uuid().optional(),
+    offerId: z.uuid().optional(),
+  })
+  .refine((data) => data.requestId !== undefined || data.kind.startsWith('verification_'), {
+    path: ['requestId'],
+    message: 'requestId is required',
+  });
 
 export type PushData = z.infer<typeof pushDataSchema>;

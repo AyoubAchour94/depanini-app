@@ -147,3 +147,20 @@ A message the API sends to a user's phone through FCM when the app is not open, 
 
 **Device token**:
 The native FCM or APNs address of one app install, registered with the API by the signed-in user together with the platform and which app (customer or driver) it is. Pushes go to the user's tokens.
+
+### Trust and admin
+
+**Verification**:
+The document check a driver passes before going online. Its status is unsubmitted, pending, approved or rejected. Only an approved driver can go online, receive nearby requests or send offers; profile editing and history stay available. A rejection carries a reason the driver sees, and the driver can upload again and resubmit. The driver gets a push and an in-app status when it is decided.
+
+**Driver document**:
+One uploaded page of a required proof: the driver's licence, the vehicle registration (carte grise), the insurance certificate or the national ID (CIN). Each is a JPEG, PNG or PDF of up to 5 MB, and a document may have several pages. Files are stored in the database for the MVP, behind a file store, and are readable only by their owner and by admins.
+
+**Report**:
+A problem raised by the customer or the driver about a completed or cancelled trip, within 14 days of its end. It has a category (safety, vehicle damage, overcharged, no-show, behaviour or other) and a required note of up to 1000 characters. Each person can have one open report per trip, and sees its status and the resolution note.
+
+**Admin**:
+A team member who can sign in to the admin web app. The role is the Firebase custom claim `admin`, set by a script on the emulator or by the owner on a real account. Admins review drivers, look up users and trips, and resolve reports and payment disputes.
+
+**Audit log**:
+The record of every admin action (approving or rejecting a driver, resolving a report or a dispute): who did it, when, on what, and the details. It is append-only.

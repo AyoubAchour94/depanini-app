@@ -47,6 +47,8 @@ describe('PUSH_KINDS', () => {
       'trip_cancelled',
       'trip_completed',
       'payment_answered',
+      'verification_approved',
+      'verification_rejected',
     ]);
   });
 });
@@ -56,6 +58,12 @@ describe('pushDataSchema', () => {
     for (const kind of PUSH_KINDS) {
       expect(pushDataSchema.parse({ kind, requestId }).kind).toBe(kind);
     }
+  });
+
+  it('needs no request id for verification pushes, and still needs one for the rest', () => {
+    expect(pushDataSchema.parse({ kind: 'verification_approved' }).requestId).toBeUndefined();
+    expect(pushDataSchema.safeParse({ kind: 'verification_rejected' }).success).toBe(true);
+    expect(pushDataSchema.safeParse({ kind: 'payment_answered' }).success).toBe(false);
   });
 
   it('carries an optional offer id', () => {

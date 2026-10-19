@@ -1,4 +1,5 @@
 export * from './account';
+export * from './admin';
 export * from './fare';
 export * from './geo';
 export * from './health';
@@ -12,5 +13,7 @@ export * from './push';
 export * from './rating';
 export * from './realtime';
 export * from './receipt';
+export * from './report';
 export * from './tow-request';
 export * from './trip';
+export * from './verification';

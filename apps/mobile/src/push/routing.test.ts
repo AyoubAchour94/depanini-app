@@ -75,6 +75,13 @@ describe('driver app', () => {
     });
   });
 
+  it.each(['verification_approved', 'verification_rejected'] as const)(
+    'opens the verification screen for %s',
+    (kind) => {
+      expect(pushRoute({ kind }, driver())).toBe('/verification');
+    },
+  );
+
   it.each(['offer_received', 'trip_stage', 'trip_completed'] as const)(
     'has no screen for the customer kind %s',
     (kind) => {

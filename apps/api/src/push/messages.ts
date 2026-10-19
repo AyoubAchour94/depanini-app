@@ -35,4 +35,12 @@ export const PUSH_MESSAGES: Record<PushKind, { title: string; body: string }> = 
     body: 'You have arrived. Open the app to pay and rate.',
   },
   payment_answered: { title: 'Payment answered', body: 'The customer answered the payment.' },
+  verification_approved: {
+    title: 'You are approved',
+    body: 'Your documents were accepted. You can go online now.',
+  },
+  verification_rejected: {
+    title: 'Documents need a fix',
+    body: 'Your documents were not accepted. Open the app to see why.',
+  },
 };
