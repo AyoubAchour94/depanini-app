@@ -8,6 +8,8 @@ export * from './offer';
 export * from './payment';
 export * from './phone';
 export * from './presence';
+export * from './push';
+export * from './rating';
 export * from './realtime';
 export * from './receipt';
 export * from './tow-request';

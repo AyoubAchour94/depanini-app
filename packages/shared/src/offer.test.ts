@@ -49,3 +49,28 @@ describe('customerOfferSchema', () => {
     expect(customerOfferSchema.safeParse(offer).success).toBe(false);
   });
 });
+
+describe('customerOfferSchema driver rating', () => {
+  const driver = { fullName: 'Ali', truckType: 'wheel_lift' };
+
+  it('parses a payload without a rating (old payloads)', () => {
+    expect(customerOfferSchema.parse({ ...offer, driver }).driver.rating).toBeUndefined();
+  });
+
+  it('parses a rating, a null rating and a null average', () => {
+    const rating = { average: 4.8, count: 10 };
+    const parse = (r: unknown) =>
+      customerOfferSchema.parse({ ...offer, driver: { ...driver, rating: r } }).driver.rating;
+    expect(parse(rating)).toEqual(rating);
+    expect(parse(null)).toBeNull();
+    expect(parse({ average: null, count: 1 })?.average).toBeNull();
+  });
+
+  it('rejects a malformed rating', () => {
+    const result = customerOfferSchema.safeParse({
+      ...offer,
+      driver: { ...driver, rating: { count: -1 } },
+    });
+    expect(result.success).toBe(false);
+  });
+});

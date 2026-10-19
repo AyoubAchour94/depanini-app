@@ -44,12 +44,35 @@ describe('nearbyRequestSchema', () => {
       ...nearby,
       customer: { fullName: 'Sami', phone: '+21622123456' },
     });
-    expect(parsed).not.toHaveProperty('customer');
+    expect(parsed.customer).toEqual({});
   });
 
   it('requires distanceToPickupM', () => {
     expect(nearbyRequestSchema.safeParse({ ...nearby, distanceToPickupM: undefined }).success).toBe(
       false,
     );
+  });
+});
+
+describe('nearbyRequestSchema customer rating', () => {
+  it('parses a payload without a customer (old payloads)', () => {
+    expect(nearbyRequestSchema.parse(nearby).customer).toBeUndefined();
+  });
+
+  it('parses a customer with and without a rating', () => {
+    const parse = (customer: unknown) =>
+      nearbyRequestSchema.parse({ ...nearby, customer }).customer;
+    expect(parse({ rating: { average: 4.2, count: 9 } })?.rating).toEqual({
+      average: 4.2,
+      count: 9,
+    });
+    expect(parse({ rating: { average: null, count: 1 } })?.rating?.average).toBeNull();
+    expect(parse({})?.rating).toBeUndefined();
+    expect(parse(null)).toBeNull();
+  });
+
+  it('rejects a malformed customer rating', () => {
+    const customer = { rating: { average: 9, count: 3 } };
+    expect(nearbyRequestSchema.safeParse({ ...nearby, customer }).success).toBe(false);
   });
 });

@@ -130,3 +130,20 @@ A payment the customer reported a problem with, with a short note (1 to 500 char
 
 **Earnings**:
 A driver's totals for today, this week and this month: the count of completed trips and the sum of their agreed fares, in whole dinars. Periods follow the Africa/Tunis time zone.
+
+### Ratings and notifications
+
+**Rating**:
+What the customer and the driver each give the other once after a completed trip: 1 to 5 stars, optional tags and an optional comment (up to 300 characters). There is one rating per side per trip. It is possible for 7 days after completion and cannot be edited afterwards. A rating of 1 or 2 stars needs at least one tag. Comments are private and only support reads them. Drivers see the customer's rating, and customers see the driver's.
+
+**Rating tag**:
+A fixed reason attached to a rating, stored as a snake-case id; the app shows the label. Customers tag drivers with on time, careful with the vehicle, friendly, fair price, late, rough handling or rude. Drivers tag customers with clear location, ready on time, friendly, wrong location, made me wait or rude. A rating has at most 5 distinct tags.
+
+**Rating summary**:
+Someone's average stars (one decimal) and number of ratings, shown on offer cards and nearby requests. Below 3 ratings the average is not sent and the app shows "New".
+
+**Push notification**:
+A message the API sends to a user's phone through FCM when the app is not open, for example a new offer or a trip change. It carries a kind and the request id so a tap opens the right screen. Nobody gets one while their app has a live connection. Delivery is best effort.
+
+**Device token**:
+The native FCM or APNs address of one app install, registered with the API by the signed-in user together with the platform and which app (customer or driver) it is. Pushes go to the user's tokens.

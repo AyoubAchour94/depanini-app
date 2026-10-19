@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { truckTypeSchema } from './account';
+import { ratingSummarySchema } from './rating';
 
 /** The states of an offer. Only `pending` can still change. */
 export const OFFER_STATUSES = [
@@ -46,6 +47,8 @@ export const customerOfferSchema = offerSchema.extend({
   driver: z.object({
     fullName: z.string(),
     truckType: truckTypeSchema,
+    /** The driver's rating; missing in old payloads. */
+    rating: ratingSummarySchema.nullish(),
   }),
 });
 
