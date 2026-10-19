@@ -3,6 +3,7 @@ import * as Location from 'expo-location';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import { putPresence } from '@/api/driver';
+import { registerForPush } from '@/push';
 
 import { getTestLocation } from './testLocation';
 
@@ -124,6 +125,8 @@ export function useDriverPresence(focused: boolean, hasJob = false) {
       if (!mounted.current || started !== generation.current) return;
       if (!permission.granted) return setProblem('denied');
       setOnline(true);
+      // The moment a driver wants requests is the moment to ask for notifications.
+      void registerForPush();
     } catch {
       if (mounted.current && started === generation.current) setProblem('unavailable');
     } finally {
