@@ -104,11 +104,11 @@ describe('my jobs', () => {
     await renderApp('/jobs');
 
     expect(await screen.findByText('Pickup 1 → Dropoff 1')).toBeOnTheScreen();
-    expect(screen.getByText('61 TND')).toBeOnTheScreen();
+    expect(await screen.findByText('61 TND')).toBeOnTheScreen();
     expect(screen.getByText('Completed')).toBeOnTheScreen();
     expect(screen.getByText('Cash received')).toBeOnTheScreen();
     expect(screen.getByText('Cancelled')).toBeOnTheScreen();
-    expect(screen.getByText('50 TND')).toBeOnTheScreen();
+    expect(await screen.findByText('50 TND')).toBeOnTheScreen();
     expect(screen.queryByText('Pickup 3 → Dropoff 3')).toBeNull();
 
     await fireEvent.press(screen.getByRole('button', { name: 'Load more' }));
@@ -184,10 +184,10 @@ describe('earnings', () => {
     expect(screen.getByText('Today')).toBeOnTheScreen();
     expect(screen.getByText('1 trip')).toBeOnTheScreen();
     expect(screen.getByText('This week')).toBeOnTheScreen();
-    expect(screen.getByText('300 TND')).toBeOnTheScreen();
+    expect(await screen.findByText('300 TND')).toBeOnTheScreen();
     expect(screen.getByText('4 trips')).toBeOnTheScreen();
     expect(screen.getByText('This month')).toBeOnTheScreen();
-    expect(screen.getByText('950 TND')).toBeOnTheScreen();
+    expect(await screen.findByText('950 TND')).toBeOnTheScreen();
     expect(screen.getByText('12 trips')).toBeOnTheScreen();
   });
 

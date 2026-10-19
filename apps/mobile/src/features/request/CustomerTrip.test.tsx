@@ -274,7 +274,7 @@ describe('completed trip', () => {
     expect(screen.getByText('Avenue Habib Bourguiba, Tunis')).toBeOnTheScreen();
     expect(screen.getByText('La Marsa')).toBeOnTheScreen();
     expect(screen.getByText('Ali Ben Salah')).toBeOnTheScreen();
-    expect(screen.getByText('75 TND')).toBeOnTheScreen();
+    expect(await screen.findByText('75 TND')).toBeOnTheScreen();
     expect(screen.getByText(t.time(completed.completedAt))).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Cancel request' })).toBeNull();
 
