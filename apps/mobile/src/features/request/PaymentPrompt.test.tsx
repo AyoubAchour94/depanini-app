@@ -100,7 +100,7 @@ describe('payment prompt', () => {
     await renderSummary();
     answer = completed('disputed');
 
-    await fireEvent.press(screen.getByRole('button', { name: 'Report a problem' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Problem with the payment' }));
     expect(screen.getByText('0/500')).toBeOnTheScreen();
     await fireEvent.changeText(screen.getByLabelText('What went wrong?'), '  Asked for more  ');
     expect(screen.getByText('18/500')).toBeOnTheScreen();
@@ -117,7 +117,7 @@ describe('payment prompt', () => {
   it('does not send a blank note', async () => {
     await renderSummary();
 
-    await fireEvent.press(screen.getByRole('button', { name: 'Report a problem' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Problem with the payment' }));
     await fireEvent.changeText(screen.getByLabelText('What went wrong?'), '   ');
     await fireEvent.press(screen.getByRole('button', { name: 'Send' }));
 
@@ -127,7 +127,7 @@ describe('payment prompt', () => {
 
   it('can go back from the note to the two answers', async () => {
     await renderSummary();
-    await fireEvent.press(screen.getByRole('button', { name: 'Report a problem' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Problem with the payment' }));
     await fireEvent.press(screen.getByRole('button', { name: 'Back' }));
     expect(screen.getByRole('button', { name: 'Yes, I paid' })).toBeOnTheScreen();
   });
