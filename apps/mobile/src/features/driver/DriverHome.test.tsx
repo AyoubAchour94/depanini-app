@@ -2,9 +2,12 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import * as Location from 'expo-location';
 import { router, Stack } from 'expo-router';
 import { act, fireEvent, renderRouter, screen } from 'expo-router/testing-library';
+import { Text } from 'react-native';
 
 import { DriverHome } from './DriverHome';
 import { RequestDetailsScreen } from './RequestDetailsScreen';
+import { useRefetchVerificationWhenNotApproved } from '@/api/verification';
+import { markDriverOnboardingDone } from '@/features/profile/onboarding';
 import { registerForPush } from '@/push';
 import { createTestQueryClient } from '@/test/queryClient';
 
@@ -54,6 +57,11 @@ let nearbyBody: unknown[] = [];
 let jobBody: unknown | null = null;
 // When set, `online: true` presence requests wait for it.
 let holdOnline: Promise<void> | null = null;
+let verificationBody: { status: string; rejectionReason?: string | null } = {
+  status: 'approved',
+};
+// When set, `online: true` presence requests fail with this `403` error code.
+let presenceForbidden: string | null = null;
 
 /** Fakes the API and records the calls as `METHOD path`. */
 function mockApi() {
@@ -62,7 +70,13 @@ function mockApi() {
     const path = new URL(String(url)).pathname;
     const call = `${init?.method ?? 'GET'} ${path}`;
     calls.push({ call, body: init?.body ? JSON.parse(String(init.body)) : undefined });
+    if (path === '/driver/verification') {
+      return Response.json({ documents: [], missingKinds: [], ...verificationBody });
+    }
     if (path === '/driver/presence') {
+      if (presenceForbidden && JSON.parse(String(init?.body)).online) {
+        return Response.json({ statusCode: 403, code: presenceForbidden }, { status: 403 });
+      }
       if (holdOnline && JSON.parse(String(init?.body)).online) await holdOnline;
       return Response.json({ online: JSON.parse(String(init?.body)).online });
     }
@@ -77,17 +91,24 @@ function mockApi() {
   };
 }
 
+function Handlers() {
+  useRefetchVerificationWhenNotApproved();
+  return null;
+}
+
 function renderHome(initialUrl = '/') {
   const queryClient = createTestQueryClient();
   return renderRouter(
     {
       _layout: () => (
         <QueryClientProvider client={queryClient}>
+          <Handlers />
           <Stack screenOptions={{ headerShown: false }} />
         </QueryClientProvider>
       ),
       index: DriverHome,
       account: () => null,
+      verification: () => <Text>Verification screen</Text>,
       'job-offer/[id]': () => <RequestDetailsScreen id={request.id} />,
     },
     { initialUrl },
@@ -108,6 +129,8 @@ beforeEach(() => {
   nearbyBody = [];
   jobBody = null;
   holdOnline = null;
+  verificationBody = { status: 'approved' };
+  presenceForbidden = null;
   location.requestForegroundPermissionsAsync.mockResolvedValue({ granted: true } as never);
   location.getCurrentPositionAsync.mockResolvedValue({
     coords: { latitude: 36.81, longitude: 10.17 },
@@ -439,5 +462,103 @@ describe('DriverHome nearby list', () => {
     expect(await screen.findByText('Allowed range: 52 to 192 TND')).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Accept for 60 TND' })).toBeOnTheScreen();
     expect(screen.getByTestId('mapbox-map')).toBeOnTheScreen();
+  });
+});
+
+describe('DriverHome verification gate', () => {
+  it('disables the switch and shows the status card while the documents are not checked', async () => {
+    verificationBody = { status: 'unsubmitted' };
+    mockApi();
+    await renderHome();
+    await flush();
+
+    expect(await screen.findByText('Verify your account to go online')).toBeOnTheScreen();
+    expect(screen.getByText('Upload your documents so we can check them.')).toBeOnTheScreen();
+    expect(screen.getByRole('switch')).toBeDisabled();
+  });
+
+  it('shows "Under review" while pending', async () => {
+    verificationBody = { status: 'pending' };
+    mockApi();
+    await renderHome();
+    await flush();
+
+    expect(await screen.findByText(/^Under review/)).toBeOnTheScreen();
+    expect(screen.getByRole('switch')).toBeDisabled();
+  });
+
+  it('shows the rejection reason', async () => {
+    verificationBody = { status: 'rejected', rejectionReason: 'Blurry licence' };
+    mockApi();
+    await renderHome();
+    await flush();
+
+    expect(await screen.findByText('Rejected: Blurry licence')).toBeOnTheScreen();
+  });
+
+  it('opens the verification screen from the card', async () => {
+    verificationBody = { status: 'unsubmitted' };
+    mockApi();
+    await renderHome();
+    await flush();
+
+    await act(async () =>
+      fireEvent.press(await screen.findByRole('button', { name: 'Open verification' })),
+    );
+    await flush();
+    expect(await screen.findByText('Verification screen')).toBeOnTheScreen();
+  });
+
+  it('has no card and an enabled switch once approved', async () => {
+    mockApi();
+    await renderHome();
+    await flush();
+
+    expect(screen.queryByText('Verify your account to go online')).toBeNull();
+    expect(screen.getByRole('switch')).toBeEnabled();
+  });
+
+  it('refetches the verification and shows the card after a 403 driver_not_approved', async () => {
+    const api = mockApi();
+    presenceForbidden = 'driver_not_approved';
+    await renderHome();
+    await flush();
+    expect(api.calls('GET /driver/verification')).toHaveLength(1);
+
+    // The approval was revoked meanwhile; the API refuses presence.
+    verificationBody = { status: 'pending' };
+    await goOnline();
+    await flush();
+
+    expect(api.calls('GET /driver/verification').length).toBeGreaterThan(1);
+    expect(await screen.findByText('Verify your account to go online')).toBeOnTheScreen();
+    expect(screen.getByRole('switch').props.value).toBe(false);
+    expect(screen.getByRole('switch')).toBeDisabled();
+  });
+
+  it('announces an approval that arrives while the app is open, once', async () => {
+    verificationBody = { status: 'pending' };
+    const api = mockApi();
+    await renderHome();
+    await flush();
+    expect(await screen.findByText(/^Under review/)).toBeOnTheScreen();
+
+    verificationBody = { status: 'approved' };
+    await untilShown('Your documents are approved. You can go online now.');
+    expect(api.calls('GET /driver/verification').length).toBeGreaterThan(1);
+    expect(screen.getByRole('switch')).toBeEnabled();
+
+    await act(async () => fireEvent.press(screen.getByRole('button', { name: 'Dismiss' })));
+    expect(screen.queryByText('Your documents are approved. You can go online now.')).toBeNull();
+  });
+
+  it('opens the verification screen once after the onboarding finished', async () => {
+    verificationBody = { status: 'unsubmitted' };
+    markDriverOnboardingDone();
+    mockApi();
+    await renderHome();
+    await flush();
+
+    expect(await screen.findByText('Verification screen')).toBeOnTheScreen();
   });
 });

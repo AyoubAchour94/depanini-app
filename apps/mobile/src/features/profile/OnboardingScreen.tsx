@@ -4,6 +4,7 @@ import { Button } from '@/ui/Button';
 import { variant } from '@/variant/variant';
 
 import { CustomerProfileForm } from './CustomerProfileForm';
+import { markDriverOnboardingDone } from './onboarding';
 import { DriverProfileForm } from './DriverProfileForm';
 
 /**
@@ -17,7 +18,7 @@ export function OnboardingScreen() {
       title="Set up your driver profile"
       subtitle="Customers see your name, phone and truck when you take their tow."
     >
-      <DriverProfileForm mode="onboarding" />
+      <DriverProfileForm mode="onboarding" onSaved={markDriverOnboardingDone} />
       <Button kind="link" title="Sign out" onPress={() => signOut.mutate()} />
     </AuthLayout>
   ) : (

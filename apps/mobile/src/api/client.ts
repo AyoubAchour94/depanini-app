@@ -1,3 +1,4 @@
+import { DRIVER_NOT_APPROVED } from '@depanini/shared';
 import type { z } from 'zod';
 
 import { env } from '@/config/env';
@@ -15,10 +16,22 @@ export class ApiError extends Error {
     readonly status?: number,
     /** The `issues` of a 400 response, when it names the failing fields. */
     readonly issues: ApiIssue[] = [],
+    /** The `code` of the error body, when the API sends one (e.g. `driver_not_approved`). */
+    readonly code?: string,
   ) {
     super(message);
     this.name = 'ApiError';
   }
+}
+
+let onDriverNotApproved: (() => void) | undefined;
+
+/**
+ * Registers what happens when any call fails with `403 driver_not_approved` (the app
+ * refetches the verification state). Pass `undefined` to unregister.
+ */
+export function setDriverNotApprovedHandler(handler: (() => void) | undefined) {
+  onDriverNotApproved = handler;
 }
 
 interface ApiRequestOptions extends RequestInit {
@@ -52,23 +65,24 @@ export async function apiRequest<T>(
   });
 
   if (!response.ok && !acceptStatuses.includes(response.status)) {
-    throw new ApiError(
-      `${init.method ?? 'GET'} ${path} failed`,
-      response.status,
-      await readIssues(response),
-    );
+    const { issues, code } = await readErrorBody(response);
+    if (response.status === 403 && code === DRIVER_NOT_APPROVED) onDriverNotApproved?.();
+    throw new ApiError(`${init.method ?? 'GET'} ${path} failed`, response.status, issues, code);
   }
   // 204 No Content has no body to parse.
   return schema.parse(response.status === 204 ? undefined : await response.json());
 }
 
-async function readIssues(response: Response): Promise<ApiIssue[]> {
-  if (response.status !== 400) return [];
+/** The failing fields of a 400 and the `code` of a 400 or 403, when the body has them. */
+async function readErrorBody(response: Response): Promise<{ issues: ApiIssue[]; code?: string }> {
+  if (response.status !== 400 && response.status !== 403) return { issues: [] };
   try {
-    const body: unknown = await response.json();
-    const issues = (body as { issues?: unknown } | null)?.issues;
-    return Array.isArray(issues) ? (issues as ApiIssue[]) : [];
+    const body = (await response.json()) as { issues?: unknown; code?: unknown } | null;
+    return {
+      issues: Array.isArray(body?.issues) ? (body.issues as ApiIssue[]) : [],
+      code: typeof body?.code === 'string' ? body.code : undefined,
+    };
   } catch {
-    return [];
+    return { issues: [] };
   }
 }

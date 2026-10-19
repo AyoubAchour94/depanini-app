@@ -12,9 +12,18 @@ interface ButtonProps {
   kind?: 'primary' | 'danger' | 'link';
   loading?: boolean;
   disabled?: boolean;
+  /** Read by screen readers (and tests) instead of the title, to tell apart buttons with the same title. */
+  accessibilityLabel?: string;
 }
 
-export function Button({ title, onPress, kind = 'primary', loading, disabled }: ButtonProps) {
+export function Button({
+  title,
+  onPress,
+  kind = 'primary',
+  loading,
+  disabled,
+  accessibilityLabel,
+}: ButtonProps) {
   const theme = useTheme();
   const inactive = disabled || loading;
   const fill = kind === 'danger' ? theme.danger : theme.brand;
@@ -22,7 +31,13 @@ export function Button({ title, onPress, kind = 'primary', loading, disabled }: 
 
   if (kind === 'link') {
     return (
-      <Pressable accessibilityRole="button" onPress={onPress} disabled={inactive} hitSlop={8}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+        onPress={onPress}
+        disabled={inactive}
+        hitSlop={8}
+      >
         <Text style={[styles.link, { color: theme.brand }]}>{title}</Text>
       </Pressable>
     );
@@ -31,6 +46,7 @@ export function Button({ title, onPress, kind = 'primary', loading, disabled }: 
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: inactive, busy: loading }}
       onPress={onPress}
       disabled={inactive}

@@ -92,6 +92,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     // Location is requested only when a customer starts a tow request.
     ['expo-location', { locationWhenInUsePermission: locationUsage }],
+    // Driver documents: the camera and the photo library, only when the driver adds a page.
+    [
+      'expo-image-picker',
+      {
+        photosPermission: 'Depanini Driver needs your photos so you can upload your documents.',
+        cameraPermission: 'Depanini Driver needs your camera so you can photograph your documents.',
+        microphonePermission: false,
+      },
+    ],
     // Push: permission is only asked for at the moments the app picks (src/push/). The tint
     // is the variant's brand colour; `default` is the channel the API sends to.
     [
