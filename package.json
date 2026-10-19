@@ -16,6 +16,8 @@
     "db:down": "docker compose down",
     "emulators": "pnpm dlx firebase-tools@15.34.0 emulators:start --only auth --project depanini-dev",
     "e2e:flow": "node scripts/e2e/flow.mjs",
+    "admin:grant": "node scripts/admin-grant.mjs",
+    "test:scripts": "node --test scripts/admin-grant.test.mjs scripts/share-plan.test.mjs",
     "e2e:web": "playwright test",
     "share": "node scripts/share.mjs"
   },
