@@ -43,3 +43,8 @@ jest.mock('@react-native-firebase/auth', () => ({
   getAuth: jest.fn(() => ({ currentUser: null })),
   getIdToken: jest.fn(),
 }));
+
+// In-memory storage; tests that care reset it with `AsyncStorage.clear()`.
+jest.mock('@react-native-async-storage/async-storage', () =>
+  jest.requireActual('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+);
