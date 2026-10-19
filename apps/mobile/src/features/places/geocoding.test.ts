@@ -94,11 +94,58 @@ describe('searchPlaces', () => {
       country: 'tn',
       language: 'fr',
       autocomplete: 'true',
+      bbox: '7.5,30.2,11.7,37.6',
       access_token: 'pk.test',
     });
     expect(places).toEqual([
-      { latitude: 36.8065, longitude: 10.1815, address: 'Avenue Habib Bourguiba, Tunis, Tunisie' },
+      {
+        place: {
+          latitude: 36.8065,
+          longitude: 10.1815,
+          address: 'Avenue Habib Bourguiba, Tunis, Tunisie',
+        },
+        distanceKm: 2,
+      },
     ]);
+  });
+
+  it('returns the locality line for display', async () => {
+    mockFetch({
+      features: [
+        {
+          geometry: { coordinates: [10.32, 36.88] },
+          properties: { name: 'La Marsa', place_formatted: 'Tunis, Tunisie' },
+        },
+      ],
+    });
+    const [suggestion] = await searchPlaces('marsa', undefined, 'pk.test');
+    expect(suggestion?.secondary).toBe('Tunis, Tunisie');
+    expect(suggestion?.distanceKm).toBeUndefined();
+  });
+
+  it('lists results within 150 km first, keeping Mapbox order in each group', async () => {
+    const at = (name: string, longitude: number, latitude: number) => ({
+      geometry: { coordinates: [longitude, latitude] },
+      properties: { full_address: name },
+    });
+    mockFetch({
+      features: [
+        at('Al-Marsa, Medenine', 10.5, 33.35),
+        at('La Marsa, Tunis', 10.32, 36.88),
+        at('Sfax', 10.76, 34.74),
+        at('Marsa Ben Ghayadha', 10.0, 36.5),
+      ],
+    });
+
+    const results = await searchPlaces('marsa', { latitude: 36.8, longitude: 10.18 }, 'pk.test');
+
+    expect(results.map((r) => r.place.address)).toEqual([
+      'La Marsa, Tunis',
+      'Marsa Ben Ghayadha',
+      'Al-Marsa, Medenine',
+      'Sfax',
+    ]);
+    expect(results[2]?.distanceKm).toBe(385);
   });
 
   it('builds an address from name and place_formatted when full_address is missing', async () => {
@@ -110,8 +157,8 @@ describe('searchPlaces', () => {
         },
       ],
     });
-    const [place] = await searchPlaces('marsa', undefined, 'pk.test');
-    expect(place?.address).toBe('La Marsa, Tunis, Tunisie');
+    const [suggestion] = await searchPlaces('marsa', undefined, 'pk.test');
+    expect(suggestion?.place.address).toBe('La Marsa, Tunis, Tunisie');
     expect(requestedUrl().searchParams.has('proximity')).toBe(false);
   });
 });

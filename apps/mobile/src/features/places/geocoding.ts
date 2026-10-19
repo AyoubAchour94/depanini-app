@@ -1,4 +1,4 @@
-import type { LatLng, Place } from '@depanini/shared';
+import { haversineM, TUNISIA_BOUNDS, type LatLng, type Place } from '@depanini/shared';
 import { z } from 'zod';
 
 const GEOCODING_URL = 'https://api.mapbox.com/search/geocode/v6';
@@ -70,27 +70,63 @@ export async function reverseGeocode(
   return address ? { latitude, longitude, address } : null;
 }
 
-/** Places matching a text query, nearest to `proximity` first. */
+/** A search result: the Place plus what the list needs to tell look-alike names apart. */
+export interface PlaceSuggestion {
+  place: Place;
+  /** Locality and region ("Tunis, Tunisie"), when Mapbox gave one. */
+  secondary?: string;
+  /** Straight-line distance from the search's `proximity`, in km. */
+  distanceKm?: number;
+}
+
+/** Results further than this from the pickup are listed after the closer ones. */
+export const NEARBY_RADIUS_KM = 150;
+
+/** `minLng,minLat,maxLng,maxLat`, the order Mapbox expects. */
+const TUNISIA_BBOX = [
+  TUNISIA_BOUNDS.minLongitude,
+  TUNISIA_BOUNDS.minLatitude,
+  TUNISIA_BOUNDS.maxLongitude,
+  TUNISIA_BOUNDS.maxLatitude,
+].join(',');
+
+/** Nearby results first, then the rest; Mapbox's order is kept inside each group. */
+export function nearbyFirst(suggestions: PlaceSuggestion[]): PlaceSuggestion[] {
+  const isFar = ({ distanceKm }: PlaceSuggestion) => (distanceKm ?? 0) > NEARBY_RADIUS_KM;
+  return [...suggestions.filter((s) => !isFar(s)), ...suggestions.filter(isFar)];
+}
+
+/** Places matching a text query within Tunisia, ranked toward `proximity`. */
 export async function searchPlaces(
   query: string,
   proximity: LatLng | undefined,
   accessToken: string,
   signal?: AbortSignal,
-): Promise<Place[]> {
+): Promise<PlaceSuggestion[]> {
   const url = endpoint(
     'forward',
     {
       q: query,
       limit: '5',
       autocomplete: 'true',
+      bbox: TUNISIA_BBOX,
       ...(proximity ? { proximity: `${proximity.longitude},${proximity.latitude}` } : {}),
     },
     accessToken,
   );
   const features = await request(url, signal);
-  return features.flatMap((feature) => {
+  const suggestions = features.flatMap((feature): PlaceSuggestion[] => {
     const address = addressOf(feature);
+    if (!address) return [];
     const [longitude, latitude] = feature.geometry.coordinates;
-    return address ? [{ latitude, longitude, address }] : [];
+    const place = { latitude, longitude, address };
+    return [
+      {
+        place,
+        secondary: feature.properties.place_formatted,
+        distanceKm: proximity && Math.round(haversineM(proximity, place) / 1000),
+      },
+    ];
   });
+  return nearbyFirst(suggestions);
 }

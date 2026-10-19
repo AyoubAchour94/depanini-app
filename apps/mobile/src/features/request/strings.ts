@@ -22,6 +22,7 @@ export const requestStrings = {
   noResults: 'No places found.',
   searchFailed: 'Search failed. Check your connection and try again.',
   searchUnavailable: 'Search is not available right now. Pick the place on the map instead.',
+  kmAway: (km: number) => `${km} km away`,
   pickOnMap: 'Pick on map',
   backToSearch: 'Back to search',
   dropoffPointLabel: 'Drop-off point',
