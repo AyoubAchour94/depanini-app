@@ -19,7 +19,7 @@ const open = {
   id: '0b8e3f3e-6a52-4a39-9b1c-0d6f3c3f7f10',
   status: 'open',
   pickup: place('Tunis centre'),
-  dropoff: place('La Marsa'),
+  dropoff: place('La Marsa, Tunis, Tunisie'),
   vehicleType: 'car',
   problemType: 'battery',
   note: null,
@@ -49,6 +49,7 @@ function renderHome() {
       </QueryClientProvider>
     ),
     index: CustomerHome,
+    account: () => null,
     'request/pickup': () => null,
     'request/active': () => null,
   });
@@ -67,12 +68,32 @@ describe('CustomerHome', () => {
     expect(screen.queryByText('Your tow request is open')).toBeNull();
   });
 
+  it('opens Account from the menu button and shows no developer status', async () => {
+    mockActive(null);
+    const router = await renderHome();
+
+    expect(await screen.findByText("Where's your vehicle?")).toBeOnTheScreen();
+    expect(screen.queryByText(/^API:/)).toBeNull();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Account' }));
+    expect(router.getPathname()).toBe('/account');
+  });
+
+  it('starts a request from the pickup field too', async () => {
+    mockActive(null);
+    const router = await renderHome();
+
+    await fireEvent.press(await screen.findByRole('button', { name: /^Pickup: .*Edit$/ }));
+
+    expect(router.getPathname()).toBe('/request/pickup');
+  });
+
   it('shows the open request instead, and opens it', async () => {
     mockActive(open);
     const router = await renderHome();
 
     expect(await screen.findByText('Your tow request is open')).toBeOnTheScreen();
-    expect(screen.getByText('Tunis centre → La Marsa')).toBeOnTheScreen();
+    expect(screen.getByText('Tunis centre → La Marsa, Tunis')).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Request a tow' })).toBeNull();
 
     await fireEvent.press(screen.getByRole('button', { name: 'View your request' }));

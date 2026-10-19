@@ -1,17 +1,21 @@
 import { isInTunisia, type LatLng, type Place, TUNIS_CENTER } from '@depanini/shared';
 import * as Location from 'expo-location';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { env } from '@/config/env';
-import { CenterPin } from '@/features/map/CenterPin';
-import { MissingTokenView } from '@/features/map/MapScreen';
-import { TunisMap } from '@/features/map/TunisMap';
+import { BackButton } from '@/features/map/controls';
+import { MapScreen } from '@/features/map/MapScreen';
 import { useReverseGeocode } from '@/features/places/hooks';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
+import { Text } from '@/ui/Text';
 
+import { PlaceReadout } from './PlaceReadout';
 import { requestStrings as t } from './strings';
+
+/** Snap points of the pickup sheet: the address, a location notice and the pinned action fit at the first. */
+const PICKUP_SNAPS = [260] as const;
 
 type StartPosition =
   { status: 'locating' } | { status: 'ready'; center: LatLng; fallback?: 'denied' | 'unavailable' };
@@ -59,11 +63,17 @@ function useStartPosition(): StartPosition {
 const formatCoordinates = ({ latitude, longitude }: LatLng) =>
   `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
 
+interface PickupStepProps {
+  onConfirm: (pickup: Place) => void;
+  /** Leaves the flow; the back button shows only when given. */
+  onBack?: () => void;
+}
+
 /**
  * First step of a tow request: the customer positions the pin on where the
  * vehicle is and confirms. `onConfirm` receives the {@link Place}.
  */
-export function PickupStep({ onConfirm }: { onConfirm: (pickup: Place) => void }) {
+export function PickupStep({ onConfirm, onBack }: PickupStepProps) {
   const theme = useTheme();
   const start = useStartPosition();
   // The coordinate under the pin; null until the map has settled for the first time.
@@ -74,9 +84,9 @@ export function PickupStep({ onConfirm }: { onConfirm: (pickup: Place) => void }
 
   if (start.status === 'locating') {
     return (
-      <View style={[styles.fill, styles.center, { backgroundColor: theme.background }]}>
-        <ActivityIndicator color={theme.brand} />
-        <Text style={[styles.note, { color: theme.textMuted }]}>{t.locating}</Text>
+      <View style={[styles.locating, { backgroundColor: theme.color.background }]}>
+        <ActivityIndicator color={theme.color.brandAccent} />
+        <Text tone="muted">{t.locating}</Text>
       </View>
     );
   }
@@ -87,61 +97,44 @@ export function PickupStep({ onConfirm }: { onConfirm: (pickup: Place) => void }
   const address = geocoded?.address ?? (pin ? formatCoordinates(pin) : '');
 
   return (
-    <View style={styles.fill}>
-      {env.mapboxAccessToken ? (
-        <>
-          <TunisMap
-            accessToken={env.mapboxAccessToken}
-            center={start.center}
-            onCenterChange={setPicked}
+    <MapScreen
+      center={start.center}
+      onCenterChange={setPicked}
+      topStart={onBack ? <BackButton onPress={onBack} /> : undefined}
+      sheet={{
+        snapPoints: PICKUP_SNAPS,
+        children: (
+          <PlaceReadout label={t.pickupLabel} address={address} finding={!settled}>
+            {start.fallback ? (
+              <Text variant="caption" tone="warning">
+                {start.fallback === 'denied' ? t.locationDenied : t.locationUnavailable}
+              </Text>
+            ) : null}
+            {settled && !geocoded && env.mapboxAccessToken && insideTunisia ? (
+              <Text variant="caption" tone="muted">
+                {t.addressUnavailable}
+              </Text>
+            ) : null}
+            {pin && !insideTunisia ? (
+              <Text variant="caption" tone="danger">
+                {t.outsideTunisia}
+              </Text>
+            ) : null}
+          </PlaceReadout>
+        ),
+        footer: (
+          <Button
+            size="big"
+            title={t.confirmPickup}
+            disabled={!pin || !insideTunisia || !settled}
+            onPress={() => pin && onConfirm({ ...pin, address })}
           />
-          <CenterPin />
-        </>
-      ) : (
-        <MissingTokenView />
-      )}
-      <View style={[styles.sheet, { backgroundColor: theme.background }]}>
-        {start.fallback ? (
-          <Text style={[styles.note, { color: theme.warning }]}>
-            {start.fallback === 'denied' ? t.locationDenied : t.locationUnavailable}
-          </Text>
-        ) : null}
-        <Text style={[styles.label, { color: theme.textMuted }]}>{t.pickupLabel}</Text>
-        {!settled ? (
-          <Text style={[styles.address, { color: theme.textMuted }]}>{t.findingAddress}</Text>
-        ) : (
-          <Text style={[styles.address, { color: theme.text }]}>{address}</Text>
-        )}
-        {settled && !geocoded && env.mapboxAccessToken && insideTunisia ? (
-          <Text style={[styles.note, { color: theme.textMuted }]}>{t.addressUnavailable}</Text>
-        ) : null}
-        {pin && !insideTunisia ? (
-          <Text style={[styles.note, { color: theme.danger }]}>{t.outsideTunisia}</Text>
-        ) : null}
-        <Button
-          title={t.confirmPickup}
-          disabled={!pin || !insideTunisia || !settled}
-          onPress={() => pin && onConfirm({ ...pin, address })}
-        />
-      </View>
-    </View>
+        ),
+      }}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  fill: { flex: 1 },
-  center: { alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
-  sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    padding: 16,
-    gap: 8,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-  },
-  label: { fontSize: 13 },
-  address: { fontSize: 17, fontWeight: '600' },
-  note: { fontSize: 14 },
+  locating: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
 });

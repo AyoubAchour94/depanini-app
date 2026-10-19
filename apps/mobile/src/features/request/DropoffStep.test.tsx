@@ -14,6 +14,8 @@ jest.mock('@/config/env', () => ({
 const SEARCH_DEBOUNCE_MS = 300;
 const pickup: Place = { latitude: 36.8, longitude: 10.18, address: 'Tunis' };
 const marsa = 'La Marsa, Tunis, Tunisie';
+/** What the screen shows: the address without the country. */
+const marsaShown = 'La Marsa, Tunis';
 
 function feature(name: string, coordinates: [number, number]) {
   return { geometry: { coordinates }, properties: { full_address: name } };
@@ -47,7 +49,7 @@ describe('DropoffStep', () => {
 
     await fireEvent.changeText(screen.getByLabelText('Where should it go?'), 'marsa');
     await act(() => jest.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS));
-    await fireEvent.press(await screen.findByRole('button', { name: marsa }));
+    await fireEvent.press(await screen.findByRole('button', { name: marsaShown }));
 
     expect(onConfirm).toHaveBeenCalledWith({ latitude: 36.88, longitude: 10.32, address: marsa });
   });
@@ -62,7 +64,7 @@ describe('DropoffStep', () => {
 
     await fireEvent.changeText(screen.getByLabelText('Where should it go?'), 'par');
     await act(() => jest.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS));
-    expect(await screen.findByRole('button', { name: marsa })).toBeOnTheScreen();
+    expect(await screen.findByRole('button', { name: marsaShown })).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Paris' })).toBeNull();
   });
 
@@ -87,8 +89,8 @@ describe('DropoffStep', () => {
     await act(() => jest.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS));
 
     const names = (await screen.findAllByText(/Marsa/)).map((n) => n.props.children);
-    expect(names.indexOf(marsa)).toBeLessThan(names.indexOf('Al-Marsa'));
-    expect(screen.getByText('Médenine, Tunisie')).toBeOnTheScreen();
+    expect(names.indexOf(marsaShown)).toBeLessThan(names.indexOf('Al-Marsa'));
+    expect(screen.getByText('Médenine')).toBeOnTheScreen();
     expect(screen.getByText(/^\d+ km away$/)).toBeOnTheScreen();
     expect(screen.getAllByText(/km away/)).toHaveLength(1);
     const url = new URL(String((fetchSpy.mock.calls[0] as [URL])[0]));
@@ -117,7 +119,7 @@ describe('DropoffStep', () => {
     await fireEvent(await screen.findByTestId('mapbox-map'), 'mapIdle', {
       properties: { center: [10.32, 36.88] },
     });
-    expect(await screen.findByText(marsa)).toBeOnTheScreen();
+    expect(await screen.findByText(marsaShown)).toBeOnTheScreen();
 
     await fireEvent.press(screen.getByRole('button', { name: 'Confirm drop-off' }));
     expect(onConfirm).toHaveBeenCalledWith({ latitude: 36.88, longitude: 10.32, address: marsa });

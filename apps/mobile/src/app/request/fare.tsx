@@ -23,6 +23,7 @@ export default function FareRoute() {
 
   return (
     <FareStep
+      onBack={() => router.back()}
       onCreated={(request) => finish(request.id)}
       onAlreadyOpen={() => finish()}
       // The account says it has a customer profile but the API disagrees; refetching
