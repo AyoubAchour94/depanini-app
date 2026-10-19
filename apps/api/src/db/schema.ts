@@ -3,7 +3,10 @@
  * itself is enabled by the first migration in `drizzle/`.
  */
 import type {
+  AdminAction,
   CancelledBy,
+  ReportCategory,
+  ReportStatus,
   DocumentKind,
   UploadContentType,
   VerificationStatus,
@@ -25,6 +28,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   pgSequence,
   pgTable,
   primaryKey,
@@ -273,6 +277,9 @@ export const payments = pgTable('payments', {
   /** When the customer confirmed or disputed; null while unanswered. */
   customerAnsweredAt: timestamp('customer_answered_at', { withTimezone: true }),
   disputeNote: text('dispute_note'),
+  /** How support resolved a dispute; set once, together with `resolvedAt`. */
+  resolutionNote: text('resolution_note'),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
 });
 
 /**
@@ -322,4 +329,61 @@ export const deviceTokens = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index('device_tokens_user_idx').on(table.userId, table.appVariant)],
+);
+
+/**
+ * A problem a customer or driver reported on one of their trips, for support. One open
+ * report per person per trip; support resolves it with a note.
+ */
+export const reports = pgTable(
+  'reports',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    requestId: uuid('request_id')
+      .notNull()
+      .references(() => towRequests.id, { onDelete: 'cascade' }),
+    reporterUserId: uuid('reporter_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** Which side of the trip the reporter was on. */
+    reporterRole: text('reporter_role').$type<'customer' | 'driver'>().notNull(),
+    /** Checked by the API (`REPORT_CATEGORIES`). */
+    category: text().$type<ReportCategory>().notNull(),
+    note: text().notNull(),
+    status: text().$type<ReportStatus>().notNull().default('open'),
+    resolutionNote: text('resolution_note'),
+    /** The admin who resolved it; null while open, or after their account is deleted. */
+    resolvedBy: uuid('resolved_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  },
+  (table) => [
+    // One open report per person per trip.
+    uniqueIndex('reports_one_open_per_reporter_idx')
+      .on(table.requestId, table.reporterUserId)
+      .where(sql`${table.status} = 'open'`),
+    // The admin queue lists reports by status and age.
+    index('reports_status_created_idx').on(table.status, table.createdAt),
+  ],
+);
+
+/**
+ * The audit log: what an admin did, to what, and when. `admin_user_id` is deliberately not
+ * a foreign key: the log outlives the admin's account, so deleting the account neither
+ * fails nor erases what they did. `admin_email` keeps who it was once the account is gone.
+ */
+export const adminActions = pgTable(
+  'admin_actions',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    adminUserId: uuid('admin_user_id').notNull(),
+    adminEmail: text('admin_email'),
+    action: text().$type<AdminAction>().notNull(),
+    targetType: text('target_type').$type<'driver' | 'report' | 'dispute'>().notNull(),
+    /** The driver's user id, the report id or the disputed request id. */
+    targetId: text('target_id').notNull(),
+    details: jsonb().$type<Record<string, unknown>>(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('admin_actions_created_idx').on(table.createdAt.desc(), table.id.desc())],
 );
