@@ -7,11 +7,6 @@ export default defineConfig({
   optimizeDeps: { include: ['@depanini/shared', 'firebase/app', 'firebase/auth'] },
   // `pnpm share admin` serves the dev server through a Cloudflare quick tunnel.
   server: { allowedHosts: ['.trycloudflare.com'] },
-  // The hoisted install leaves two copies of @firebase/app (firebase and @firebase/auth each get
-  // their own), which breaks sign-in ("Component auth has not been registered yet").
-  resolve: {
-    dedupe: ['@firebase/app', '@firebase/component', '@firebase/util', '@firebase/logger'],
-  },
   build: { commonjsOptions: { include: [/shared[\\/]dist/, /node_modules/] } },
   test: {
     environment: 'jsdom',
