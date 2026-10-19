@@ -85,6 +85,7 @@ function RootNavigator() {
           options={{ title: requestStrings.activeTitle, headerBackVisible: false }}
         />
         <Stack.Screen name="request/history" options={{ title: requestStrings.historyTitle }} />
+        <Stack.Screen name="request/trip/[id]" options={{ title: requestStrings.tripTitle }} />
       </Stack.Protected>
       <Stack.Protected guard={onboarded && variant.isDriverApp}>
         <Stack.Screen name="job-offer/[id]" options={{ title: driverStrings.detailsTitle }} />

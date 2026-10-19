@@ -1,6 +1,7 @@
 import {
   type CustomerCancelReason,
   type CustomerOffer,
+  type DisputeInput,
   customerOfferSchema,
   type FareEstimate,
   type FareEstimateInput,
@@ -180,5 +181,32 @@ export function useTowRequestHistory() {
       return apiRequest(`/tow-requests?${query}`, z.unknown().transform(parseHistoryPage));
     },
     getNextPageParam: (last) => last.nextCursor,
+  });
+}
+
+/**
+ * `POST /tow-requests/:id/payment/confirm`: the customer says they paid the
+ * driver. Fails with an `ApiError`: 404 when it is not theirs, 409 when it is
+ * not completed or the payment was already answered.
+ */
+export function useConfirmPayment() {
+  const invalidate = useInvalidateTowRequests();
+  return useMutation({
+    mutationFn: (id: string): Promise<TowRequest> =>
+      apiRequest(`/tow-requests/${id}/payment/confirm`, towRequestSchema, { method: 'POST' }),
+    onSettled: () => void invalidate(),
+  });
+}
+
+/** `POST /tow-requests/:id/payment/dispute`: reports a problem with the payment. Same errors as confirming. */
+export function useDisputePayment() {
+  const invalidate = useInvalidateTowRequests();
+  return useMutation({
+    mutationFn: ({ id, note }: { id: string } & DisputeInput): Promise<TowRequest> =>
+      apiRequest(`/tow-requests/${id}/payment/dispute`, towRequestSchema, {
+        method: 'POST',
+        json: { note },
+      }),
+    onSettled: () => void invalidate(),
   });
 }

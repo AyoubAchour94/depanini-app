@@ -1,5 +1,6 @@
 import type { TowRequest } from '@depanini/shared';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useTowRequestHistory } from '@/api/towRequests';
 import { useTheme } from '@/theme/theme';
@@ -64,7 +65,11 @@ export function HistoryScreen() {
 function HistoryRow({ request }: { request: TowRequest }) {
   const theme = useTheme();
   return (
-    <View style={[styles.row, { backgroundColor: theme.surface }]}>
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => router.push({ pathname: '/request/trip/[id]', params: { id: request.id } })}
+      style={[styles.row, { backgroundColor: theme.surface }]}
+    >
       <View style={styles.rowHeader}>
         <Text style={{ color: theme.textMuted }}>{formatDate(request.createdAt)}</Text>
         <StatusBadge status={request.status} />
@@ -79,7 +84,14 @@ function HistoryRow({ request }: { request: TowRequest }) {
             : request.proposedFare,
         )}
       </Text>
-    </View>
+      {request.status === 'completed' && request.payment ? (
+        <Text
+          style={{ color: request.payment.status === 'disputed' ? theme.warning : theme.textMuted }}
+        >
+          {t.paymentStatus[request.payment.status]}
+        </Text>
+      ) : null}
+    </Pressable>
   );
 }
 
