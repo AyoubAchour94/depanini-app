@@ -110,3 +110,23 @@ The status of a tow request after the driver drops off the vehicle, when the sta
 
 **Cancel reason**:
 Why someone cancels an assigned request, stored with who cancelled (customer or driver); there are no fees. A customer cancels freely until the driver has arrived (and an open request freely at any time); once arrived, a customer must give a reason: driver late, problem solved, found other help, or other. A driver always gives a reason until towing starts: vehicle not there, customer unreachable, unsafe, truck problem, or other.
+
+### Payment and history
+
+**Payment**:
+The record that a completed tow request was paid. It is cash only, for the agreed fare in whole dinars (the agreed fare is final: no tips or extras), and has a status of driver confirmed, customer confirmed or disputed. It is created in the same transaction that completes the request.
+
+**Cash received**:
+The driver's single confirmation at drop-off ("Dropped off · cash received X TND") that they were paid the agreed fare. It completes the request and records the payment.
+
+**Receipt**:
+The proof of a completed trip, shown in-app to both the customer and the driver, with a Share action. It shows the date, pickup and drop-off, distance, vehicle and problem, agreed fare, payment method, stage times, and the driver's name and truck type and the customer's name. It never shows a phone number or a plate number. Only the two parties can read it, and only once the request is completed.
+
+**Receipt number**:
+The receipt's unique, sequential identifier, like `DPN-2026-000123`: the year of completion in Africa/Tunis, then a six-digit sequence number.
+
+**Disputed payment**:
+A payment the customer reported a problem with, with a short note (1 to 500 characters), kept for support. Answering is optional for the customer: without an answer the payment stays driver confirmed. A dispute never blocks the driver.
+
+**Earnings**:
+A driver's totals for today, this week and this month: the count of completed trips and the sum of their agreed fares, in whole dinars. Periods follow the Africa/Tunis time zone.
