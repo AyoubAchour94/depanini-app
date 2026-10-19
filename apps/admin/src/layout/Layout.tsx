@@ -1,12 +1,14 @@
 import { NavLink, Outlet } from 'react-router';
 
 import { useAuth } from '../auth/AuthProvider';
+import { useEndSessionOnRefusal } from '../auth/useEndSessionOnRefusal';
 import { Button } from '../ui/Button';
 import { NAV_ITEMS } from './nav';
 
 /** Sidebar plus the page. */
 export function Layout() {
   const { state, signOut } = useAuth();
+  useEndSessionOnRefusal();
   return (
     <div className="shell">
       <aside className="sidebar">

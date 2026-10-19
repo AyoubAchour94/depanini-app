@@ -122,6 +122,10 @@ a {
   flex-wrap: wrap;
 }
 
+.row--end {
+  align-items: flex-end;
+}
+
 /* Form controls */
 .field {
   display: flex;

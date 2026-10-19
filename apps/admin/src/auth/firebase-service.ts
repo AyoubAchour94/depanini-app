@@ -19,12 +19,19 @@ export function createFirebaseAuthService(config: Config): AuthService {
 
   return {
     subscribe(listener) {
+      // Each auth change supersedes the one before: a slow token refresh that finishes
+      // after sign-out (or after a newer change) must not bring the old session back.
+      let latest = 0;
       return onAuthStateChanged(auth, (user) => {
+        const change = ++latest;
         if (!user) return listener(null);
+        const report = (isAdmin: boolean) => {
+          if (change === latest) listener({ email: user.email, isAdmin });
+        };
         // Force a refresh so a claim granted since the last sign-in is seen.
         void user.getIdTokenResult(true).then(
-          (result) => listener({ email: user.email, isAdmin: result.claims.admin === true }),
-          () => listener({ email: user.email, isAdmin: false }),
+          (result) => report(result.claims.admin === true),
+          () => report(false),
         );
       });
     },
