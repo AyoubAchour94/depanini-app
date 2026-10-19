@@ -383,6 +383,9 @@ const STEPS = [
         body: { cashReceived: false },
       });
       await api(ctx.driver, 'GET', '/driver/job', { schema: shared.driverJobSchema });
+      ctx.earningsBefore = await api(ctx.driver, 'GET', '/driver/earnings', {
+        schema: shared.earningsSchema,
+      });
       const completed = await api(ctx.driver, 'POST', '/driver/job/complete', {
         body: { cashReceived: true },
         schema: shared.towRequestSchema,
@@ -506,6 +509,59 @@ const STEPS = [
         schema: shared.towRequestPageSchema,
       });
       assert.equal(history.items.find((item) => item.id === request.id)?.status, 'cancelled');
+      ctx.secondRequestId = request.id;
+    },
+  },
+  {
+    name: 'driver history lists the completed and cancelled trips; earnings include the fare',
+    async run(ctx) {
+      const page = await api(ctx.driver, 'GET', '/driver/jobs', {
+        schema: shared.driverJobsPageSchema,
+      });
+      assert.equal(page.nextCursor, null);
+      assert.equal(page.items.length, 2);
+      const done = page.items.find((item) => item.id === ctx.request.id);
+      assert.equal(done?.status, 'completed');
+      assert.equal(done?.payment?.receiptNo, ctx.receiptNo);
+      assert.equal(done?.payment?.amountTnd, ctx.offer.fare);
+      assert.equal(page.items.find((item) => item.id === ctx.secondRequestId)?.status, 'cancelled');
+      // No contact data in the history.
+      const text = JSON.stringify(page);
+      for (const secret of ['+21620000001', '+21620000002', '123 TU 4567']) {
+        assert.ok(!text.includes(secret), `the history contains "${secret}"`);
+      }
+      // Paging one at a time covers the same items in the same order.
+      const first = await api(ctx.driver, 'GET', '/driver/jobs?limit=1', {
+        schema: shared.driverJobsPageSchema,
+      });
+      assert.equal(first.items.length, 1);
+      assert.ok(first.nextCursor);
+      const second = await api(
+        ctx.driver,
+        'GET',
+        `/driver/jobs?limit=1&cursor=${encodeURIComponent(first.nextCursor)}`,
+        { schema: shared.driverJobsPageSchema },
+      );
+      assert.deepEqual(
+        [...first.items, ...second.items].map((item) => item.id),
+        page.items.map((item) => item.id),
+      );
+      assert.equal(second.nextCursor, null);
+
+      const earnings = await api(ctx.driver, 'GET', '/driver/earnings', {
+        schema: shared.earningsSchema,
+      });
+      for (const period of ['today', 'week', 'month']) {
+        assert.ok(
+          earnings[period].trips >= ctx.earningsBefore[period].trips + 1,
+          `${period} trips did not grow`,
+        );
+        assert.ok(
+          earnings[period].totalTnd >= ctx.earningsBefore[period].totalTnd + ctx.offer.fare,
+          `${period} total did not grow by the fare`,
+        );
+      }
+      await api(ctx.customer, 'GET', '/driver/earnings', { expect: 403 });
     },
   },
 ];

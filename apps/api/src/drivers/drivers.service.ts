@@ -1,21 +1,27 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
+  type DriverJobsPage,
   type DriverPresence,
   type DriverPresenceInput,
+  type Earnings,
   fareBounds,
   NEARBY_RADIUS_M,
   type NearbyRequest,
   PRESENCE_STALE_MS,
   ROAD_FACTOR,
 } from '@depanini/shared';
-import { and, asc, eq, gt, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, ne, sql } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/database.module.js';
-import { driverPresence, towOffers, towRequests } from '../db/schema.js';
+import { driverPresence, payments, towOffers, towRequests } from '../db/schema.js';
 import { CLOCK, type Clock } from '../tow-requests/clock.js';
 import { expireStaleOffers, expireStaleRequests } from '../tow-requests/expiry.js';
 import { TripEvents } from '../realtime/trip-events.service.js';
-import { point } from '../tow-requests/tow-request-rows.js';
+import { point, selectTowRequests, toTowRequest } from '../tow-requests/tow-request-rows.js';
+import { decodeCursor, encodeCursor } from '../tow-requests/tow-requests.service.js';
+
+/** The time zone of the earnings periods. */
+const EARNINGS_TIME_ZONE = 'Africa/Tunis';
 
 /** The most requests the nearby list returns. */
 const NEARBY_LIMIT = 30;
@@ -73,6 +79,82 @@ export class DriversService {
       .returning(presenceColumns);
     if (location) await this.events.driverMoved(driverId);
     return toPresence(row!);
+  }
+
+  /**
+   * The driver's finished jobs (completed or cancelled), newest first by when they ended,
+   * then by id. Jobs of a since-deleted driver account have no driver any more, so they
+   * are not in anyone's history.
+   */
+  async jobs(
+    driverId: string,
+    { cursor, limit }: { cursor?: string; limit: number },
+  ): Promise<DriverJobsPage> {
+    const after = cursor ? decodeCursor(cursor) : null;
+    const endedAt = sql`coalesce(${towRequests.completedAt}, ${towRequests.cancelledAt})`;
+    const rows = await selectTowRequests(this.db)
+      .where(
+        and(
+          eq(towRequests.assignedDriverId, driverId),
+          inArray(towRequests.status, ['completed', 'cancelled']),
+          after
+            ? sql`(${endedAt}, ${towRequests.id}) < (${after.createdAt}::timestamptz, ${after.id}::uuid)`
+            : undefined,
+        ),
+      )
+      .orderBy(desc(endedAt), desc(towRequests.id))
+      .limit(limit + 1);
+
+    const items = rows.slice(0, limit).map((row) => toTowRequest(row));
+    const last = rows[limit - 1];
+    const nextCursor =
+      rows.length > limit && last?.endedAtMicros
+        ? encodeCursor({ createdAt: last.endedAtMicros, id: last.id })
+        : null;
+    return { items, nextCursor };
+  }
+
+  /**
+   * Trips and fares of the driver's completed requests today, this week (from Monday) and
+   * this month, counted in Africa/Tunis. Every completed trip counts at its agreed fare,
+   * whatever its payment status: a disputed one is still a trip the driver did.
+   */
+  async earnings(driverId: string): Promise<Earnings> {
+    const now = this.now().toISOString();
+    // Local wall-clock `now`; truncated there, then converted back to the instant it starts.
+    const local = sql`(${now}::timestamptz at time zone ${EARNINGS_TIME_ZONE})`;
+    const startOf = (unit: 'day' | 'week' | 'month') =>
+      sql`(date_trunc(${sql.raw(`'${unit}'`)}, ${local}) at time zone ${EARNINGS_TIME_ZONE})`;
+    const period = (unit: 'day' | 'week' | 'month') => {
+      const within = sql`${towRequests.completedAt} >= ${startOf(unit)}`;
+      return {
+        trips: sql<number>`count(*) filter (where ${within})::int`,
+        totalTnd: sql<number>`coalesce(sum(${payments.amountTnd}) filter (where ${within}), 0)::int`,
+      };
+    };
+    const [row] = await this.db
+      .select({
+        todayTrips: period('day').trips,
+        todayTotal: period('day').totalTnd,
+        weekTrips: period('week').trips,
+        weekTotal: period('week').totalTnd,
+        monthTrips: period('month').trips,
+        monthTotal: period('month').totalTnd,
+      })
+      .from(towRequests)
+      .innerJoin(payments, eq(payments.requestId, towRequests.id))
+      .where(
+        and(
+          eq(towRequests.assignedDriverId, driverId),
+          eq(towRequests.status, 'completed'),
+          sql`${towRequests.completedAt} <= ${now}::timestamptz`,
+        ),
+      );
+    return {
+      today: { trips: row!.todayTrips, totalTnd: row!.todayTotal },
+      week: { trips: row!.weekTrips, totalTnd: row!.weekTotal },
+      month: { trips: row!.monthTrips, totalTnd: row!.monthTotal },
+    };
   }
 
   /** Open requests within `NEARBY_RADIUS_M` of the driver, nearest first. */

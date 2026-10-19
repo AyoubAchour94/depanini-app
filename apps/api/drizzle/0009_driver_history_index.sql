@@ -1,0 +1,1 @@
+CREATE INDEX "tow_requests_driver_completed_idx" ON "tow_requests" USING btree ("assigned_driver_id","completed_at" DESC NULLS LAST);

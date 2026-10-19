@@ -136,6 +136,8 @@ export const towRequests = pgTable(
     uniqueIndex('tow_requests_one_job_per_driver_idx')
       .on(table.assignedDriverId)
       .where(sql`${table.status} = 'assigned'`),
+    // A driver's history and earnings read their finished jobs (a seq scan over all requests otherwise).
+    index('tow_requests_driver_completed_idx').on(table.assignedDriverId, table.completedAt.desc()),
     // The lazy expiry runs on every nearby poll; it only looks at open requests.
     index('tow_requests_open_expires_idx')
       .on(table.expiresAt)
