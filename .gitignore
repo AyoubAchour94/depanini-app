@@ -10,6 +10,10 @@ coverage/
 .claude/state/
 .claude/settings.local.json
 
+# Playwright (pnpm e2e:web): reports, traces, screenshots
+playwright-report/
+test-results/
+
 # OS / editors
 .DS_Store
 .idea/

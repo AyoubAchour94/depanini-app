@@ -175,6 +175,35 @@ pnpm e2e:flow                               # E2E_API_URL, E2E_AUTH_EMULATOR ove
 It prints one line per step and exits non-zero on the first failure. Add steps
 to the `STEPS` list in `scripts/e2e/flow.mjs`.
 
+### Browser end-to-end test
+
+`pnpm e2e:web` drives the real screens of both web apps with Playwright
+(Chromium): a customer and a driver each get a browser context, sign up, set
+up their profiles, and walk a tow from request to completion (offer, accept,
+trip steps, cash drop-off, payment confirmation, receipts, earnings, history),
+then delete their accounts through the UI. It records a trace on failure, and
+screenshots of both receipts in `test-results/`.
+
+It assumes a running stack: Postgres, the Auth emulator, the API, and Expo web
+for each variant. `pnpm share both` provides that on the default ports
+(customer 8081, driver 8082); or start your own, with the web apps pointed at
+your API (`EXPO_PUBLIC_WEB_API_URL`, `EXPO_PUBLIC_WEB_AUTH_EMULATOR_URL`) and
+the API's `CORS_ORIGINS` listing both web origins. Maps need
+`EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN` in `apps/mobile/.env` and network access.
+
+```bash
+pnpm --filter @depanini/shared build
+npx playwright install chromium             # once
+E2E_CUSTOMER_URL=http://localhost:8081 E2E_DRIVER_URL=http://localhost:8082 pnpm e2e:web
+```
+
+Both URLs default to the values above. The browsers report a position in
+Tunis, the driver uses the **Test location** row (dev builds), and the
+drop-off search is answered with a fixed La Marsa, Tunis (Mapbox can rank a
+namesake 400 km away first). A leftover request from an earlier run does not
+disturb it. New requests reach a driver by polling (up to 30 s), so a run
+takes about a minute.
+
 ### Mobile
 
 The app uses native modules (Mapbox, Firebase), so it runs in a **development
