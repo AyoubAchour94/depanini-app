@@ -12,10 +12,14 @@ export interface MessagingClient {
 /** The Android notification channel the apps create. */
 export const ANDROID_CHANNEL_ID = 'default';
 
-/** FCM errors that mean the token is dead for good: the app was uninstalled or the token rotated. */
+/**
+ * FCM errors that mean the token is dead for good: the app was uninstalled or the token
+ * rotated. `invalid-argument` is not one of them: a bug in the payload gets it for every
+ * token, and deleting on it would wipe every device.
+ */
 const DEAD_TOKEN_ERRORS = new Set([
   'messaging/registration-token-not-registered',
-  'messaging/invalid-argument',
+  'messaging/invalid-registration-token',
 ]);
 
 /** Trip and offer pushes should arrive at once; the rest may wait for the phone to wake. */
@@ -62,7 +66,13 @@ export class FcmPushSender implements PushSender {
       return code !== undefined && DEAD_TOKEN_ERRORS.has(code);
     });
     if (dead.length > 0) await this.onDeadTokens(dead);
-    const failed = response.failureCount - dead.length;
+    const invalid = response.responses.filter(
+      (result) => result.error?.code === 'messaging/invalid-argument',
+    ).length;
+    if (invalid > 0) {
+      this.logger.warn(`FCM rejected ${invalid} push(es) of ${data.kind} as invalid-argument`);
+    }
+    const failed = response.failureCount - dead.length - invalid;
     if (failed > 0) this.logger.warn(`${failed} push(es) of ${data.kind} could not be delivered`);
   }
 }

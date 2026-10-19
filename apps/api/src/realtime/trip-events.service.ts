@@ -77,7 +77,7 @@ export class TripEvents {
         });
       }
     });
-    await this.notifications.requestsChanged(ids);
+    this.notifications.requestsChanged(ids);
   }
 
   /** `offer.updated` to each offer's driver (the offer) and its request's customer (with the driver). */
@@ -99,7 +99,7 @@ export class TripEvents {
         this.realtime.send(row.customerId, { type: 'offer.updated', offer: toCustomerOffer(row) });
       }
     });
-    await this.notifications.offersChanged(ids);
+    this.notifications.offersChanged(ids);
   }
 
   /**
@@ -107,7 +107,7 @@ export class TripEvents {
    * they are not connected, and over `/ws` the apps notice the expiry on their own clock.
    */
   async offersExpired(ids: string[]): Promise<void> {
-    await this.notifications.offersChanged(ids);
+    this.notifications.offersChanged(ids);
   }
 
   /**
@@ -148,7 +148,7 @@ export class TripEvents {
         this.realtime.send(userId, { type: 'nearby.changed' });
       }
     });
-    await this.notifications.requestsOpened(requestIds);
+    this.notifications.requestsOpened(requestIds);
   }
 
   private async bestEffort(what: string, publish: () => Promise<void>): Promise<void> {

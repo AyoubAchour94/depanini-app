@@ -15,7 +15,7 @@ Code: `apps/api/src/push/` (`NotificationsService`, `DeviceTokens`, the senders)
 | `DELETE /me/devices/:token` | none                                                      | `204`. Removes the caller's own token only (call it on sign-out).             |
 
 `appVariant` is `user` (the customer app) or `driver`. Deleting an account deletes its
-tokens. A token the push service reports as dead is deleted too.
+tokens. A token the push service reports as dead (not registered, invalid) is deleted too.
 
 ## Who is pushed, and when
 
@@ -42,18 +42,19 @@ Rules:
   signed in to both apps is not pushed twice.
 - **Collapse keys.** `offer:<requestId>` for `nearby_request` and `offer_*`, `trip:<requestId>` for
   the rest, so a burst of offers is one notification on the device.
-- **Best effort.** A failed send is logged and never fails the request that caused it. Sending is awaited,
-  so it adds one provider round trip to the request.
+- **Best effort, fire and forget.** The push is started after the commit and not awaited: the request
+  does not wait for the provider, and a failure is logged and never fails it. Tests (and shutdown) can
+  await `NotificationsService.flush()`; the e2e flow polls the inbox instead.
 - Titles and bodies are short English strings in `push/messages.ts` (localized in Phase 9).
 
 ## Providers
 
 `PUSH_PROVIDER` picks the `PushSender` (`push/push-sender.ts`):
 
-| Value           | Does                                                                                                                                                                                                                                                                       |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `log` (default) | Logs each push and keeps the last 200 in memory. Sends nothing anywhere.                                                                                                                                                                                                   |
-| `fcm`           | Sends through Firebase Cloud Messaging (`sendEachForMulticast`). Android channel `default`, high priority for trip and offer pushes, APNs sound `default`, `data` as strings. Tokens FCM reports as `registration-token-not-registered` or `invalid-argument` are deleted. |
+| Value           | Does                                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `log` (default) | Logs each push and keeps the last 200 in memory. Sends nothing anywhere.                                                                                                                                                                                                                                                                                                                 |
+| `fcm`           | Sends through Firebase Cloud Messaging (`sendEachForMulticast`). Android channel `default`, high priority for trip and offer pushes, APNs sound `default`, `data` as strings. Tokens FCM reports as `registration-token-not-registered` or `invalid-registration-token` are deleted. `invalid-argument` (usually a payload bug, for every token) only logs a warning with the push kind. |
 
 ### The dev push inbox
 

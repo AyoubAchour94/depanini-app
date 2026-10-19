@@ -70,12 +70,19 @@ describe('FcmPushSender', () => {
     const messaging = fakeMessaging([
       'messaging/registration-token-not-registered',
       null,
-      'messaging/invalid-argument',
+      'messaging/invalid-registration-token',
       'messaging/internal-error',
     ]);
     const onDeadTokens = vi.fn(async () => {});
     await new FcmPushSender(messaging, onDeadTokens).send(['gone', 'ok', 'bad', 'flaky'], message);
     expect(onDeadTokens).toHaveBeenCalledExactlyOnceWith(['gone', 'bad']);
+  });
+
+  it('keeps every token when FCM says the payload is invalid', async () => {
+    const messaging = fakeMessaging(['messaging/invalid-argument', 'messaging/invalid-argument']);
+    const onDeadTokens = vi.fn(async () => {});
+    await new FcmPushSender(messaging, onDeadTokens).send(['t1', 't2'], message);
+    expect(onDeadTokens).not.toHaveBeenCalled();
   });
 
   it('does not call the cleanup when every token is fine', async () => {

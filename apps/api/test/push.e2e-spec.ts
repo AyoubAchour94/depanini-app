@@ -10,6 +10,7 @@ import { eq } from 'drizzle-orm';
 import request from 'supertest';
 
 import { deviceTokens, users } from '../src/db/schema.js';
+import { NotificationsService } from '../src/push/notifications.service.js';
 import type { PushSender } from '../src/push/push-sender.js';
 import { createTestApp } from './support/test-app.js';
 import { connectTestDatabase } from './support/test-database.js';
@@ -55,7 +56,7 @@ describe('push notifications (e2e)', () => {
   beforeEach(async () => {
     now = new Date('2026-06-01T10:00:00.000Z');
     await database.db.delete(users);
-    await api('delete', '/dev/push-inbox').expect(204);
+    await clearInbox();
   });
 
   afterEach(() => {
@@ -67,6 +68,11 @@ describe('push notifications (e2e)', () => {
     await database.close();
   });
 
+  /** Empties the inbox once the pushes still on their way have landed. */
+  const clearInbox = async () => {
+    await app.get(NotificationsService).flush();
+    await api('delete', '/dev/push-inbox').expect(204);
+  };
   const userId = async (token: string) => (await api('get', '/me', token).expect(200)).body.id;
   const device = (token: string, deviceToken: string, appVariant: 'user' | 'driver') =>
     api('put', '/me/devices', token)
@@ -74,6 +80,7 @@ describe('push notifications (e2e)', () => {
       .expect(204);
   /** Every push to this person's devices, oldest first, each validated. */
   const inbox = async (token: string): Promise<InboxPush[]> => {
+    await app.get(NotificationsService).flush();
     const res = await api('get', `/dev/push-inbox?userId=${await userId(token)}`).expect(200);
     for (const push of res.body as InboxPush[])
       expect(pushDataSchema.parse(push.data)).toEqual(push.data);
@@ -230,7 +237,7 @@ describe('push notifications (e2e)', () => {
       await setUp();
       const id = await createRequest();
       const offer = await makeOffer(dan, id);
-      await api('delete', '/dev/push-inbox').expect(204);
+      await clearInbox();
 
       await api('post', `/offers/${offer}/accept`, alice).expect(200);
       expect(await inbox(eve)).toEqual([]);
@@ -240,7 +247,7 @@ describe('push notifications (e2e)', () => {
     it('does not push an expired request as new', async () => {
       await setUp();
       await createRequest();
-      await api('delete', '/dev/push-inbox').expect(204);
+      await clearInbox();
       now = new Date(now.getTime() + 24 * 60 * 60 * 1000);
       await api('get', '/tow-requests/active', alice);
       await api('get', '/driver/requests/nearby', dan).expect(200);
@@ -251,7 +258,7 @@ describe('push notifications (e2e)', () => {
     it('walks a whole trip: offers, stages, completion, payment', async () => {
       await setUp();
       const id = await createRequest();
-      await api('delete', '/dev/push-inbox').expect(204);
+      await clearInbox();
 
       const danOffer = await makeOffer(dan, id);
       const eveOffer = await makeOffer(eve, id);
@@ -275,7 +282,7 @@ describe('push notifications (e2e)', () => {
       ]);
       expect(await kinds(alice)).toEqual(['offer_received', 'offer_received']);
 
-      await api('delete', '/dev/push-inbox').expect(204);
+      await clearInbox();
       for (const to of ['en_route', 'arrived', 'towing']) await stage(to);
       const stages = await inbox(alice);
       expect(stages.map((push) => push.data.kind)).toEqual([
@@ -287,7 +294,7 @@ describe('push notifications (e2e)', () => {
       expect(new Set(stages.map((push) => push.body)).size).toBe(3);
       expect(await inbox(dan)).toEqual([]);
 
-      await api('delete', '/dev/push-inbox').expect(204);
+      await clearInbox();
       await api('post', '/driver/job/complete', dan).send({ cashReceived: true }).expect(200);
       expect(await inbox(alice)).toMatchObject([
         { collapseKey: `trip:${id}`, data: { kind: 'trip_completed', requestId: id } },
@@ -306,7 +313,7 @@ describe('push notifications (e2e)', () => {
       const id = await createRequest();
       const danOffer = await makeOffer(dan, id);
       const eveOffer = await makeOffer(eve, id);
-      await api('delete', '/dev/push-inbox').expect(204);
+      await clearInbox();
 
       await api('post', `/offers/${eveOffer}/decline`, alice).expect(200);
       expect((await inbox(eve)).map((push) => push.data)).toEqual([
@@ -327,7 +334,7 @@ describe('push notifications (e2e)', () => {
       await setUp();
       const id = await createRequest();
       const danOffer = await makeOffer(dan, id);
-      await api('delete', '/dev/push-inbox').expect(204);
+      await clearInbox();
       await api('post', `/offers/${danOffer}/withdraw`, dan).expect(200);
       expect(await inbox(dan)).toEqual([]);
       expect(await inbox(alice)).toEqual([]);
@@ -337,7 +344,7 @@ describe('push notifications (e2e)', () => {
       await setUp();
       let id = await createRequest();
       await api('post', `/offers/${await makeOffer(dan, id)}/accept`, alice).expect(200);
-      await api('delete', '/dev/push-inbox').expect(204);
+      await clearInbox();
 
       await api('post', `/tow-requests/${id}/cancel`, alice).send({}).expect(200);
       expect(await inbox(dan)).toMatchObject([
@@ -345,10 +352,10 @@ describe('push notifications (e2e)', () => {
       ]);
       expect(await inbox(alice)).toEqual([]);
 
-      await api('delete', '/dev/push-inbox').expect(204);
+      await clearInbox();
       id = await createRequest();
       await api('post', `/offers/${await makeOffer(dan, id)}/accept`, alice).expect(200);
-      await api('delete', '/dev/push-inbox').expect(204);
+      await clearInbox();
       await api('post', `/tow-requests/${id}/cancel`, dan)
         .send({ reason: 'truck_problem' })
         .expect(200);
@@ -362,7 +369,7 @@ describe('push notifications (e2e)', () => {
       await setUp();
       const id = await createRequest();
       await api('post', `/offers/${await makeOffer(dan, id)}/accept`, alice).expect(200);
-      await api('delete', '/dev/push-inbox').expect(204);
+      await clearInbox();
       await api('delete', '/me', dan).expect(204);
       expect(await kinds(alice)).toEqual(['trip_cancelled']);
     });
@@ -371,7 +378,7 @@ describe('push notifications (e2e)', () => {
       await setUp();
       const id = await createRequest();
       const danOffer = await makeOffer(dan, id);
-      await api('delete', '/dev/push-inbox').expect(204);
+      await clearInbox();
       await api('post', `/tow-requests/${id}/cancel`, alice).send({}).expect(200);
       expect((await inbox(dan)).map((push) => push.data)).toEqual([
         { kind: 'offer_rejected', requestId: id, offerId: danOffer },
@@ -455,7 +462,7 @@ describe('push notifications (e2e)', () => {
       await setUp();
       await createRequest();
       expect(await kinds(dan)).toEqual(['nearby_request']);
-      await api('delete', '/dev/push-inbox').expect(204);
+      await clearInbox();
       expect(await kinds(dan)).toEqual([]);
     });
 
@@ -522,6 +529,7 @@ describe('push notifications (e2e)', () => {
         .send({ fare: suggested })
         .expect(201);
       await call('post', `/offers/${offer.body.id}/accept`, alice).expect(200);
+      await failing.get(NotificationsService).flush();
       expect(attempts).toEqual(['nearby_request', 'offer_received', 'offer_accepted']);
     });
   });

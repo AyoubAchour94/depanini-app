@@ -108,11 +108,13 @@ function collapseKeyOf({ kind, requestId }: PushData): string {
  * ids that changed. Like it, it reads the rows back and decides from their state, so a push
  * never says more than the recipient may see over REST. Nobody with a live `/ws` socket is
  * pushed (they already saw the event), and each person only gets pushes on the tokens of the
- * app the event is for. Best effort: a failure is logged and never fails the caller.
+ * app the event is for. Best effort and fire-and-forget: the callers do not wait for the
+ * provider, and a failure is logged and never fails them.
  */
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
+  private readonly pending = new Set<Promise<void>>();
 
   constructor(
     @Inject(DB) private readonly db: Database,
@@ -123,8 +125,8 @@ export class NotificationsService {
   ) {}
 
   /** Trip stages, cancellations, completion and payment answers: from the requests' state. */
-  async requestsChanged(ids: string[]): Promise<void> {
-    await this.bestEffort('request', async () => {
+  requestsChanged(ids: string[]): void {
+    this.dispatch('request', async () => {
       if (ids.length === 0) return;
       const rows = await this.db
         .select({
@@ -144,8 +146,8 @@ export class NotificationsService {
   }
 
   /** Offers received, accepted, rejected and expired: from the offers' state. */
-  async offersChanged(ids: string[]): Promise<void> {
-    await this.bestEffort('offer', async () => {
+  offersChanged(ids: string[]): void {
+    this.dispatch('offer', async () => {
       if (ids.length === 0) return;
       const rows = await this.db
         .select({
@@ -163,8 +165,8 @@ export class NotificationsService {
   }
 
   /** Online drivers in range of the requests that are open: the reverse of the nearby list. */
-  async requestsOpened(ids: string[]): Promise<void> {
-    await this.bestEffort('nearby request', async () => {
+  requestsOpened(ids: string[]): void {
+    this.dispatch('nearby request', async () => {
       if (ids.length === 0) return;
       const now = this.now();
       const open = await this.db
@@ -213,11 +215,18 @@ export class NotificationsService {
     }
   }
 
-  private async bestEffort(what: string, run: () => Promise<void>): Promise<void> {
-    try {
-      await run();
-    } catch (error) {
-      this.logger.warn(`Could not push ${what} changes: ${(error as Error).message}`);
-    }
+  /** Resolves once every push started so far has been sent or has failed. For tests and shutdown. */
+  async flush(): Promise<void> {
+    while (this.pending.size > 0) await Promise.allSettled([...this.pending]);
+  }
+
+  /** Starts `run` without waiting for it: a slow provider must not slow the request. Errors are logged. */
+  private dispatch(what: string, run: () => Promise<void>): void {
+    const job = run()
+      .catch((error: Error) => {
+        this.logger.warn(`Could not push ${what} changes: ${error.message}`);
+      })
+      .finally(() => this.pending.delete(job));
+    this.pending.add(job);
   }
 }

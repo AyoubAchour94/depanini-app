@@ -418,6 +418,8 @@ const STEPS = [
   {
     name: 'the customer, connected to /ws, gets no trip_stage push; then closes the socket',
     async run(ctx) {
+      // Pushes are sent after the response, so give a wrongly sent one time to show up.
+      await new Promise((resolve) => setTimeout(resolve, 300));
       if (ctx.inbox && ctx.realtime) {
         const kinds = (await pushInbox(ctx.customer)).map((push) => push.data.kind);
         assert.ok(!kinds.includes('trip_stage'), `a connected customer was pushed: ${kinds}`);
