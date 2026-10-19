@@ -265,8 +265,8 @@ describe('dropping off', () => {
     expect(await screen.findByText(t.summaryHeading)).toBeOnTheScreen();
     expect(screen.getByText('Avenue Bourguiba')).toBeOnTheScreen();
     expect(screen.getByText('La Marsa')).toBeOnTheScreen();
-    expect(screen.getByText('65 TND')).toBeOnTheScreen();
-    expect(screen.getByText('DPN-2026-000007')).toBeOnTheScreen();
+    expect(await screen.findByText('65 TND')).toBeOnTheScreen();
+    expect(await screen.findByText('DPN-2026-000007')).toBeOnTheScreen();
     expect(screen.getByText(t.time('2026-01-01T10:40:00.000Z'))).toBeOnTheScreen();
     expect(screen.getByText(t.time(STAGE_TIMES.towing.towingAt))).toBeOnTheScreen();
     expect(screen.queryByText(t.noJob)).toBeNull();

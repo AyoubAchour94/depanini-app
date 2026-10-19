@@ -135,7 +135,7 @@ describe('ActiveRequestScreen', () => {
     expect(screen.getByText('Avenue Habib Bourguiba, Tunis')).toBeOnTheScreen();
     expect(screen.getByText('La Marsa')).toBeOnTheScreen();
     expect(screen.getByText('SUV / van · Flat tire')).toBeOnTheScreen();
-    expect(screen.getByText('70 TND')).toBeOnTheScreen();
+    expect(await screen.findByText('70 TND')).toBeOnTheScreen();
 
     await act(async () => jest.advanceTimersByTime(3000));
     expect(screen.getByText('Expires in 9:57')).toBeOnTheScreen();
@@ -226,7 +226,7 @@ describe('ActiveRequestScreen', () => {
     expect(screen.getByText('Flatbed · 11 min away · 8.1 km')).toBeOnTheScreen();
     // Proposed fare is 70: only the 80 offer is above it.
     expect(screen.getAllByText('Above your fare')).toHaveLength(1);
-    expect(screen.getByText('80 TND')).toBeOnTheScreen();
+    expect(await screen.findByText('80 TND')).toBeOnTheScreen();
     expect(screen.getAllByRole('button', { name: 'Accept' })).toHaveLength(3);
   });
 

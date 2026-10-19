@@ -55,7 +55,7 @@ describe('HistoryScreen', () => {
     await renderHistory();
 
     expect(await screen.findByText('Pickup 1 → Dropoff 1')).toBeOnTheScreen();
-    expect(screen.getByText('51 TND')).toBeOnTheScreen();
+    expect(await screen.findByText('51 TND')).toBeOnTheScreen();
     expect(screen.getByText('Open')).toBeOnTheScreen();
     expect(screen.getByText('Cancelled')).toBeOnTheScreen();
     expect(screen.queryByText('Pickup 3 → Dropoff 3')).toBeNull();
@@ -96,7 +96,7 @@ describe('HistoryScreen', () => {
     await renderHistory();
 
     expect(await screen.findByText('Completed')).toBeOnTheScreen();
-    expect(screen.getByText('77 TND')).toBeOnTheScreen();
+    expect(await screen.findByText('77 TND')).toBeOnTheScreen();
     expect(screen.queryByText('51 TND')).toBeNull();
   });
 

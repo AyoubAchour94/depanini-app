@@ -155,14 +155,14 @@ describe('sending an offer', () => {
     await flush();
 
     await press('Increase fare');
-    expect(screen.getByText('61 TND')).toBeOnTheScreen();
+    expect(await screen.findByText('61 TND')).toBeOnTheScreen();
     await act(async () =>
       fireEvent(screen.getByRole('button', { name: 'Increase fare' }), 'longPress'),
     );
     await act(async () =>
       fireEvent(screen.getByRole('button', { name: 'Increase fare' }), 'longPress'),
     );
-    expect(screen.getByText('70 TND')).toBeOnTheScreen();
+    expect(await screen.findByText('70 TND')).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Increase fare' }).props.accessibilityState).toEqual({
       disabled: true,
     });
@@ -202,7 +202,7 @@ describe('a sent offer', () => {
     await flush();
 
     expect(screen.getByText('Offer sent')).toBeOnTheScreen();
-    expect(screen.getByText('Your offer: 65 TND')).toBeOnTheScreen();
+    expect(await screen.findByText('Your offer: 65 TND')).toBeOnTheScreen();
     expect(screen.getByText('Expires in 3:00')).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: /Accept for/ })).toBeNull();
 
@@ -283,7 +283,7 @@ describe('the job', () => {
 
     expect(await screen.findByText('Current job')).toBeOnTheScreen();
     expect(screen.getByText('Sami Trabelsi')).toBeOnTheScreen();
-    expect(screen.getByText('65 TND')).toBeOnTheScreen();
+    expect(await screen.findByText('65 TND')).toBeOnTheScreen();
     expect(api.calls('GET /driver/requests/nearby')).toHaveLength(0);
 
     await press('View job');
@@ -301,7 +301,7 @@ describe('the job', () => {
     expect(screen.getByText('La Marsa')).toBeOnTheScreen();
     expect(screen.getByText('Car · Battery')).toBeOnTheScreen();
     expect(screen.getByText('Keys inside')).toBeOnTheScreen();
-    expect(screen.getByText('65 TND')).toBeOnTheScreen();
+    expect(await screen.findByText('65 TND')).toBeOnTheScreen();
 
     await press(/Call/);
     expect(open).toHaveBeenCalledWith('tel:+21620123456');

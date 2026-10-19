@@ -371,7 +371,7 @@ describe('DriverHome nearby list', () => {
     expect(await screen.findByText('4.0 km away')).toBeOnTheScreen();
     expect(screen.getByText('Avenue Bourguiba → La Marsa')).toBeOnTheScreen();
     expect(screen.getByText('Car · Battery')).toBeOnTheScreen();
-    expect(screen.getByText('60 TND')).toBeOnTheScreen();
+    expect(await screen.findByText('60 TND')).toBeOnTheScreen();
     expect(screen.getByText('15:00 left')).toBeOnTheScreen();
 
     await act(async () =>
@@ -380,7 +380,7 @@ describe('DriverHome nearby list', () => {
     await flush();
     expect(await screen.findByText('Keys inside')).toBeOnTheScreen();
     expect(screen.getByText('La Marsa')).toBeOnTheScreen();
-    expect(screen.getByText('Allowed range: 52 to 192 TND')).toBeOnTheScreen();
+    expect(await screen.findByText('Allowed range: 52 to 192 TND')).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Accept for 60 TND' })).toBeOnTheScreen();
     expect(screen.getByTestId('mapbox-map')).toBeOnTheScreen();
   });

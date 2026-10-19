@@ -85,11 +85,11 @@ describe('FareStep', () => {
     await screen.findByText('65 TND');
 
     await fireEvent.press(screen.getByRole('button', { name: 'Increase fare' }));
-    expect(screen.getByText('66 TND')).toBeOnTheScreen();
+    expect(await screen.findByText('66 TND')).toBeOnTheScreen();
     await fireEvent(screen.getByRole('button', { name: 'Increase fare' }), 'longPress');
-    expect(screen.getByText('71 TND')).toBeOnTheScreen();
+    expect(await screen.findByText('71 TND')).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('button', { name: 'Decrease fare' }));
-    expect(screen.getByText('70 TND')).toBeOnTheScreen();
+    expect(await screen.findByText('70 TND')).toBeOnTheScreen();
   });
 
   it('clamps the fare to the allowed range', async () => {
@@ -100,13 +100,13 @@ describe('FareStep', () => {
     for (let i = 0; i < 4; i++) {
       await fireEvent(screen.getByRole('button', { name: 'Decrease fare' }), 'longPress');
     }
-    expect(screen.getByText('52 TND')).toBeOnTheScreen();
+    expect(await screen.findByText('52 TND')).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Decrease fare' })).toBeDisabled();
 
     for (let i = 0; i < 40; i++) {
       await fireEvent(screen.getByRole('button', { name: 'Increase fare' }), 'longPress');
     }
-    expect(screen.getByText('195 TND')).toBeOnTheScreen();
+    expect(await screen.findByText('195 TND')).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Increase fare' })).toBeDisabled();
   });
 

@@ -82,7 +82,7 @@ async function renderSummary(onDone = () => undefined) {
 describe('payment prompt', () => {
   it('asks whether the customer paid the driver', async () => {
     await renderSummary();
-    expect(screen.getByText('Did you pay 85 TND to Sami?')).toBeOnTheScreen();
+    expect(await screen.findByText('Did you pay 85 TND to Sami?')).toBeOnTheScreen();
   });
 
   it('confirms the payment and shows the result instead of the prompt', async () => {

@@ -95,7 +95,7 @@ describe('TripDetail', () => {
     await renderDetail({ ...request, status: 'cancelled', payment: null } as TowRequest);
 
     expect(await screen.findByText('Cancelled')).toBeOnTheScreen();
-    expect(screen.getByText('60 TND')).toBeOnTheScreen();
+    expect(await screen.findByText('60 TND')).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Share receipt' })).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
