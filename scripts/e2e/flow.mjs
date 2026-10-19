@@ -97,6 +97,43 @@ async function openRealtime(user) {
   return { next, close: () => socket.close() };
 }
 
+/**
+ * The pushes the API's log sender recorded for `user`, or `null` when this API has no push
+ * inbox (`GET /dev/push-inbox` answers 404 unless it runs with `PUSH_INBOX=1`). Each push
+ * must carry a valid `pushDataSchema` payload.
+ */
+async function pushInbox(user) {
+  const res = await fetch(`${API}/dev/push-inbox?userId=${user.id}`);
+  if (res.status === 404) return null;
+  const text = await res.text();
+  assert.equal(res.status, 200, `GET /dev/push-inbox: expected 200, got ${res.status} ${text}`);
+  const pushes = JSON.parse(text);
+  for (const push of pushes) {
+    const parsed = shared.pushDataSchema.safeParse(push.data);
+    assert.ok(parsed.success, `push data does not match schema: ${parsed.error}`);
+  }
+  return pushes;
+}
+
+/** Waits (the socket close takes a moment to register) for a push of `kind` in the user's inbox. */
+async function expectPush(user, kind, appVariant, requestId, count = 1) {
+  let pushes = [];
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    pushes = (await pushInbox(user)) ?? [];
+    const found = pushes.filter((push) => push.data.kind === kind);
+    if (found.length >= count) {
+      assert.equal(found.length, count, `${found.length} ${kind} pushes, expected ${count}`);
+      const last = found.at(-1);
+      assert.equal(last.appVariant, appVariant);
+      assert.equal(last.data.requestId, requestId);
+      assert.ok(last.title && last.body, `${kind} push has no text`);
+      return last;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`no ${kind} push for ${user.email}; got ${pushes.map((p) => p.data.kind)}`);
+}
+
 async function signUp(label) {
   const res = await fetch(
     `${EMULATOR}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake-api-key`,
@@ -166,6 +203,27 @@ const STEPS = [
         schema: shared.driverProfileSchema,
       });
       assert.equal(profile.plateNumber, '123 TU 4567');
+    },
+  },
+  {
+    name: 'both sides register a push token (the push inbox is optional)',
+    async run(ctx) {
+      for (const [user, appVariant] of [
+        [ctx.customer, 'user'],
+        [ctx.driver, 'driver'],
+      ]) {
+        user.id = (await api(user, 'GET', '/me', { schema: shared.meResponseSchema })).id;
+        await api(user, 'PUT', '/me/devices', {
+          expect: 204,
+          body: { token: `e2e-${run}-${appVariant}`, platform: 'android', appVariant },
+        });
+      }
+      ctx.inbox = (await pushInbox(ctx.customer)) !== null;
+      if (!ctx.inbox) console.log('  (no /dev/push-inbox on this API: push checks are skipped)');
+      await api(ctx.customer, 'PUT', '/me/devices', {
+        expect: 400,
+        body: { token: '', platform: 'android', appVariant: 'user' },
+      });
     },
   },
   {
@@ -242,6 +300,15 @@ const STEPS = [
       );
     },
   },
+  {
+    name: 'the customer, with no socket open, gets an offer_received push',
+    async run(ctx) {
+      if (!ctx.inbox) return;
+      const push = await expectPush(ctx.customer, 'offer_received', 'user', ctx.request.id);
+      assert.equal(push.data.offerId, ctx.offer.id);
+      assert.equal(push.collapseKey, `offer:${ctx.request.id}`);
+    },
+  },
   ...(WS
     ? [
         {
@@ -268,6 +335,15 @@ const STEPS = [
         assert.equal(pushed.id, ctx.request.id);
         assert.equal(pushed.driver?.fullName, 'E2E Driver');
       }
+    },
+  },
+  {
+    name: 'the driver, with no socket open, gets an offer_accepted push',
+    async run(ctx) {
+      if (!ctx.inbox) return;
+      const push = await expectPush(ctx.driver, 'offer_accepted', 'driver', ctx.request.id);
+      assert.equal(push.data.offerId, ctx.offer.id);
+      assert.equal(push.collapseKey, `offer:${ctx.request.id}`);
     },
   },
   {
@@ -340,6 +416,20 @@ const STEPS = [
     },
   },
   {
+    name: 'the customer, connected to /ws, gets no trip_stage push; then closes the socket',
+    async run(ctx) {
+      if (ctx.inbox && ctx.realtime) {
+        const kinds = (await pushInbox(ctx.customer)).map((push) => push.data.kind);
+        assert.ok(!kinds.includes('trip_stage'), `a connected customer was pushed: ${kinds}`);
+      }
+      // With the socket open the en_route stage was not pushed; without one it was.
+      ctx.stagePushes = ctx.realtime ? 1 : 2;
+      ctx.realtime?.close();
+      ctx.realtime = null;
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    },
+  },
+  {
     name: 'driver arrives; the ETA goes away',
     async run(ctx) {
       const job = await api(ctx.driver, 'POST', '/driver/job/stage', {
@@ -353,6 +443,16 @@ const STEPS = [
       assert.equal(active.tripStage, 'arrived');
       assert.ok(active.arrivedAt);
       assert.equal(active.etaMin ?? null, null);
+      if (ctx.inbox) {
+        const push = await expectPush(
+          ctx.customer,
+          'trip_stage',
+          'user',
+          ctx.request.id,
+          ctx.stagePushes,
+        );
+        assert.equal(push.collapseKey, `trip:${ctx.request.id}`);
+      }
     },
   },
   {
