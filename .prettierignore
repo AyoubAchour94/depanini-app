@@ -7,3 +7,4 @@ apps/mobile/expo-env.d.ts
 apps/api/drizzle/meta/
 README.md
 CI.md
+docs/design/redesign-a/
