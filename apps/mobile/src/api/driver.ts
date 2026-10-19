@@ -5,6 +5,8 @@ import {
   type DriverPresence,
   type DriverPresenceInput,
   driverPresenceSchema,
+  type Earnings,
+  earningsSchema,
   type NearbyRequest,
   nearbyRequestSchema,
   type Offer,
@@ -13,12 +15,13 @@ import {
   towRequestSchema,
   type TripStage,
 } from '@depanini/shared';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 
 import { usePollMs } from '@/realtime/status';
 
 import { apiRequest } from './client';
+import { parseHistoryPage } from './towRequests';
 
 /** `PUT /driver/presence`. Fails with an `ApiError`: 403 without a driver profile. */
 export function putPresence(input: DriverPresenceInput): Promise<DriverPresence> {
@@ -58,6 +61,8 @@ export function useCachedNearbyRequest(id: string): NearbyRequest | undefined {
 
 export const OFFERS_KEY = ['driver', 'offers', 'active'] as const;
 export const JOB_KEY = ['driver', 'job'] as const;
+export const JOBS_KEY = ['driver', 'jobs'] as const;
+export const EARNINGS_KEY = ['driver', 'earnings'] as const;
 
 /** How often the driver's offers are re-read while the offer screen is showing. */
 export const OFFERS_POLL_MS = 5_000;
@@ -89,6 +94,35 @@ export function useDriverJob({ poll }: { poll: boolean }) {
   });
 }
 
+export const JOBS_PAGE_SIZE = 20;
+
+/**
+ * `GET /driver/jobs`: the driver's completed and cancelled jobs, newest first,
+ * a page at a time. Rows are parsed one by one so a row the app does not
+ * understand is skipped instead of hiding the list.
+ */
+export function useDriverJobs() {
+  return useInfiniteQuery({
+    queryKey: JOBS_KEY,
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) => {
+      const query = new URLSearchParams({ limit: String(JOBS_PAGE_SIZE) });
+      if (pageParam) query.set('cursor', pageParam);
+      return apiRequest(`/driver/jobs?${query}`, z.unknown().transform(parseHistoryPage));
+    },
+    getNextPageParam: (last) => last.nextCursor,
+  });
+}
+
+/** `GET /driver/earnings`: trips and TND for today, this week and this month. Only fetches while `enabled`. */
+export function useEarnings({ enabled }: { enabled: boolean }) {
+  return useQuery({
+    queryKey: EARNINGS_KEY,
+    queryFn: (): Promise<Earnings> => apiRequest('/driver/earnings', earningsSchema),
+    enabled,
+  });
+}
+
 /** Offers, the nearby list and the job all change with every offer or job action. */
 function useInvalidateDriverQueries() {
   const queryClient = useQueryClient();
@@ -97,6 +131,9 @@ function useInvalidateDriverQueries() {
       queryClient.invalidateQueries({ queryKey: NEARBY_KEY }),
       queryClient.invalidateQueries({ queryKey: OFFERS_KEY }),
       queryClient.invalidateQueries({ queryKey: JOB_KEY }),
+      // A finished or cancelled job joins the history and the earnings.
+      queryClient.invalidateQueries({ queryKey: JOBS_KEY }),
+      queryClient.invalidateQueries({ queryKey: EARNINGS_KEY }),
     ]);
 }
 

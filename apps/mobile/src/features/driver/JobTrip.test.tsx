@@ -87,6 +87,7 @@ function mockApi() {
         status: 'completed',
         tripStage: null,
         completedAt: '2026-01-01T10:40:00.000Z',
+        payment: { status: 'driver_confirmed', amountTnd: 65, receiptNo: 'DPN-2026-000007' },
       };
       server.job = null;
       return Response.json(done);
@@ -157,7 +158,9 @@ describe('trip steps', () => {
 
     await press('Vehicle loaded');
     expect(api.calls('POST /driver/job/stage')[2]?.body).toEqual({ stage: 'towing' });
-    expect(await screen.findByRole('button', { name: 'Dropped off' })).toBeOnTheScreen();
+    expect(
+      await screen.findByRole('button', { name: 'Dropped off · cash received 65 TND' }),
+    ).toBeOnTheScreen();
     expect(screen.getByText(t.time(STAGE_TIMES.towing.towingAt))).toBeOnTheScreen();
   });
 
@@ -234,15 +237,18 @@ describe('dropping off', () => {
     await renderApp();
     await flush();
 
-    await press('Dropped off');
+    await press('Dropped off · cash received 65 TND');
     expect(alert).toHaveBeenCalledWith(
       t.confirmDropoffTitle,
-      t.confirmDropoffMessage,
+      t.confirmDropoffMessage(65),
       expect.any(Array),
       expect.anything(),
     );
+    expect(t.confirmDropoffMessage(65)).toContain('65 TND');
     expect(api.calls('POST /driver/job/complete')).toHaveLength(0);
-    expect(screen.getByRole('button', { name: 'Dropped off' })).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', { name: 'Dropped off · cash received 65 TND' }),
+    ).toBeOnTheScreen();
   });
 
   it('completes after confirming, shows the summary, and goes home from it', async () => {
@@ -251,7 +257,7 @@ describe('dropping off', () => {
     await renderApp();
     await flush();
 
-    await press('Dropped off');
+    await press('Dropped off · cash received 65 TND');
     await flush();
 
     expect(api.calls('POST /driver/job/complete')).toHaveLength(1);
@@ -260,6 +266,7 @@ describe('dropping off', () => {
     expect(screen.getByText('Avenue Bourguiba')).toBeOnTheScreen();
     expect(screen.getByText('La Marsa')).toBeOnTheScreen();
     expect(screen.getByText('65 TND')).toBeOnTheScreen();
+    expect(screen.getByText('DPN-2026-000007')).toBeOnTheScreen();
     expect(screen.getByText(t.time('2026-01-01T10:40:00.000Z'))).toBeOnTheScreen();
     expect(screen.getByText(t.time(STAGE_TIMES.towing.towingAt))).toBeOnTheScreen();
     expect(screen.queryByText(t.noJob)).toBeNull();
@@ -278,7 +285,7 @@ describe('dropping off', () => {
     await renderApp();
     await flush();
 
-    await press('Dropped off');
+    await press('Dropped off · cash received 65 TND');
     expect(await screen.findByText(t.completeFailed)).toBeOnTheScreen();
   });
 });
@@ -319,7 +326,9 @@ describe('cancelling', () => {
     mockApi();
     await renderApp();
     await flush();
-    expect(await screen.findByRole('button', { name: 'Dropped off' })).toBeOnTheScreen();
+    expect(
+      await screen.findByRole('button', { name: 'Dropped off · cash received 65 TND' }),
+    ).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Cancel job' })).toBeNull();
     expect(screen.queryByRole('radio')).toBeNull();
   });

@@ -100,6 +100,9 @@ function renderApp() {
     profile: () => <Text>Profile</Text>,
     'job-offer/[id]': () => <Text>Job offer</Text>,
     'test-location': () => <Text>Test location screen</Text>,
+    'jobs/index': () => <Text>My jobs screen</Text>,
+    'jobs/[id]': () => <Text>Job detail screen</Text>,
+    earnings: () => <Text>Earnings screen</Text>,
     onboarding: Onboarding,
     'loading-account': LoadingAccount,
     'delete-account': DeleteAccount,
@@ -136,6 +139,20 @@ describe('root navigation', () => {
     await act(async () => router.push({ pathname: '/job-offer/[id]', params: { id: 'abc' } }));
 
     expect(screen.queryByText('Job offer')).toBeNull();
+  });
+
+  it.each([
+    ['/jobs', 'My jobs screen'],
+    ['/jobs/abc', 'Job detail screen'],
+    ['/earnings', 'Earnings screen'],
+  ])('keeps the driver-only %s route out of the customer app', async (path, text) => {
+    await renderApp();
+    await emitSession({ uid: 'u1', email: me.email });
+    await screen.findByText('Home');
+
+    await act(async () => router.push(path as '/jobs'));
+
+    expect(screen.queryByText(text)).toBeNull();
   });
 
   it('sends a signed-out user to sign-in', async () => {
@@ -236,6 +253,21 @@ describe('root navigation', () => {
 
       expect(await screen.findByText('Home')).toBeOnTheScreen();
       expect(router.getPathname()).toBe('/');
+    });
+
+    it.each([
+      ['/jobs', 'My jobs screen'],
+      ['/jobs/abc', 'Job detail screen'],
+      ['/earnings', 'Earnings screen'],
+    ])('opens the driver-only %s route', async (path, text) => {
+      mockApi({ driverProfile });
+      await renderApp();
+      await emitSession({ uid: 'u1', email: me.email });
+      await screen.findByText('Home');
+
+      await act(async () => router.push(path as '/jobs'));
+
+      expect(await screen.findByText(text)).toBeOnTheScreen();
     });
 
     it('opens a job offer', async () => {

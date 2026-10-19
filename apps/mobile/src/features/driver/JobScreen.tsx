@@ -71,7 +71,7 @@ export function JobScreen() {
     );
   }
 
-  const { id, customer, pickup, dropoff } = job.data;
+  const { id, customer, pickup, dropoff, agreedFare } = job.data;
   const stage: TripStage = job.data.tripStage ?? 'accepted';
   const next = nextTripStage(stage);
   const busy = advance.isPending || complete.isPending || cancel.isPending;
@@ -94,7 +94,7 @@ export function JobScreen() {
       return;
     }
     asking.current = true;
-    const confirmed = await confirmDropoff().finally(() => (asking.current = false));
+    const confirmed = await confirmDropoff(agreedFare).finally(() => (asking.current = false));
     if (!confirmed) return;
     complete.mutate(undefined, {
       onSuccess: setFinished,
@@ -135,7 +135,7 @@ export function JobScreen() {
         </Text>
       ) : null}
       <Button
-        title={t.nextStep[stage]}
+        title={next ? t.nextStep[stage] : t.droppedOffCash(agreedFare)}
         loading={advance.isPending || complete.isPending}
         disabled={busy}
         onPress={() => void onNext()}
@@ -233,6 +233,12 @@ function Summary({ request }: { request: TowRequest }) {
         <Text style={[styles.fare, { color: theme.text }]}>
           {requestStrings.fareAmount(request.agreedFare ?? request.proposedFare)}
         </Text>
+        {request.payment ? (
+          <>
+            <Text style={{ color: theme.textMuted }}>{t.receiptNo}</Text>
+            <Text style={[styles.name, { color: theme.text }]}>{request.payment.receiptNo}</Text>
+          </>
+        ) : null}
       </View>
       <Timeline job={request} />
       <Button title={t.backToHome} onPress={goHome} />
