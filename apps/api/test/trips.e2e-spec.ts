@@ -14,6 +14,7 @@ import { eq } from 'drizzle-orm';
 import request from 'supertest';
 
 import { towRequests, users } from '../src/db/schema.js';
+import { approveDriverByToken } from './support/approve-driver.js';
 import { createTestApp } from './support/test-app.js';
 import { connectTestDatabase } from './support/test-database.js';
 
@@ -84,6 +85,7 @@ describe('trip stages, completion and cancel rules (e2e)', () => {
           plateNumber: '1 TUN 2',
         })
         .expect(200);
+      await approveDriverByToken(database.db, token);
     }
     await goOnline(dan);
     await goOnline(eve, ariana);

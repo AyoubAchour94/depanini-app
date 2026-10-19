@@ -13,6 +13,7 @@ import { deviceTokens, users } from '../src/db/schema.js';
 import { TRIP_STAGE_BODIES } from '../src/push/messages.js';
 import { NotificationsService } from '../src/push/notifications.service.js';
 import type { PushSender } from '../src/push/push-sender.js';
+import { approveDriverByToken } from './support/approve-driver.js';
 import { createTestApp } from './support/test-app.js';
 import { connectTestDatabase } from './support/test-database.js';
 import { connectAs, type TestSocket } from './support/ws-client.js';
@@ -113,6 +114,7 @@ describe('push notifications (e2e)', () => {
           plateNumber: '1 TU 2',
         })
         .expect(200);
+      await approveDriverByToken(database.db, token);
       await api('put', '/driver/presence', token)
         .send({ online: true, location: here })
         .expect(200);
@@ -523,6 +525,7 @@ describe('push notifications (e2e)', () => {
           plateNumber: '1 TU 2',
         })
         .expect(200);
+      await approveDriverByToken(database.db, dan);
       await call('put', '/driver/presence', dan)
         .send({ online: true, location: laMarsa })
         .expect(200);

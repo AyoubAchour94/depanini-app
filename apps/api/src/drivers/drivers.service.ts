@@ -18,6 +18,7 @@ import { ratingColumns, toRatingSummary } from '../ratings/rating-summary.js';
 import { CLOCK, type Clock } from '../tow-requests/clock.js';
 import { expireStaleOffers, expireStaleRequests } from '../tow-requests/expiry.js';
 import { TripEvents } from '../realtime/trip-events.service.js';
+import { assertDriverApproved } from '../verification/driver-approval.js';
 import { point, selectTowRequests, toTowRequest } from '../tow-requests/tow-request-rows.js';
 import { decodeCursor, encodeCursor } from '../tow-requests/tow-requests.service.js';
 
@@ -69,6 +70,7 @@ export class DriversService {
     driverId: string,
     { online, location }: DriverPresenceInput,
   ): Promise<DriverPresence> {
+    if (online) await assertDriverApproved(this.db, driverId);
     const values = {
       online,
       ...(location ? { location: point(location) as never, locationUpdatedAt: this.now() } : {}),
@@ -160,6 +162,7 @@ export class DriversService {
 
   /** Open requests within `NEARBY_RADIUS_M` of the driver, nearest first. */
   async nearby(driverId: string): Promise<NearbyRequest[]> {
+    await assertDriverApproved(this.db, driverId);
     const now = this.now();
     const [row] = await this.db
       .select(presenceColumns)

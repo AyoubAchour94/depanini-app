@@ -2,11 +2,11 @@ import { NEARBY_RADIUS_M, PRESENCE_STALE_MS } from '@depanini/shared';
 import { and, eq, gt, inArray, ne, sql } from 'drizzle-orm';
 
 import type { Database } from '../db/database.module.js';
-import { driverPresence, towRequests } from '../db/schema.js';
+import { driverPresence, driverProfiles, towRequests } from '../db/schema.js';
 
 /**
  * Which online drivers with a fresh location are within `NEARBY_RADIUS_M` of each of these
- * requests' pickups, bar the request's own customer: the same test as
+ * requests' pickups, bar the request's own customer, and only approved drivers: the same test as
  * `GET /driver/requests/nearby`, reversed. One row per driver and request.
  */
 export async function driversNearRequests(
@@ -22,8 +22,10 @@ export async function driversNearRequests(
       towRequests,
       sql`ST_DWithin(${towRequests.pickup}, ${driverPresence.location}, ${NEARBY_RADIUS_M}::float8)`,
     )
+    .innerJoin(driverProfiles, eq(driverProfiles.userId, driverPresence.userId))
     .where(
       and(
+        eq(driverProfiles.verificationStatus, 'approved'),
         inArray(towRequests.id, requestIds),
         eq(driverPresence.online, true),
         gt(driverPresence.locationUpdatedAt, new Date(now.getTime() - PRESENCE_STALE_MS)),

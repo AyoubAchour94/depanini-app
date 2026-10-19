@@ -15,6 +15,7 @@ import { PUSH_SENDER, type PushSender } from '../../src/push/push-sender.js';
 import type { Env } from '../../src/config/env.js';
 import { CLOCK } from '../../src/tow-requests/clock.js';
 import { type Database, DB } from '../../src/db/database.module.js';
+import { registerMultipart } from '../../src/files/multipart.js';
 import { TEST_DATABASE_URL } from './test-database.js';
 
 /** Accepts `token-<uid>` (with an optional `:<email>`) as a valid ID token, valid for an hour. */
@@ -78,6 +79,7 @@ export async function createTestApp(
 
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
   app.useWebSocketAdapter(new WsAdapter(app));
+  await registerMultipart(app);
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
   return app;

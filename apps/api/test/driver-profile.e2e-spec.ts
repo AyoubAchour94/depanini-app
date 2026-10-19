@@ -40,9 +40,20 @@ describe('PUT /me/driver-profile (e2e)', () => {
     truckType: 'flatbed',
     plateNumber: '123 TU 4567',
   };
+  const saved = { ...profile, verificationStatus: 'unsubmitted' };
 
   it('rejects a request without a token', async () => {
     await putDriverProfile(profile).expect(401);
+  });
+
+  it('ignores a verification status sent by the client', async () => {
+    await putDriverProfile({ ...profile, verificationStatus: 'approved' }, sami).expect(200);
+    const [row] = await database.db.select().from(driverProfiles);
+    expect(row?.verificationStatus).toBe('unsubmitted');
+    await putDriverProfile({ ...profile, verificationStatus: 'approved' }, sami).expect(200);
+    expect((await database.db.select().from(driverProfiles))[0]?.verificationStatus).toBe(
+      'unsubmitted',
+    );
   });
 
   it('creates the profile and returns it normalized', async () => {
@@ -56,7 +67,7 @@ describe('PUT /me/driver-profile (e2e)', () => {
       sami,
     ).expect(200);
 
-    expect(driverProfileSchema.parse(res.body)).toEqual(profile);
+    expect(driverProfileSchema.parse(res.body)).toEqual(saved);
     expect(await database.db.select().from(driverProfiles)).toHaveLength(1);
   });
 
@@ -64,7 +75,7 @@ describe('PUT /me/driver-profile (e2e)', () => {
     await putDriverProfile(profile, sami).expect(200);
 
     const me = meResponseSchema.parse((await getMe(sami).expect(200)).body);
-    expect(me.driverProfile).toEqual(profile);
+    expect(me.driverProfile).toEqual(saved);
     expect(me.customerProfile).toBeNull();
   });
 
@@ -73,7 +84,7 @@ describe('PUT /me/driver-profile (e2e)', () => {
     const updated = { ...profile, truckType: 'wheel_lift', plateNumber: 'RS 98765' };
     const res = await putDriverProfile(updated, sami).expect(200);
 
-    expect(res.body).toEqual(updated);
+    expect(res.body).toEqual({ ...updated, verificationStatus: 'unsubmitted' });
     expect(await database.db.select().from(driverProfiles)).toHaveLength(1);
   });
 
@@ -87,7 +98,7 @@ describe('PUT /me/driver-profile (e2e)', () => {
 
     const me = meResponseSchema.parse((await getMe(sami).expect(200)).body);
     expect(me.customerProfile).toEqual({ fullName: 'Sami', phone: '+21698123456' });
-    expect(me.driverProfile).toEqual(profile);
+    expect(me.driverProfile).toEqual(saved);
   });
 
   it.each([

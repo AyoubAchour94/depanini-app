@@ -4,6 +4,9 @@
  */
 import type {
   CancelledBy,
+  DocumentKind,
+  UploadContentType,
+  VerificationStatus,
   DevicePlatform,
   RatingTag,
   OfferStatus,
@@ -59,7 +62,7 @@ export const customerProfiles = pgTable('customer_profiles', {
 
 /**
  * What a driver gave before using the driver app. At most one per account.
- * Drivers are self-serve for now; an approval status would be a column here.
+ * Only an `approved` driver can go online (see `verificationStatus`).
  */
 export const driverProfiles = pgTable('driver_profiles', {
   userId: uuid('user_id')
@@ -72,8 +75,59 @@ export const driverProfiles = pgTable('driver_profiles', {
   truckType: text('truck_type').$type<TruckType>().notNull(),
   /** Trimmed and upper-cased; not checked against a pattern. */
   plateNumber: text('plate_number').notNull(),
+  /** The document check; checked by the API (`VERIFICATION_STATUSES`). */
+  verificationStatus: text('verification_status')
+    .$type<VerificationStatus>()
+    .notNull()
+    .default('unsubmitted'),
+  /** Why the last submission was rejected; set while `rejected`. */
+  rejectionReason: text('rejection_reason'),
+  submittedAt: timestamp('submitted_at', { withTimezone: true }),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+  /** The admin who approved or rejected; null if none did, or after their account is deleted. */
+  reviewedBy: uuid('reviewed_by').references(() => users.id, { onDelete: 'set null' }),
   ...timestamps,
 });
+
+/** A bytea column: the `pg` driver reads and writes it as a Buffer. */
+const bytea = customType<{ data: Buffer }>({ dataType: () => 'bytea' });
+
+/** An uploaded file, stored in Postgres behind the `FileStore` interface. */
+export const files = pgTable('files', {
+  id: uuid().primaryKey().defaultRandom(),
+  ownerUserId: uuid('owner_user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  contentType: text('content_type').$type<UploadContentType>().notNull(),
+  sizeBytes: integer('size_bytes').notNull(),
+  /** Hex sha256 of `data`. */
+  sha256: text().notNull(),
+  data: bytea().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** One page of one of a driver's documents; the bytes are the `files` row. */
+export const driverDocuments = pgTable(
+  'driver_documents',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    driverUserId: uuid('driver_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** Checked by the API (`DOCUMENT_KINDS`). */
+    kind: text().$type<DocumentKind>().notNull(),
+    fileId: uuid('file_id')
+      .notNull()
+      .references(() => files.id, { onDelete: 'cascade' }),
+    /** 1-based page number within the kind. */
+    page: smallint().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('driver_documents_page_idx').on(table.driverUserId, table.kind, table.page),
+    uniqueIndex('driver_documents_file_idx').on(table.fileId),
+  ],
+);
 
 /**
  * A PostGIS `geography(Point, 4326)` column. Written and read through SQL

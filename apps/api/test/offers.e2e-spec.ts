@@ -18,6 +18,7 @@ import request from 'supertest';
 import { z } from 'zod';
 
 import { towOffers, towRequests, users } from '../src/db/schema.js';
+import { approveDriverByToken } from './support/approve-driver.js';
 import { createTestApp } from './support/test-app.js';
 import { connectTestDatabase } from './support/test-database.js';
 
@@ -66,10 +67,12 @@ describe('offers, accept/decline and driver job (e2e)', () => {
   };
   const makeCustomer = (token: string, fullName = 'Alice Customer') =>
     api('put', '/me/customer-profile', token).send({ fullName, phone: '+21698111111' }).expect(200);
-  const makeDriver = (token: string, fullName = 'Dan Driver', truckType = 'flatbed') =>
-    api('put', '/me/driver-profile', token)
+  const makeDriver = async (token: string, fullName = 'Dan Driver', truckType = 'flatbed') => {
+    await api('put', '/me/driver-profile', token)
       .send({ fullName, phone: '+21698222222', truckType, plateNumber: '123 tun 4567' })
       .expect(200);
+    await approveDriverByToken(database.db, token);
+  };
   const goOnline = (token: string, location: { latitude: number; longitude: number } = laMarsa) =>
     api('put', '/driver/presence', token).send({ online: true, location }).expect(200);
 

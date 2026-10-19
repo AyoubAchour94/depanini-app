@@ -10,6 +10,7 @@ import { eq, sql } from 'drizzle-orm';
 import request from 'supertest';
 
 import { payments, towRequests, users } from '../src/db/schema.js';
+import { approveDriverByToken } from './support/approve-driver.js';
 import { createTestApp } from './support/test-app.js';
 import { connectTestDatabase } from './support/test-database.js';
 
@@ -71,6 +72,7 @@ describe('driver jobs history and earnings (e2e)', () => {
           plateNumber: `${name} 1`,
         })
         .expect(200);
+      await approveDriverByToken(database.db, token);
     }
   };
 

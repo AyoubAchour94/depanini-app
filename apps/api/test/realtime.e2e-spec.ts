@@ -14,6 +14,7 @@ import request from 'supertest';
 
 import { users } from '../src/db/schema.js';
 import { RealtimeService } from '../src/realtime/realtime.service.js';
+import { approveDriverByToken } from './support/approve-driver.js';
 import { createTestApp, fakeVerifier } from './support/test-app.js';
 import { connectTestDatabase } from './support/test-database.js';
 import { connectAs, openSocket, type TestSocket } from './support/ws-client.js';
@@ -103,6 +104,7 @@ describe('realtime /ws (e2e)', () => {
           plateNumber: '1 TU 2',
         })
         .expect(200);
+      await approveDriverByToken(database.db, token);
       await goOnline(token, token === dan ? laMarsa : ariana);
     }
   };
@@ -641,6 +643,7 @@ describe('realtime /ws (e2e)', () => {
           plateNumber: '1 TU 3',
         })
         .expect(200);
+      await approveDriverByToken(database.db, alice);
       await goOnline(alice, ariana);
       const [inRange, far, offline, customer] = await Promise.all([
         connect(dan),
