@@ -1,34 +1,89 @@
-import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { type ComponentProps, type ReactNode, useContext } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 import { env } from '@/config/env';
 import { ApiHealthBadge } from '@/features/status/ApiHealthBadge';
 import { FirebaseBanner } from '@/features/status/FirebaseBanner';
 import { useTheme } from '@/theme/theme';
+import { MapSheet } from '@/ui/MapSheet';
+import { Text } from '@/ui/Text';
 
 import { CenterPin } from './CenterPin';
+import type { TunisMapProps } from './map-props';
 import { TunisMap } from './TunisMap';
 
+type MapOptions = Partial<Omit<TunisMapProps, 'accessToken'>>;
+
+interface MapScreenProps extends MapOptions {
+  /** Drawn over the map and the sheet's siblings (absolutely positioned things, e.g. a locate button). */
+  children?: ReactNode;
+  /** Floating control at the start of the top row, usually a `RoundButton` (menu or back). */
+  topStart?: ReactNode;
+  /** Status pill next to it (a `Pill`: "18.4 km · ~32 min", "Live"). */
+  pill?: ReactNode;
+  /** Floating control at the end of the top row. */
+  topEnd?: ReactNode;
+  /**
+   * The draggable bottom sheet: the `MapSheet` props (`children`, `footer`,
+   * `snapPoints`, `index`, ...).
+   */
+  sheet?: ComponentProps<typeof MapSheet>;
+  /** The fixed pin over the middle of the map. Default: on, unless there are `markers`. */
+  centerPin?: boolean;
+}
+
 /**
- * Home screen map, shared by both variants. Also proves the toolchain end to
- * end: Mapbox renders, the app reaches the API, and Firebase is initialized.
- * `children` are drawn over the map (the customer home puts its action there).
+ * The map-first shell shared by both variants: a full-bleed map (light or
+ * dark with the theme), a top row of floating controls and a status pill, and
+ * a draggable bottom sheet. It also proves the toolchain end to end: Mapbox
+ * renders, the app reaches the API, and Firebase is initialized.
+ * `children` are drawn over everything else.
  */
-export function MapScreen({ children }: { children?: ReactNode }) {
+export function MapScreen({
+  children,
+  topStart,
+  pill,
+  topEnd,
+  sheet,
+  centerPin,
+  ...mapOptions
+}: MapScreenProps) {
+  const t = useTheme();
+  const insets = useContext(SafeAreaInsetsContext);
+  const hasTopRow = topStart || pill || topEnd;
+  const showPin = centerPin ?? !mapOptions.markers?.length;
+
   return (
     <View style={styles.fill}>
       {env.mapboxAccessToken ? (
         <>
-          <TunisMap accessToken={env.mapboxAccessToken} />
-          <CenterPin />
+          <TunisMap accessToken={env.mapboxAccessToken} {...mapOptions} />
+          {showPin ? <CenterPin /> : null}
         </>
       ) : (
         <MissingTokenView />
       )}
-      <View style={styles.overlay} pointerEvents="box-none">
+      <View
+        style={[
+          styles.overlay,
+          { top: (insets?.top ?? 0) + t.space[3], paddingHorizontal: t.space[4], gap: t.space[2] },
+        ]}
+        pointerEvents="box-none"
+      >
+        {hasTopRow ? (
+          <View style={[styles.row, { gap: t.space[3] }]} pointerEvents="box-none">
+            {topStart}
+            <View style={styles.pill} pointerEvents="box-none">
+              {pill}
+            </View>
+            {topEnd}
+          </View>
+        ) : null}
         <ApiHealthBadge />
         <FirebaseBanner />
       </View>
+      {sheet ? <MapSheet {...sheet} /> : null}
       {children}
     </View>
   );
@@ -36,11 +91,11 @@ export function MapScreen({ children }: { children?: ReactNode }) {
 
 /** Explains a blank map instead of silently rendering nothing. */
 export function MissingTokenView() {
-  const theme = useTheme();
+  const t = useTheme();
   return (
-    <View style={[styles.fill, styles.center, { backgroundColor: theme.background }]}>
-      <Text style={[styles.title, { color: theme.text }]}>Mapbox token missing</Text>
-      <Text style={[styles.body, { color: theme.textMuted }]}>
+    <View style={[styles.fill, styles.center, { backgroundColor: t.color.background }]}>
+      <Text variant="title">Mapbox token missing</Text>
+      <Text tone="muted" style={styles.body}>
         Set EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN in apps/mobile/.env
       </Text>
     </View>
@@ -50,7 +105,8 @@ export function MissingTokenView() {
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   center: { alignItems: 'center', justifyContent: 'center', padding: 24 },
-  title: { fontSize: 20, fontWeight: '600', marginBottom: 8 },
-  body: { fontSize: 14, textAlign: 'center' },
-  overlay: { position: 'absolute', top: 12, left: 12, right: 12, gap: 8, alignItems: 'flex-start' },
+  body: { textAlign: 'center', marginTop: 8 },
+  overlay: { position: 'absolute', start: 0, end: 0, alignItems: 'flex-start' },
+  row: { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch' },
+  pill: { flex: 1, alignItems: 'flex-start' },
 });

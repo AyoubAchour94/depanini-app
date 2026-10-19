@@ -8,6 +8,11 @@ import { TunisMap } from './TunisMap.web';
 
 jest.mock('mapbox-gl/dist/mapbox-gl.css', () => ({}), { virtual: true });
 
+let mockScheme: 'light' | 'dark' = 'light';
+jest.mock('@/theme/theme', () => ({
+  useTheme: () => jest.requireActual('@/theme/tokens').buildTheme(mockScheme, 'user'),
+}));
+
 interface Root {
   render: (element: ReturnType<typeof createElement>) => void;
   unmount: () => void;
@@ -17,6 +22,8 @@ const mockMaps: MockMap[] = [];
 const mockMarkers: MockMarker[] = [];
 
 interface MockMap {
+  options: { style: string };
+  setStyle: jest.Mock;
   jumpTo: jest.Mock;
   fitBounds: jest.Mock;
   remove: jest.Mock;
@@ -27,11 +34,14 @@ interface MockMarker {
   addTo: jest.Mock;
   remove: jest.Mock;
   lngLat?: [number, number];
+  getElement: () => HTMLElement;
 }
 
 jest.mock('mapbox-gl', () => {
   class Map {
     handlers: Record<string, () => void> = {};
+    options: { style: string };
+    setStyle = jest.fn();
     jumpTo = jest.fn();
     fitBounds = jest.fn();
     remove = jest.fn();
@@ -39,7 +49,8 @@ jest.mock('mapbox-gl', () => {
     on = (event: string, handler: () => void) => {
       this.handlers[event] = handler;
     };
-    constructor() {
+    constructor(options: { style: string }) {
+      this.options = options;
       mockMaps.push(this as unknown as MockMap);
     }
   }
@@ -94,6 +105,7 @@ describe('TunisMap (web)', () => {
   }
 
   beforeEach(() => {
+    mockScheme = 'light';
     mockMaps.length = 0;
     mockMarkers.length = 0;
     root = createRoot(document.createElement('div'));
@@ -101,6 +113,38 @@ describe('TunisMap (web)', () => {
 
   afterEach(() => {
     act(() => root.unmount());
+  });
+
+  it('starts on the style of the theme', () => {
+    mockScheme = 'dark';
+    render({});
+
+    expect(mockMaps[0]!.options.style).toBe('mapbox://styles/mapbox/dark-v11');
+  });
+
+  it('restyles the same map when the theme changes, without recreating it or its markers', () => {
+    render({ markers: [pickup] });
+    expect(mockMaps[0]!.setStyle).not.toHaveBeenCalled();
+
+    mockScheme = 'dark';
+    render({ markers: [pickup] });
+
+    expect(mockMaps).toHaveLength(1);
+    expect(mockMaps[0]!.setStyle).toHaveBeenCalledTimes(1);
+    expect(mockMaps[0]!.setStyle).toHaveBeenCalledWith('mapbox://styles/mapbox/dark-v11');
+    expect(mockMaps[0]!.remove).not.toHaveBeenCalled();
+    expect(mockMarkers).toHaveLength(1);
+    expect(mockMarkers[0]!.remove).not.toHaveBeenCalled();
+  });
+
+  it('colours markers from the map tokens', () => {
+    render({ markers: [pickup] });
+    const light = mockMarkers[0]!.getElement().style.backgroundColor;
+
+    mockScheme = 'dark';
+    render({ markers: [pickup] });
+
+    expect(mockMarkers[0]!.getElement().style.backgroundColor).not.toBe(light);
   });
 
   it('draws no markers and never fits the camera without markers', () => {

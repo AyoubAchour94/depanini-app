@@ -6,7 +6,8 @@ import { useEffect, useRef } from 'react';
 
 import { useTheme } from '@/theme/theme';
 
-import { markerColor } from './marker-colors';
+import { mapStyleUrl } from './map-style';
+import { markerColors } from './marker-colors';
 import { FIT_MAX_ZOOM, FIT_PADDING, markerIdsKey, type TunisMapProps } from './map-props';
 
 const DEFAULT_ZOOM = 14;
@@ -19,8 +20,8 @@ function createMarkerElement(): HTMLDivElement {
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: '50%',
-    border: '3px solid #FFFFFF',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
+    borderStyle: 'solid',
+    borderWidth: '3px',
   });
   return el;
 }
@@ -47,13 +48,15 @@ export function TunisMap({
     onChange.current = onCenterChange;
   });
   const initialCenter = useRef(center);
+  // The map is created once; a later theme change restyles it in place (see below).
+  const scheme = useRef(theme.scheme);
 
   useEffect(() => {
     if (!container.current) return;
     const instance = new mapboxgl.Map({
       accessToken,
       container: container.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
+      style: mapStyleUrl(scheme.current),
       center: [initialCenter.current.longitude, initialCenter.current.latitude],
       zoom: DEFAULT_ZOOM,
     });
@@ -70,6 +73,15 @@ export function TunisMap({
       instance.remove();
     };
   }, [accessToken]);
+
+  // Switch the style in place: same map, same markers, no remount.
+  const appliedScheme = useRef(theme.scheme);
+  useEffect(() => {
+    scheme.current = theme.scheme;
+    if (appliedScheme.current === theme.scheme) return;
+    appliedScheme.current = theme.scheme;
+    map.current?.setStyle(mapStyleUrl(theme.scheme));
+  }, [theme.scheme]);
 
   useEffect(() => {
     map.current?.jumpTo({ center: [center.longitude, center.latitude] });
@@ -98,7 +110,11 @@ export function TunisMap({
       const size = kind === 'truck' ? 34 : 24;
       element.style.width = `${size}px`;
       element.style.height = `${size}px`;
-      element.style.backgroundColor = markerColor(kind, theme);
+      const colors = markerColors(kind, theme);
+      element.style.backgroundColor = colors.fill;
+      element.style.borderColor = colors.ring;
+      element.style.color = colors.glyph;
+      element.style.boxShadow = theme.shadow.float;
       element.textContent = kind === 'truck' ? '🚚' : '';
       marker.setLngLat([coordinate.longitude, coordinate.latitude]);
     }

@@ -5,7 +5,8 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '@/theme/theme';
 
-import { markerColor } from './marker-colors';
+import { mapStyleUrl } from './map-style';
+import { markerColors } from './marker-colors';
 import { FIT_MAX_ZOOM, FIT_PADDING, markerIdsKey, type TunisMapProps } from './map-props';
 
 const DEFAULT_ZOOM = 14;
@@ -57,7 +58,7 @@ export function TunisMap({
   return (
     <MapView
       style={StyleSheet.absoluteFill}
-      styleURL={Mapbox.StyleURL.Street}
+      styleURL={mapStyleUrl(theme.scheme)}
       onMapIdle={(state) => {
         // Mapbox reports [longitude, latitude].
         const [longitude, latitude] = state.properties.center;
@@ -72,20 +73,27 @@ export function TunisMap({
         zoomLevel={DEFAULT_ZOOM}
         animationMode="none"
       />
-      {(markers ?? []).map(({ id, kind, coordinate }) => (
-        <MarkerView key={id} coordinate={[coordinate.longitude, coordinate.latitude]}>
-          <View
-            testID={`marker-${id}`}
-            style={[
-              styles.marker,
-              kind === 'truck' && styles.truck,
-              { backgroundColor: markerColor(kind, theme) },
-            ]}
-          >
-            {kind === 'truck' ? <Text>🚚</Text> : null}
-          </View>
-        </MarkerView>
-      ))}
+      {(markers ?? []).map(({ id, kind, coordinate }) => {
+        const colors = markerColors(kind, theme);
+        return (
+          <MarkerView key={id} coordinate={[coordinate.longitude, coordinate.latitude]}>
+            <View
+              testID={`marker-${id}`}
+              style={[
+                styles.marker,
+                kind === 'truck' && styles.truck,
+                {
+                  backgroundColor: colors.fill,
+                  borderColor: colors.ring,
+                  boxShadow: theme.shadow.float,
+                },
+              ]}
+            >
+              {kind === 'truck' ? <Text style={{ color: colors.glyph }}>🚚</Text> : null}
+            </View>
+          </MarkerView>
+        );
+      })}
     </MapView>
   );
 }
@@ -96,7 +104,6 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 3,
-    borderColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
