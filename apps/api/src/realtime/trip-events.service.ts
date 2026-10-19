@@ -12,6 +12,7 @@ import {
   toTowRequest,
 } from '../tow-requests/tow-request-rows.js';
 import { NotificationsService } from '../push/notifications.service.js';
+import type { OfferEvent, RequestEvent } from '../push/push-event.js';
 import { driversNearRequests } from './nearby-drivers.js';
 import { RealtimeService } from './realtime.service.js';
 
@@ -39,8 +40,9 @@ export class TripEvents {
   /**
    * `request.updated` to each request's customer (as on `GET /tow-requests/active`) and
    * its assigned driver (the job while assigned, as on `GET /driver/job`; else the request).
+   * `event` is what the caller just did, for the push; `null` when nothing is to be pushed.
    */
-  async requestsUpdated(ids: string[]): Promise<void> {
+  async requestsUpdated(ids: string[], event: RequestEvent | null): Promise<void> {
     await this.bestEffort('request.updated', async () => {
       if (ids.length === 0) return;
       const now = this.now();
@@ -77,11 +79,14 @@ export class TripEvents {
         });
       }
     });
-    this.notifications.requestsChanged(ids);
+    this.notifications.requestsChanged(ids, event);
   }
 
-  /** `offer.updated` to each offer's driver (the offer) and its request's customer (with the driver). */
-  async offersUpdated(ids: string[]): Promise<void> {
+  /**
+   * `offer.updated` to each offer's driver (the offer) and its request's customer (with the driver).
+   * `event` is what the caller just did to them, for the push.
+   */
+  async offersUpdated(ids: string[], event: OfferEvent): Promise<void> {
     await this.bestEffort('offer.updated', async () => {
       if (ids.length === 0) return;
       const rows = await this.db
@@ -99,7 +104,7 @@ export class TripEvents {
         this.realtime.send(row.customerId, { type: 'offer.updated', offer: toCustomerOffer(row) });
       }
     });
-    this.notifications.offersChanged(ids);
+    this.notifications.offersChanged(ids, event);
   }
 
   /**
@@ -107,7 +112,7 @@ export class TripEvents {
    * they are not connected, and over `/ws` the apps notice the expiry on their own clock.
    */
   async offersExpired(ids: string[]): Promise<void> {
-    this.notifications.offersChanged(ids);
+    this.notifications.offersChanged(ids, 'expired');
   }
 
   /**

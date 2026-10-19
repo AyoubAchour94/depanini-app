@@ -20,20 +20,26 @@ tokens. A token the push service reports as dead (not registered, invalid) is de
 ## Who is pushed, and when
 
 `TripEvents` hands every after-commit change to `NotificationsService` (so there is one
-hook point, and the `/ws` event and the push can not disagree). The service reads the rows
-back and decides from their state:
+hook point). The caller passes the **event** it just committed (a stage change with its stage,
+a cancel with who cancelled, an offer accepted, declined, ...), and the push is built from that
+event, never from the row's state at send time, so two quick changes are two pushes in the right
+order. Only the recipients (customer, assigned driver, offer's driver) and their tokens are read
+back. The `/ws` events still read the latest row. Pushes about the same request (offers: the
+same offer) are sent one after another, in the order the events happened; different requests do not
+wait for each other. A send that gets no answer from the push service in 10 s is logged as a warning
+and given up on (its tokens are kept), so one hung call holds back only that request's next push.
 
-| Kind               | Recipient (app)    | When                                                                                                            |
-| ------------------ | ------------------ | --------------------------------------------------------------------------------------------------------------- |
-| `nearby_request`   | drivers (`driver`) | a request is created, to online drivers with a fresh location in range, not its customer; only while it is open |
-| `offer_received`   | customer (`user`)  | a driver offers                                                                                                 |
-| `offer_accepted`   | driver             | the customer accepts their offer                                                                                |
-| `offer_rejected`   | driver             | the customer declines the offer, accepts another, or cancels the request                                        |
-| `offer_expired`    | driver             | the offer lapsed (marked lazily, on the next read)                                                              |
-| `trip_stage`       | customer           | the driver is en route, arrived, or towing                                                                      |
-| `trip_completed`   | customer           | the driver completed the trip                                                                                   |
-| `payment_answered` | driver             | the customer confirmed or disputed the payment                                                                  |
-| `trip_cancelled`   | driver / customer  | the customer cancelled an assigned trip / the driver did (also when their account is deleted)                   |
+| Kind               | Recipient (app)    | When                                                                                                                                                                                                                                                     |
+| ------------------ | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `nearby_request`   | drivers (`driver`) | a request is created, to online drivers with a fresh location in range, not its customer; only while it is open                                                                                                                                          |
+| `offer_received`   | customer (`user`)  | a driver offers                                                                                                                                                                                                                                          |
+| `offer_accepted`   | driver             | the customer accepts their offer                                                                                                                                                                                                                         |
+| `offer_rejected`   | driver             | the customer declines the offer, or accepts another                                                                                                                                                                                                      |
+| `offer_expired`    | driver             | the offer lapsed (marked lazily, on the next read)                                                                                                                                                                                                       |
+| `trip_stage`       | customer           | the driver is en route, arrived, or towing                                                                                                                                                                                                               |
+| `trip_completed`   | customer           | the driver completed the trip                                                                                                                                                                                                                            |
+| `payment_answered` | driver             | the customer confirmed or disputed the payment                                                                                                                                                                                                           |
+| `trip_cancelled`   | driver / customer  | the customer cancelled an assigned trip / the driver did (also when their account is deleted). Also to a driver whose offer was pending when the customer cancelled the open request, with `offerId` and the body "The customer cancelled this request." |
 
 Rules:
 
@@ -43,8 +49,9 @@ Rules:
 - **Collapse keys.** `offer:<requestId>` for `nearby_request` and `offer_*`, `trip:<requestId>` for
   the rest, so a burst of offers is one notification on the device.
 - **Best effort, fire and forget.** The push is started after the commit and not awaited: the request
-  does not wait for the provider, and a failure is logged and never fails it. Tests (and shutdown) can
-  await `NotificationsService.flush()`; the e2e flow polls the inbox instead.
+  does not wait for the provider, and a failure is logged and never fails it. Tests can await
+  `NotificationsService.flush()`; on shutdown the service flushes, waiting at most 5 s; the e2e flow
+  polls the inbox instead.
 - Titles and bodies are short English strings in `push/messages.ts` (localized in Phase 9).
 
 ## Providers
@@ -61,7 +68,7 @@ Rules:
 With `PUSH_INBOX=1`, `NODE_ENV` not `production` and the `log` sender, the API serves
 `GET /dev/push-inbox?userId=<id>` (the user's pushes, oldest first, each with the `appVariant` of the
 token that got it) and `DELETE /dev/push-inbox` (clears it). It has no sign-in. In any other
-configuration it answers `404`, as an unknown route does. `pnpm e2e:flow` uses it and skips its push
+configuration it answers `404` with the same body as an unknown route (`Cannot <METHOD> <url>`). `pnpm e2e:flow` uses it and skips its push
 checks when it gets a `404`.
 
 ### Switching to FCM

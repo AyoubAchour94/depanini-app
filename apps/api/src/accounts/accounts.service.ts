@@ -78,7 +78,7 @@ export class AccountsService {
         if (!isDeadlock(error) || attempt === DELETE_ATTEMPTS) throw error;
         continue;
       }
-      await this.events.requestsUpdated(cancelled);
+      await this.events.requestsUpdated(cancelled, { type: 'cancelled', cancelledBy: 'driver' });
       return;
     }
   }

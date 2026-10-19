@@ -217,7 +217,7 @@ export class TowRequestsService {
   async cancel(accountId: string, id: string, { reason }: CancelInput = {}): Promise<TowRequest> {
     await this.expireStale(accountId);
     const now = this.now();
-    const { cancelled, rejected, wasOpen } = await this.db.transaction(async (tx) => {
+    const { cancelled, rejected, wasOpen, byCustomer } = await this.db.transaction(async (tx) => {
       // Locks out a concurrent accept, so a request is never both assigned and cancelled.
       const [row] = await tx
         .select({
@@ -270,10 +270,14 @@ export class TowRequestsService {
         cancelled: updated!,
         rejected: rejected.map((offer) => offer.id),
         wasOpen: !assigned,
+        byCustomer,
       };
     });
-    await this.events.requestsUpdated([id]);
-    await this.events.offersUpdated(rejected);
+    await this.events.requestsUpdated([id], {
+      type: 'cancelled',
+      cancelledBy: byCustomer ? 'customer' : 'driver',
+    });
+    await this.events.offersUpdated(rejected, byCustomer ? 'request_cancelled' : 'rejected');
     if (wasOpen) await this.events.nearbyChanged([id]);
     return toTowRequest(cancelled);
   }
