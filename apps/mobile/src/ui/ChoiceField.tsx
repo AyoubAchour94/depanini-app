@@ -47,7 +47,11 @@ export function ChoiceField<T extends string>({
                 {
                   borderRadius: t.radius.md,
                   backgroundColor: selected ? t.color.brandTint : t.color.surface2,
-                  borderColor: error ? t.color.danger : selected ? t.color.brand : 'transparent',
+                  borderColor: error
+                    ? t.color.danger
+                    : selected
+                      ? t.color.brandAccent
+                      : 'transparent',
                 },
               ]}
             >

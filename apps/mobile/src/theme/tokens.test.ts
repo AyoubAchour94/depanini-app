@@ -4,13 +4,28 @@ import { contrastRatio } from './contrast';
 import { buildTheme, SCHEMES, type Colors } from './tokens';
 
 describe('buildTheme', () => {
-  it('resolves the brand colors from the design for every scheme and variant', () => {
-    const brand = (scheme: 'light' | 'dark', variant: 'user' | 'driver') =>
-      buildTheme(scheme, variant).color.brand;
-    expect(brand('light', 'user')).toBe('#1463D9');
-    expect(brand('light', 'driver')).toBe('#F5A300');
-    expect(brand('dark', 'user')).toBe('#4C8DFF');
-    expect(brand('dark', 'driver')).toBe('#FFB000');
+  it('resolves the action fill and the accent from the design for every scheme and variant', () => {
+    const c = (scheme: 'light' | 'dark', variant: 'user' | 'driver') =>
+      buildTheme(scheme, variant).color;
+    expect([c('light', 'user').brand, c('light', 'user').brandAccent]).toEqual([
+      '#1463D9',
+      '#1463D9',
+    ]);
+    expect([c('light', 'driver').brand, c('light', 'driver').brandAccent]).toEqual([
+      '#F5A300',
+      '#F5A300',
+    ]);
+    // Dark customer: a deeper fill for white text, the bright blue as the accent.
+    expect([c('dark', 'user').brand, c('dark', 'user').brandAccent]).toEqual([
+      '#2563EB',
+      '#4C8DFF',
+    ]);
+    expect([c('dark', 'driver').brand, c('dark', 'driver').onBrand]).toEqual([
+      '#FFB000',
+      '#0A0A0A',
+    ]);
+    expect(c('dark', 'user').dangerFill).toBe('#DC2626');
+    expect(c('dark', 'user').danger).toBe('#F97066');
   });
 
   it('uses the dark surfaces of the design in dark mode', () => {
@@ -57,16 +72,28 @@ describe('buildTheme', () => {
 });
 
 describe('contrast', () => {
+  const surfaces = ['background', 'surface', 'surface2'] as const;
   const pairs: [string, (c: Colors) => [string, string]][] = [
     ['text on brand', (c) => [c.onBrand, c.brand]],
-    ['text on danger', (c) => [c.onDanger, c.danger]],
-    ['text on background', (c) => [c.text, c.background]],
-    ['text on surface', (c) => [c.text, c.surface]],
-    ['text on surface2', (c) => [c.text, c.surface2]],
-    ['muted text on surface', (c) => [c.muted, c.surface]],
-    ['success text on surface', (c) => [c.successText, c.surface]],
-    ['warning text on surface', (c) => [c.warning, c.surface]],
+    ['text on danger fill', (c) => [c.onDanger, c.dangerFill]],
+    ...surfaces.flatMap((surface): [string, (c: Colors) => [string, string]][] => [
+      [`text on ${surface}`, (c) => [c.text, c[surface]]],
+      [`muted text on ${surface}`, (c) => [c.muted, c[surface]]],
+      [`brand text on ${surface}`, (c) => [c.brandText, c[surface]]],
+      [`danger text on ${surface}`, (c) => [c.danger, c[surface]]],
+      [`success text on ${surface}`, (c) => [c.successText, c[surface]]],
+      [`warning text on ${surface}`, (c) => [c.warning, c[surface]]],
+    ]),
   ];
+
+  it('keeps the bright accent legible on every dark surface', () => {
+    for (const variant of APP_VARIANTS) {
+      const c = buildTheme('dark', variant).color;
+      for (const surface of surfaces) {
+        expect(contrastRatio(c.brandAccent, c[surface])).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
 
   for (const scheme of SCHEMES) {
     for (const variant of APP_VARIANTS) {

@@ -58,7 +58,7 @@ export function Button({
   const fills = {
     primary: { bg: t.color.brand, fg: t.color.onBrand },
     secondary: { bg: t.color.surface2, fg: t.color.text },
-    danger: { bg: t.color.danger, fg: t.color.onDanger },
+    danger: { bg: t.color.dangerFill, fg: t.color.onDanger },
     ghost: { bg: 'transparent', fg: t.color.muted },
   } as const;
   const fill = fills[kind];

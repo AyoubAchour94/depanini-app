@@ -133,6 +133,9 @@ function RootNavigator() {
         <Stack.Screen name="sign-up" options={{ title: 'Create account' }} />
         <Stack.Screen name="forgot-password" options={{ title: 'Reset password' }} />
       </Stack.Protected>
+      <Stack.Protected guard={__DEV__}>
+        <Stack.Screen name="dev/[kit]" options={{ title: 'UI kit' }} />
+      </Stack.Protected>
     </Stack>
   );
 }

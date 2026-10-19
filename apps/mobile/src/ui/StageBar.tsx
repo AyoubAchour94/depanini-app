@@ -30,7 +30,7 @@ export function StageBar({ stages, current, progress = 0 }: StageBarProps) {
           <View key={stage} style={styles.stage}>
             <View style={[styles.track, { backgroundColor: t.color.track }]}>
               <View
-                style={{ width: `${fill * 100}%`, height: 5, backgroundColor: t.color.brand }}
+                style={{ width: `${fill * 100}%`, height: 5, backgroundColor: t.color.brandAccent }}
               />
             </View>
             <Text

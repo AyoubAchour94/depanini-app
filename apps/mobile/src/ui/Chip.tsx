@@ -41,7 +41,7 @@ export function Chip({
         styles.chip,
         {
           borderRadius: t.radius.full,
-          borderColor: selected ? t.color.brand : t.color.line,
+          borderColor: selected ? t.color.brandAccent : t.color.line,
           backgroundColor: selected ? t.color.brandTint : 'transparent',
           opacity: disabled ? 0.5 : pressed ? 0.85 : 1,
         },

@@ -13,7 +13,7 @@ export interface TextProps extends RNTextProps {
 const toneColor: Record<NonNullable<TextProps['tone']>, keyof Colors> = {
   text: 'text',
   muted: 'muted',
-  brand: 'brand',
+  brand: 'brandText',
   onBrand: 'onBrand',
   success: 'successText',
   warning: 'warning',

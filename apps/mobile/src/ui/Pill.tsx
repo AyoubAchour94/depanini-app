@@ -25,7 +25,7 @@ export function Pill({ label, tone = 'neutral', icon, dot }: PillProps) {
   const t = useTheme();
   const c = t.color;
   const tinted = {
-    brand: { bg: c.brandTint, fg: c.brand },
+    brand: { bg: c.brandTint, fg: c.brandText },
     success: { bg: c.successTint, fg: c.successText },
     warning: { bg: c.warningTint, fg: c.warning },
     danger: { bg: c.dangerTint, fg: c.danger },

@@ -46,7 +46,7 @@ describe('theme setting', () => {
       </ThemeProvider>,
     );
     await waitFor(() => expect(probe()).toMatch(/true$/));
-    expect(probe()).toBe('dark:#4C8DFF:system:true');
+    expect(probe()).toBe('dark:#2563EB:system:true');
   });
 
   it('applies a forced scheme over the phone and saves it', async () => {
@@ -57,7 +57,7 @@ describe('theme setting', () => {
     );
     await waitFor(() => expect(probe()).toMatch(/true$/));
     await fireEvent.press(screen.getByTestId('pick-dark'));
-    expect(probe()).toBe('dark:#4C8DFF:dark:true');
+    expect(probe()).toBe('dark:#2563EB:dark:true');
     await waitFor(async () =>
       expect(await AsyncStorage.getItem(THEME_PREFERENCE_KEY)).toBe('dark'),
     );
@@ -70,7 +70,7 @@ describe('theme setting', () => {
         <Probe />
       </ThemeProvider>,
     );
-    await waitFor(() => expect(probe()).toBe('dark:#4C8DFF:dark:true'));
+    await waitFor(() => expect(probe()).toBe('dark:#2563EB:dark:true'));
   });
 
   it('switches back to following the phone', async () => {
@@ -93,6 +93,6 @@ describe('theme setting', () => {
   it('falls back to the phone without a provider', async () => {
     mockSystemScheme = 'dark';
     await render(<Probe />);
-    expect(probe()).toBe('dark:#4C8DFF:system:true');
+    expect(probe()).toBe('dark:#2563EB:system:true');
   });
 });

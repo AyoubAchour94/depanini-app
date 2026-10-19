@@ -46,6 +46,10 @@ export interface Colors {
   muted: string;
   /** The app colour: blue for customers, amber for drivers. */
   brand: string;
+  /** Same family as `brand`, bright enough as text or a line on `surface`s (links, selected borders, route, pins, progress). Equals `brand` in light. */
+  brandAccent: string;
+  /** Brand-coloured text on `surface`s (links, "Edit"); 4.5:1 on every surface. Amber is too light for this in light mode. */
+  brandText: string;
   /** Text and icons on top of `brand`. */
   onBrand: string;
   /** Selected chips and soft highlights. May carry alpha (dark). */
@@ -56,8 +60,11 @@ export interface Colors {
   successTint: string;
   warning: string;
   warningTint: string;
+  /** Danger as text or an icon on `surface`s. */
   danger: string;
-  /** Text on top of `danger`. */
+  /** Fill of destructive buttons. */
+  dangerFill: string;
+  /** Text on top of `dangerFill`. */
   onDanger: string;
   dangerTint: string;
   /** The dark navigation banner (driver job) and its text, border and plate colour. */
@@ -74,9 +81,15 @@ export interface Colors {
   map: MapColors;
 }
 
-interface SchemeColors extends Omit<Colors, 'brand' | 'onBrand' | 'brandTint' | 'map'> {
-  brands: Record<AppVariant, { brand: string; onBrand: string; brandTint: string }>;
-  map: (brand: string, onBrand: string) => MapColors;
+interface SchemeColors extends Omit<
+  Colors,
+  'brand' | 'brandAccent' | 'brandText' | 'onBrand' | 'brandTint' | 'map'
+> {
+  brands: Record<
+    AppVariant,
+    { brand: string; brandAccent: string; brandText: string; onBrand: string; brandTint: string }
+  >;
+  map: (accent: string) => MapColors;
 }
 
 const AVATARS = ['#0E9384', '#344054', '#7A5AF8', '#C4320A', '#1570EF', '#DD2590'] as const;
@@ -89,14 +102,17 @@ const light: SchemeColors = {
   track: '#E4E7EC',
   grab: '#D5D9DF',
   text: '#0B0F19',
-  muted: '#6B7280',
+  // Darker than the mockup's #6B7280 so muted text reaches 4.5:1 on the grey background too.
+  muted: '#656C78',
   success: '#12B76A',
   successText: '#067647',
   successTint: '#ECFDF3',
   warning: '#B54708',
   // Not in the mockups: a soft amber / red in the same family as the success tint.
   warningTint: '#FEF0C7',
-  danger: '#D92D20',
+  // Darker than the mockup's #D92D20 so danger text reaches 4.5:1 on the grey background.
+  danger: '#C42B1C',
+  dangerFill: '#C42B1C',
   onDanger: '#FFFFFF',
   dangerTint: '#FEE4E2',
   banner: '#0B0F19',
@@ -107,8 +123,20 @@ const light: SchemeColors = {
   avatars: AVATARS,
   onAvatar: '#FFFFFF',
   brands: {
-    user: { brand: '#1463D9', onBrand: '#FFFFFF', brandTint: '#E8F0FC' },
-    driver: { brand: '#F5A300', onBrand: '#0B0F19', brandTint: '#FFF4D6' },
+    user: {
+      brand: '#1463D9',
+      brandAccent: '#1463D9',
+      brandText: '#1463D9',
+      onBrand: '#FFFFFF',
+      brandTint: '#E8F0FC',
+    },
+    driver: {
+      brand: '#F5A300',
+      brandAccent: '#F5A300',
+      brandText: '#946000',
+      onBrand: '#0B0F19',
+      brandTint: '#FFF4D6',
+    },
   },
   map: (brand) => ({
     land: '#EEF0F3',
@@ -145,8 +173,9 @@ const dark: SchemeColors = {
   warning: '#FDB022',
   warningTint: 'rgba(253,176,34,.16)',
   danger: '#F97066',
-  // The mockups put white on the dark danger colour (2.7:1); dark text is the legible choice.
-  onDanger: '#0B0D10',
+  // The mockups put white on #F97066 (2.7:1): the fill is a deeper red, the light red stays for text.
+  dangerFill: '#DC2626',
+  onDanger: '#FFFFFF',
   dangerTint: 'rgba(249,112,102,.16)',
   banner: '#1F232A',
   onBanner: '#F5F6F7',
@@ -156,11 +185,23 @@ const dark: SchemeColors = {
   avatars: AVATARS,
   onAvatar: '#FFFFFF',
   brands: {
-    // The mockups put white on the dark customer blue (3.2:1); dark text reaches 4.5:1.
-    user: { brand: '#4C8DFF', onBrand: '#0A0A0A', brandTint: 'rgba(76,141,255,.16)' },
-    driver: { brand: '#FFB000', onBrand: '#0A0A0A', brandTint: 'rgba(255,176,0,.16)' },
+    // The mockups put white on #4C8DFF (3.2:1): the fill is a deeper blue, the bright blue is the accent.
+    user: {
+      brand: '#2563EB',
+      brandAccent: '#4C8DFF',
+      brandText: '#4C8DFF',
+      onBrand: '#FFFFFF',
+      brandTint: 'rgba(76,141,255,.16)',
+    },
+    driver: {
+      brand: '#FFB000',
+      brandAccent: '#FFB000',
+      brandText: '#FFB000',
+      onBrand: '#0A0A0A',
+      brandTint: 'rgba(255,176,0,.16)',
+    },
   },
-  map: (brand, onBrand) => ({
+  map: (brand) => ({
     land: '#0B0D10',
     water: '#0C1E30',
     park: '#11241A',
@@ -175,7 +216,7 @@ const dark: SchemeColors = {
     pickup: brand,
     dropoff: '#FFFFFF',
     truck: brand,
-    onTruck: onBrand,
+    onTruck: '#0A0A0A',
     truckRing: '#0B0D10',
   }),
 };
@@ -185,7 +226,7 @@ const schemes: Record<Scheme, SchemeColors> = { light, dark };
 function colorsFor(scheme: Scheme, variant: AppVariant): Colors {
   const { brands, map, ...shared } = schemes[scheme];
   const brand = brands[variant];
-  return { ...shared, ...brand, map: map(brand.brand, brand.onBrand) };
+  return { ...shared, ...brand, map: map(brand.brandAccent) };
 }
 
 /** Spacing in px, keyed by multiples of 4: `space[4]` is 16. */
