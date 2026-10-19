@@ -59,9 +59,13 @@ const driversQuerySchema = pageQuerySchema.extend({
   status: verificationStatusSchema.optional(),
 });
 const usersQuerySchema = pageQuerySchema.extend({ q: searchSchema });
+/** A calendar day, `YYYY-MM-DD` (UTC); impossible dates such as 2026-02-31 are refused. */
+const daySchema = z.iso.date().optional();
 const tripsQuerySchema = pageQuerySchema.extend({
   status: towRequestStatusSchema.optional(),
   q: searchSchema,
+  from: daySchema,
+  to: daySchema,
 });
 const queueQuerySchema = pageQuerySchema.extend({ status: reportStatusSchema.optional() });
 
@@ -132,9 +136,9 @@ export class AdminController {
   @Get('trips')
   async trips(
     @Query(new ZodValidationPipe(tripsQuerySchema))
-    { status, q, ...page }: z.output<typeof tripsQuerySchema>,
+    { status, q, from, to, ...page }: z.output<typeof tripsQuerySchema>,
   ): Promise<AdminTripPage> {
-    return this.lookups.trips(status, q, page);
+    return this.lookups.trips(status, q, { from, to }, page);
   }
 
   @Get('trips/:id')

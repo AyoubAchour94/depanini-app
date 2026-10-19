@@ -20,7 +20,7 @@ import {
   towRequests,
 } from '../db/schema.js';
 import { CLOCK, type Clock } from '../tow-requests/clock.js';
-import { type Admin, recordAdminAction } from './audit-log.js';
+import { actorEmail, type Admin, recordAdminAction } from './audit-log.js';
 import { keyset, micros, type PageQuery, toPage } from './paging.js';
 import { selectReports, toAdminReport } from './report-rows.js';
 
@@ -35,6 +35,7 @@ const disputeColumns = {
   customerName: customerProfiles.fullName,
   driverName: driverProfiles.fullName,
   resolutionNote: payments.resolutionNote,
+  resolvedByEmail: actorEmail('dispute_resolved', payments.requestId),
   disputedAt: payments.customerAnsweredAt,
   resolvedAt: payments.resolvedAt,
   sortKey: micros(disputedAt),
@@ -210,6 +211,7 @@ function toDispute(
     driverName: row.driverName,
     status: row.resolutionNote === null ? 'open' : 'resolved',
     resolutionNote: row.resolutionNote,
+    resolvedByEmail: row.resolvedByEmail,
     disputedAt: row.disputedAt?.toISOString() ?? null,
     resolvedAt: row.resolvedAt?.toISOString() ?? null,
   };

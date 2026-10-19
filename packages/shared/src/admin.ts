@@ -157,6 +157,8 @@ export const adminReportSchema = reportSchema.extend({
   reporterRole: z.enum(['customer', 'driver']),
   reporterName: z.string().nullish(),
   resolvedBy: z.uuid().nullish(),
+  /** Who resolved it, from the audit log (so it outlives their account). */
+  resolvedByEmail: z.email().nullish(),
 });
 
 export type AdminReport = z.infer<typeof adminReportSchema>;
@@ -239,6 +241,8 @@ export const adminDisputeItemSchema = z.object({
   /** Open until support writes a resolution note. */
   status: z.enum(['open', 'resolved']),
   resolutionNote: z.string().nullish(),
+  /** Who resolved it, from the audit log. */
+  resolvedByEmail: z.email().nullish(),
   disputedAt: z.iso.datetime().nullish(),
   resolvedAt: z.iso.datetime().nullish(),
 });

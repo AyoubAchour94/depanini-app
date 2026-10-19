@@ -8,7 +8,7 @@ import type {
   AdminUserPage,
   TowRequestStatus,
 } from '@depanini/shared';
-import { and, asc, eq, ilike, or, type SQL, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, ilike, lt, or, type SQL, sql } from 'drizzle-orm';
 import { alias, type PgColumn, type SelectedFields } from 'drizzle-orm/pg-core';
 import type { SelectResultFields } from 'drizzle-orm/query-builders/select.types';
 import { z } from 'zod';
@@ -201,10 +201,12 @@ export class AdminLookupsService {
   /**
    * Trips, newest first, optionally of one status. `q` is a trip id, or the start (any
    * case) of a receipt number, or of the customer's or driver's name, email or phone.
+   * `range` keeps the trips created from the start of `from` to the end of `to` (UTC days).
    */
   async trips(
     status: TowRequestStatus | undefined,
     q: string | undefined,
+    range: { from?: string; to?: string },
     { cursor, limit }: PageQuery,
   ): Promise<AdminTripPage> {
     const now = this.now();
@@ -214,6 +216,10 @@ export class AdminLookupsService {
         and(
           status ? sql`${effectiveStatus(now)} = ${status}` : undefined,
           q ? tripSearch(q) : undefined,
+          range.from
+            ? gte(towRequests.createdAt, new Date(`${range.from}T00:00:00.000Z`))
+            : undefined,
+          range.to ? lt(towRequests.createdAt, nextDay(range.to)) : undefined,
           page.after,
         ),
       )
@@ -364,6 +370,13 @@ export class AdminLookupsService {
       .leftJoin(driverUsers, eq(driverUsers.id, towRequests.assignedDriverId))
       .leftJoin(payments, eq(payments.requestId, towRequests.id));
   }
+}
+
+/** Midnight UTC after the day `YYYY-MM-DD`. */
+function nextDay(day: string): Date {
+  const date = new Date(`${day}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date;
 }
 
 /** The search of `GET /admin/trips?q=`. */

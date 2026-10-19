@@ -271,6 +271,24 @@ describe('admin: users, trips, reports and disputes (e2e)', () => {
       await api('get', '/admin/trips?status=lost', root).expect(400);
     });
 
+    it('filters by a date range (UTC days, both ends included)', async () => {
+      await setUp();
+      const ids: Record<string, string> = {};
+      for (const day of ['2026-05-30', '2026-05-31', '2026-06-01']) {
+        now = new Date(`${day}T23:30:00.000Z`);
+        ids[day] = await open(bob);
+      }
+      now = new Date('2026-06-02T00:00:00.000Z');
+      const found = async (query: string) =>
+        (await get(`/admin/trips?${query}`)).items.map((t: { id: string }) => t.id);
+      expect(await found('from=2026-05-31')).toEqual([ids['2026-06-01'], ids['2026-05-31']]);
+      expect(await found('to=2026-05-31')).toEqual([ids['2026-05-31'], ids['2026-05-30']]);
+      expect(await found('from=2026-05-31&to=2026-05-31')).toEqual([ids['2026-05-31']]);
+      expect(await found('from=2026-06-02')).toEqual([]);
+      await api('get', '/admin/trips?from=yesterday', root).expect(400);
+      await api('get', '/admin/trips?from=2026-02-31', root).expect(400);
+    });
+
     it('searches by trip id, receipt number, names, emails and phones', async () => {
       await setUp();
       const id = await disputedTrip();
@@ -415,6 +433,7 @@ describe('admin: users, trips, reports and disputes (e2e)', () => {
         status: 'resolved',
         resolutionNote: 'Refunded the difference',
         resolvedBy: await userId(root),
+        resolvedByEmail: 'root@depanini.test',
         resolvedAt: now.toISOString(),
       });
       expect(
@@ -475,6 +494,7 @@ describe('admin: users, trips, reports and disputes (e2e)', () => {
           driverName: 'Dan Driver',
           status: 'open',
           resolutionNote: null,
+          resolvedByEmail: null,
           disputedAt: expect.any(String),
           resolvedAt: null,
         },
@@ -487,6 +507,7 @@ describe('admin: users, trips, reports and disputes (e2e)', () => {
       expect(adminDisputeItemSchema.parse(res.body)).toMatchObject({
         status: 'resolved',
         resolutionNote: 'Driver confirmed the amount',
+        resolvedByEmail: 'root@depanini.test',
         resolvedAt: now.toISOString(),
       });
       expect((await get('/admin/disputes?status=open')).items).toEqual([]);
