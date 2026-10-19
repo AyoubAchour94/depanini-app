@@ -40,6 +40,9 @@ apps/
 │       ├── api/                  # API client (attaches ID token) + queries (health, me)
 │       ├── ui/                   # shared form components (TextField, ChoiceField, Button)
 │       └── features/             # one folder per feature (auth/, account/, profile/, map/, status/)
+├── admin/                      # Vite + React admin web app (driver review; more screens follow)
+│   ├── .env.example              # VITE_* template (API URL, Firebase web config, Auth emulator)
+│   └── src/                      # auth/ (sign-in, admin claim gate), api/ (client + queries), ui/, layout/, features/
 ├── api/                        # NestJS (Fastify adapter), ESM
 │   ├── src/
 │   │   ├── config/               # zod-validated env, fails fast at boot
@@ -202,6 +205,37 @@ FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 pnpm admin:grant someone@example.com 
 
 The script's safety check has unit tests: `pnpm test:scripts`.
 
+### Admin web app
+
+A separate Vite + React app for the team (`apps/admin`): it signs in with Firebase Auth
+(email/password) and only lets in accounts with the `admin` claim (see **Admin accounts**);
+anyone else sees "Not an admin" and is signed out. Screens so far: the driver review queue,
+the drivers list (status filter) and a driver page with the documents inline and
+Approve / Reject (reason required, confirm dialog).
+
+```bash
+cp apps/admin/.env.example apps/admin/.env   # defaults target the local API and the Auth emulator
+pnpm --filter @depanini/shared build
+pnpm db:up
+pnpm emulators                              # own terminal
+pnpm --filter @depanini/api start:dev       # own terminal; CORS_ORIGINS must list http://localhost:5173
+pnpm --filter @depanini/admin dev           # http://localhost:5173
+FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 pnpm admin:grant someone@example.com   # after they sign up
+```
+
+The admin has no sign-up screen: create the account in the Auth emulator UI
+(http://127.0.0.1:4000) or with a mobile/e2e sign-up, then grant it. `pnpm share admin` shares
+the app (with the API and emulator) through Cloudflare tunnels, like the mobile web apps; it is
+not part of `pnpm share both`.
+
+`pnpm e2e:admin` drives it with Playwright against a running stack (`E2E_ADMIN_URL`,
+`E2E_API_URL`, `E2E_AUTH_EMULATOR`; defaults 5173, 3000, 9099): it creates a driver with documents
+through the API, checks a non-admin is turned away, grants an admin, approves the driver in the
+browser and checks the driver can then go online.
+
+To add a screen: a `<Route>` in `src/App.tsx`, an entry in `src/layout/nav.ts`, queries next to
+`src/api/drivers.ts`, and the `@depanini/shared` schema for the response.
+
 ### Browser end-to-end test
 
 `pnpm e2e:web` drives the real screens of both web apps with Playwright
@@ -303,7 +337,7 @@ configured by `EXPO_PUBLIC_FIREBASE_WEB_CONFIG`). It calls the API at
 
 ```bash
 pnpm db:up
-pnpm share               # or: pnpm share driver | pnpm share both
+pnpm share               # or: pnpm share driver | pnpm share both | pnpm share admin
 ```
 
 Opens Cloudflare quick tunnels (needs `cloudflared`:

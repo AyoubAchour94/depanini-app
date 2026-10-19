@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Shares the local stack on public URLs so a slice can be tried from a phone
-// anywhere: `pnpm share [user|driver|both]`.
+// anywhere: `pnpm share [user|driver|both|admin]`.
 //
 // Opens Cloudflare quick tunnels (no account, random *.trycloudflare.com
 // hostnames) to the web app, the API and the Auth emulator, then starts the
@@ -8,6 +8,8 @@
 // driver apps at once (two Expo web processes, a tunnel each). Postgres must already be up
 // (`pnpm db:up`); the Auth emulator is reused when it is already running.
 // Ctrl+C stops everything this script started.
+//
+// `admin` shares the admin web app (Vite, port 5173) instead of Expo; it is not part of `both`.
 //
 // Anyone with the link can use the app, the API and the emulator until you
 // stop it. Only emulator accounts exist there, so nothing real is exposed.
@@ -142,7 +144,7 @@ process.on('SIGINT', () => {
 if (!(await isListening(PORTS.db))) fail('Postgres is not running. Start it with `pnpm db:up`.');
 for (const [label, port] of [
   ['API', PORTS.api],
-  ...apps.map((app) => [`Expo ${app.variant}`, app.port]),
+  ...apps.map((app) => [app.variant === 'admin' ? 'Admin app' : `Expo ${app.variant}`, app.port]),
 ]) {
   if (await isListening(port)) {
     fail(`Port ${port} is busy (${label} already running?). Stop it first; share starts its own.`);
@@ -178,6 +180,24 @@ start('api', 'pnpm', ['--filter', '@depanini/api', 'start:dev'], {
 });
 
 for (const app of apps) {
+  if (app.variant === 'admin') {
+    log(`starting the admin app (port ${app.port})…`);
+    start(
+      'admin',
+      'pnpm',
+      ['--filter', '@depanini/admin', 'exec', 'vite', '--port', String(app.port), '--strictPort'],
+      {
+        shell: true,
+        env: {
+          VITE_API_URL: apiUrl,
+          VITE_AUTH_EMULATOR_URL: emulatorUrl,
+          VITE_FIREBASE_PROJECT_ID: 'depanini-dev',
+          VITE_FIREBASE_API_KEY: 'demo-api-key',
+        },
+      },
+    );
+    continue;
+  }
   log(`starting Expo web (${app.variant}, port ${app.port})…`);
   start(
     `expo:${app.variant}`,
@@ -199,13 +219,16 @@ for (const app of apps) {
 }
 await Promise.all([
   waitFor(PORTS.api, 'API'),
-  ...apps.map((app) => waitFor(app.port, `Expo ${app.variant}`)),
+  ...apps.map((app) =>
+    waitFor(app.port, app.variant === 'admin' ? 'Admin app' : `Expo ${app.variant}`),
+  ),
 ]);
 
 // Build each bundle once so the first phone visit doesn't wait on Metro.
 log('warming the web bundle…');
 await Promise.all(
-  apps.map(async ({ port }) => {
+  apps.map(async ({ port, variant }) => {
+    if (variant === 'admin') return;
     const html = await fetch(`http://localhost:${port}/`).then((r) => r.text());
     const bundle = /<script src="([^"]+)"/.exec(html)?.[1];
     if (bundle) await fetch(new URL(bundle, `http://localhost:${port}`)).then((r) => r.text());
@@ -224,5 +247,5 @@ ${appLinks}
     API       ${apiUrl}
     Emulator  ${emulatorUrl}
 
-  Open the ${mode === 'both' ? 'app links' : 'App link'} on your phone. Ctrl+C stops everything.
+  Open the ${mode === 'both' ? 'app links' : 'App link'} on ${mode === 'admin' ? 'any computer' : 'your phone'}. Ctrl+C stops everything.
 `);
