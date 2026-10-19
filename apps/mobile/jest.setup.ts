@@ -20,6 +20,21 @@ jest.mock('@react-native-firebase/app', () => ({
   }),
 }));
 
+// No native notification module under Jest. Tests that care override these.
+jest.mock('expo-device', () => ({ __esModule: true, isDevice: true }));
+
+jest.mock('expo-notifications', () => ({
+  AndroidImportance: { MAX: 5, HIGH: 4 },
+  setNotificationHandler: jest.fn(),
+  setNotificationChannelAsync: jest.fn(async () => null),
+  getPermissionsAsync: jest.fn(async () => ({ granted: false, canAskAgain: true })),
+  requestPermissionsAsync: jest.fn(async () => ({ granted: false, canAskAgain: true })),
+  getDevicePushTokenAsync: jest.fn(async () => ({ type: 'fcm', data: 'device-token' })),
+  addPushTokenListener: jest.fn(() => ({ remove: jest.fn() })),
+  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  getLastNotificationResponse: jest.fn(() => null),
+}));
+
 jest.mock('@react-native-firebase/auth', () => ({
   getAuth: jest.fn(() => ({ currentUser: null })),
   getIdToken: jest.fn(),

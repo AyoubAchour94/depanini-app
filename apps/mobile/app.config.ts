@@ -92,6 +92,16 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     // Location is requested only when a customer starts a tow request.
     ['expo-location', { locationWhenInUsePermission: locationUsage }],
+    // Push: permission is only asked for at the moments the app picks (src/push/). The tint
+    // is the variant's brand colour; `default` is the channel the API sends to.
+    [
+      'expo-notifications',
+      {
+        icon: './assets/images/android-icon-monochrome.png',
+        color: variant.brandColor,
+        defaultChannel: 'default',
+      },
+    ],
     // Reads the secret RNMAPBOX_MAPS_DOWNLOAD_TOKEN from the environment at build time.
     '@rnmapbox/maps',
     ...(firebaseConfigured
