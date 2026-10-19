@@ -28,6 +28,22 @@ describe('parseEnv', () => {
     );
   });
 
+  it('defaults pushes to the log sender, with the inbox off', () => {
+    expect(parseEnv(valid)).toMatchObject({ PUSH_PROVIDER: 'log', PUSH_INBOX: false });
+    expect(parseEnv({ ...valid, PUSH_INBOX: '1' }).PUSH_INBOX).toBe(true);
+    expect(parseEnv({ ...valid, PUSH_INBOX: 'yes' }).PUSH_INBOX).toBe(false);
+  });
+
+  it('needs credentials for the fcm push provider', () => {
+    const fcm = { ...valid, PUSH_PROVIDER: 'fcm' };
+    expect(() => parseEnv(fcm)).toThrow(/GOOGLE_APPLICATION_CREDENTIALS/);
+    expect(parseEnv({ ...fcm, GOOGLE_APPLICATION_CREDENTIALS: '/key.json' }).PUSH_PROVIDER).toBe(
+      'fcm',
+    );
+    expect(parseEnv({ ...fcm, FIREBASE_SERVICE_ACCOUNT_JSON: '{}' }).PUSH_PROVIDER).toBe('fcm');
+    expect(() => parseEnv({ ...valid, PUSH_PROVIDER: 'sms' })).toThrow(/PUSH_PROVIDER/);
+  });
+
   it('fails fast with the offending variable named', () => {
     expect(() => parseEnv({ FIREBASE_PROJECT_ID: 'depanini-dev' })).toThrow(/DATABASE_URL/);
   });

@@ -16,6 +16,7 @@ import { z } from 'zod';
 
 import { ratings, towRequests, users } from '../src/db/schema.js';
 import * as schema from '../src/db/schema.js';
+import { NotificationsService } from '../src/push/notifications.service.js';
 import { createTestApp } from './support/test-app.js';
 import { connectTestDatabase, TEST_DATABASE_URL } from './support/test-database.js';
 import { openSocket, type TestSocket } from './support/ws-client.js';
@@ -471,6 +472,8 @@ describe('ratings (e2e)', () => {
 
       const spy = vi.spyOn(countedPool, 'query');
       const queriesFor = async () => {
+        // Pushes run after the response; let them finish so they are not counted.
+        await app.get(NotificationsService).flush();
         spy.mockClear();
         await customerOffers(id);
         return spy.mock.calls.length;

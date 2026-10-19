@@ -78,6 +78,13 @@
       "when": 1792388856887,
       "tag": "0010_ratings",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792393069076,
+      "tag": "0011_device_tokens",
+      "breakpoints": true
     }
   ]
 }

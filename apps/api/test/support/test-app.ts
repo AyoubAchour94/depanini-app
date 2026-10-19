@@ -11,6 +11,8 @@ import {
   REALTIME_OPTIONS,
   type RealtimeOptions,
 } from '../../src/realtime/realtime.gateway.js';
+import { PUSH_SENDER, type PushSender } from '../../src/push/push-sender.js';
+import type { Env } from '../../src/config/env.js';
 import { CLOCK } from '../../src/tow-requests/clock.js';
 import { type Database, DB } from '../../src/db/database.module.js';
 import { TEST_DATABASE_URL } from './test-database.js';
@@ -37,7 +39,17 @@ export async function createTestApp(
     now,
     verifier = fakeVerifier,
     realtime,
-  }: { now?: () => Date; verifier?: IdTokenVerifier; realtime?: Partial<RealtimeOptions> } = {},
+    env,
+    pushSender,
+  }: {
+    now?: () => Date;
+    verifier?: IdTokenVerifier;
+    realtime?: Partial<RealtimeOptions>;
+    /** Overrides of the test environment (e.g. `PUSH_INBOX: true`). */
+    env?: Partial<Env>;
+    /** Replaces the log push sender. */
+    pushSender?: PushSender;
+  } = {},
 ): Promise<NestFastifyApplication> {
   const builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(ENV)
@@ -47,11 +59,15 @@ export async function createTestApp(
       DATABASE_URL: TEST_DATABASE_URL,
       FIREBASE_PROJECT_ID: 'depanini-test',
       CORS_ORIGINS: [],
+      PUSH_PROVIDER: 'log',
+      PUSH_INBOX: false,
+      ...env,
     })
     .overrideProvider(DB)
     .useValue(db)
     .overrideProvider(ID_TOKEN_VERIFIER)
     .useValue(verifier);
+  if (pushSender) builder.overrideProvider(PUSH_SENDER).useValue(pushSender);
   if (now) builder.overrideProvider(CLOCK).useValue(now);
   if (realtime) {
     builder

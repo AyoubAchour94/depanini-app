@@ -51,9 +51,10 @@ export async function expireStaleRequests(
  * Marks everyone's pending offers as expired once they are past their expiry,
  * or once their request was cancelled or expired. Run {@link expireStaleRequests}
  * first. Not inside a transaction that holds row locks: it touches other drivers' offers.
+ * Returns the ids it flipped, so their drivers can be told (empty when a pass was skipped).
  */
-export async function expireStaleOffers(db: Database, now: Date): Promise<void> {
-  await bestEffort('offers', () =>
+export async function expireStaleOffers(db: Database, now: Date): Promise<string[]> {
+  const expired = await bestEffort('offers', () =>
     db
       .update(towOffers)
       .set({ status: 'expired', updatedAt: now })
@@ -66,6 +67,8 @@ export async function expireStaleOffers(db: Database, now: Date): Promise<void> 
               and ${inArray(towRequests.status, ['cancelled', 'expired'])}
           ))`,
         ),
-      ),
+      )
+      .returning({ id: towOffers.id }),
   );
+  return (expired ?? []).map((row) => row.id);
 }
