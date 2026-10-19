@@ -128,9 +128,6 @@ function RootNavigator() {
       <Stack.Protected guard={signedIn && !account}>
         <Stack.Screen name="loading-account" options={{ headerShown: false }} />
       </Stack.Protected>
-      <Stack.Protected guard={__DEV__}>
-        <Stack.Screen name="dev/ui" options={{ title: 'UI kit' }} />
-      </Stack.Protected>
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="sign-in" options={{ headerShown: false }} />
         <Stack.Screen name="sign-up" options={{ title: 'Create account' }} />
