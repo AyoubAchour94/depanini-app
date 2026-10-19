@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { offerSchema } from './offer';
+import { ratingSummarySchema } from './rating';
 import { placeSchema, problemTypeSchema, vehicleTypeSchema } from './tow-request';
 
 /** An open tow request, as a nearby driver sees it. It carries no customer contact. */
@@ -22,6 +23,8 @@ export const nearbyRequestSchema = z.object({
   distanceToPickupM: z.number().int().nonnegative(),
   /** The driver's pending offer on this request, if any. */
   myOffer: offerSchema.nullish(),
+  /** Who asked: only their rating, never contact details. Missing in old payloads. */
+  customer: z.object({ rating: ratingSummarySchema.nullish() }).nullish(),
 });
 
 export type NearbyRequest = z.infer<typeof nearbyRequestSchema>;
