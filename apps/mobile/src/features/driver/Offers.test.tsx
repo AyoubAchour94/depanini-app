@@ -133,6 +133,17 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
+describe('request details', () => {
+  it("shows the customer's rating", async () => {
+    server.nearby = [{ ...request, customer: { rating: { average: 4.9, count: 40 } } }];
+    mockApi();
+    await renderApp('/job-offer/' + REQUEST_ID);
+    await flush();
+
+    expect(await screen.findByText('★ 4.9 (40)')).toBeOnTheScreen();
+  });
+});
+
 describe('sending an offer', () => {
   it('accepts at the customer fare and refreshes offers and job', async () => {
     const api = mockApi();

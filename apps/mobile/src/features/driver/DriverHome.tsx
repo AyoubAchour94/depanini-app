@@ -13,6 +13,7 @@ import {
 import { useDriverJob, useNearbyRequests } from '@/api/driver';
 import { formatRemaining, useCountdown } from '@/features/request/countdown';
 import { requestStrings } from '@/features/request/strings';
+import { RatingBadge } from '@/features/trip/RatingBadge';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
 
@@ -144,6 +145,7 @@ function RequestRow({ request }: { request: NearbyRequest }) {
       <Text style={{ color: theme.text }}>
         {t.route(request.pickup.address, request.dropoff.address)}
       </Text>
+      <RatingBadge rating={request.customer?.rating} />
       <Text style={{ color: theme.textMuted }}>
         {requestStrings.vehicleOptions[request.vehicleType]} ·{' '}
         {requestStrings.problemOptions[request.problemType]}

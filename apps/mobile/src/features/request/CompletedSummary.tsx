@@ -1,6 +1,7 @@
 import type { TowRequest } from '@depanini/shared';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { RateTripCard } from '@/features/trip/RateTripCard';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
 
@@ -42,6 +43,7 @@ export function CompletedSummary({
         </View>
       </View>
       <PaymentPrompt request={request} driverName={driverName} />
+      <RateTripCard side="customer" requestId={request.id} />
       <Timeline request={request} withCompleted />
       <Button title={t.done} onPress={onDone} />
     </ScrollView>

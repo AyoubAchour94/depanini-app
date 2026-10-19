@@ -9,6 +9,7 @@ import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
 
 import { formatTnd } from './money';
+import { RateTripCard, type RatingSide } from './RateTripCard';
 import { formatReceiptText, truckLabel, vehicleSummary } from './receiptText';
 import { shareText } from './share';
 import { tripStrings as t } from './strings';
@@ -18,7 +19,7 @@ import { tripStrings as t } from './strings';
  * once completed, the receipt with a way to share it. Rendered inside the
  * caller's scroll view.
  */
-export function TripDetail({ request }: { request: TowRequest }) {
+export function TripDetail({ request, side }: { request: TowRequest; side: RatingSide }) {
   const theme = useTheme();
   const completed = request.status === 'completed';
   const fare = completed ? (request.agreedFare ?? request.proposedFare) : request.proposedFare;
@@ -55,7 +56,12 @@ export function TripDetail({ request }: { request: TowRequest }) {
           </View>
         ))}
       </View>
-      {completed ? <ReceiptCard requestId={request.id} /> : null}
+      {completed ? (
+        <>
+          <RateTripCard side={side} requestId={request.id} />
+          <ReceiptCard requestId={request.id} />
+        </>
+      ) : null}
     </>
   );
 }

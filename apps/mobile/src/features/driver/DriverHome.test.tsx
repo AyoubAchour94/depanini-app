@@ -362,6 +362,24 @@ describe('DriverHome nearby list', () => {
     expect(await screen.findByText('No requests nearby right now')).toBeOnTheScreen();
   });
 
+  it("shows the customer's rating on the row", async () => {
+    nearbyBody = [{ ...request, myOffer: null, customer: { rating: { average: 4.2, count: 9 } } }];
+    mockApi();
+    await renderHome();
+    await goOnline();
+
+    expect(await screen.findByText('★ 4.2 (9)')).toBeOnTheScreen();
+  });
+
+  it('shows "New" for a customer with few ratings', async () => {
+    nearbyBody = [{ ...request, myOffer: null, customer: { rating: { average: null, count: 1 } } }];
+    mockApi();
+    await renderHome();
+    await goOnline();
+
+    expect(await screen.findByText('New')).toBeOnTheScreen();
+  });
+
   it('shows a row per request and opens its details', async () => {
     nearbyBody = [{ ...request, myOffer: null }];
     mockApi();

@@ -16,6 +16,7 @@ import { env } from '@/config/env';
 import { MissingTokenView } from '@/features/map/MapScreen';
 import { TunisMap } from '@/features/map/TunisMap';
 import { requestStrings } from '@/features/request/strings';
+import { RateTripCard } from '@/features/trip/RateTripCard';
 import { LiveIndicator } from '@/realtime/LiveIndicator';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
@@ -240,6 +241,7 @@ function Summary({ request }: { request: TowRequest }) {
           </>
         ) : null}
       </View>
+      <RateTripCard side="driver" requestId={request.id} />
       <Timeline job={request} />
       <Button title={t.backToHome} onPress={goHome} />
     </ScrollView>

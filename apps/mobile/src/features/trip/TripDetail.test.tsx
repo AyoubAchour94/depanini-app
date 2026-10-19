@@ -60,7 +60,7 @@ function mockReceipt(status = 200) {
 async function renderDetail(value: TowRequest = request) {
   await render(
     <QueryClientProvider client={createTestQueryClient()}>
-      <TripDetail request={value} />
+      <TripDetail request={value} side="customer" />
     </QueryClientProvider>,
   );
 }
@@ -87,7 +87,9 @@ describe('TripDetail', () => {
     expect(screen.getAllByText('85 TND')).toHaveLength(2);
     expect(screen.getByText('Sami Trabelsi (Wheel-lift)')).toBeOnTheScreen();
     expect(screen.getByText('Ali Ben Salah')).toBeOnTheScreen();
-    expect(String(fetchMock.mock.calls[0]![0])).toBe(`http://api.test/tow-requests/${ID}/receipt`);
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toContain(
+      `http://api.test/tow-requests/${ID}/receipt`,
+    );
   });
 
   it('has no receipt for a cancelled trip', async () => {

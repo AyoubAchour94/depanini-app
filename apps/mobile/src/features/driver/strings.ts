@@ -1,4 +1,4 @@
-import type { DriverCancelReason, TripStage } from '@depanini/shared';
+import type { DriverCancelReason, DriverRatingTag, TripStage } from '@depanini/shared';
 
 import { formatTnd } from '@/features/trip/money';
 
@@ -133,4 +133,14 @@ export const driverStrings = {
   earningsFailed: 'Could not load your earnings. Check your connection and try again.',
   earningsPeriods: { today: 'Today', week: 'This week', month: 'This month' },
   trips: (n: number) => (n === 1 ? '1 trip' : `${n} trips`),
+
+  /** What the driver can say about the customer, by tag id. */
+  customerTagLabels: {
+    clear_location: 'Clear location',
+    ready_on_time: 'Ready on time',
+    friendly: 'Friendly',
+    wrong_location: 'Wrong location',
+    made_me_wait: 'Made me wait',
+    rude: 'Rude',
+  } satisfies Record<DriverRatingTag, string>,
 };

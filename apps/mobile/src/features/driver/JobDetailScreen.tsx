@@ -5,6 +5,7 @@ import { ScrollView, StyleSheet } from 'react-native';
 
 import { JOBS_KEY } from '@/api/driver';
 import type { HistoryPage } from '@/api/towRequests';
+import { RateTripCard } from '@/features/trip/RateTripCard';
 import { ReceiptCard, TripDetail } from '@/features/trip/TripDetail';
 import { useTheme } from '@/theme/theme';
 
@@ -27,7 +28,14 @@ export function JobDetailScreen() {
   return (
     <ScrollView style={{ backgroundColor: theme.background }} contentContainerStyle={styles.body}>
       <Stack.Screen options={{ title: t.jobDetailTitle }} />
-      {job ? <TripDetail request={job} /> : <ReceiptCard requestId={id} />}
+      {job ? (
+        <TripDetail request={job} side="driver" />
+      ) : (
+        <>
+          <RateTripCard side="driver" requestId={id} />
+          <ReceiptCard requestId={id} />
+        </>
+      )}
     </ScrollView>
   );
 }
