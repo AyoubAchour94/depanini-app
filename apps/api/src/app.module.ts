@@ -8,6 +8,7 @@ import { DriversModule } from './drivers/drivers.module.js';
 import { HealthModule } from './health/health.module.js';
 import { OffersModule } from './offers/offers.module.js';
 import { PaymentsModule } from './payments/payments.module.js';
+import { PushModule } from './push/push.module.js';
 import { RatingsModule } from './ratings/ratings.module.js';
 import { RealtimeModule } from './realtime/realtime.module.js';
 import { TowRequestsModule } from './tow-requests/tow-requests.module.js';
@@ -24,6 +25,7 @@ import { TowRequestsModule } from './tow-requests/tow-requests.module.js';
     OffersModule,
     PaymentsModule,
     RatingsModule,
+    PushModule,
     RealtimeModule,
   ],
 })

@@ -1,9 +1,8 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { NEARBY_RADIUS_M, PRESENCE_STALE_MS } from '@depanini/shared';
-import { and, eq, gt, inArray, ne, sql } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/database.module.js';
-import { driverPresence, driverProfiles, towOffers, towRequests } from '../db/schema.js';
+import { driverProfiles, towOffers, towRequests } from '../db/schema.js';
 import { customerOfferColumns, toCustomerOffer, toOffer } from '../offers/offer-rows.js';
 import { CLOCK, type Clock } from '../tow-requests/clock.js';
 import {
@@ -12,10 +11,13 @@ import {
   toDriverJob,
   toTowRequest,
 } from '../tow-requests/tow-request-rows.js';
+import { NotificationsService } from '../push/notifications.service.js';
+import { driversNearRequests } from './nearby-drivers.js';
 import { RealtimeService } from './realtime.service.js';
 
 /**
- * Tells the people involved in a trip that something changed, over `/ws`.
+ * Tells the people involved in a trip that something changed, over `/ws`, and hands the
+ * same changes to {@link NotificationsService} for those who are not connected.
  *
  * Call it **after** the transaction that made the change has committed, with the ids it
  * touched: each method reads the rows back, so a recipient never hears of a change they
@@ -31,6 +33,7 @@ export class TripEvents {
     @Inject(DB) private readonly db: Database,
     @Inject(CLOCK) private readonly now: Clock,
     private readonly realtime: RealtimeService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /**
@@ -74,6 +77,7 @@ export class TripEvents {
         });
       }
     });
+    await this.notifications.requestsChanged(ids);
   }
 
   /** `offer.updated` to each offer's driver (the offer) and its request's customer (with the driver). */
@@ -95,6 +99,15 @@ export class TripEvents {
         this.realtime.send(row.customerId, { type: 'offer.updated', offer: toCustomerOffer(row) });
       }
     });
+    await this.notifications.offersChanged(ids);
+  }
+
+  /**
+   * Offers that lapsed (marked lazily, on read). Only a push: their drivers are told when
+   * they are not connected, and over `/ws` the apps notice the expiry on their own clock.
+   */
+  async offersExpired(ids: string[]): Promise<void> {
+    await this.notifications.offersChanged(ids);
   }
 
   /**
@@ -125,31 +138,17 @@ export class TripEvents {
    * `nearby.changed` to every online driver with a fresh location within `NEARBY_RADIUS_M`
    * of any of these requests' pickups, bar the request's own customer (the same test as
    * `GET /driver/requests/nearby`, reversed). Call it when a request is created, cancelled,
-   * assigned or expired. It carries no data: the app refetches its list.
+   * assigned or expired. It carries no data: the app refetches its list. The requests that
+   * are still open are also pushed to those drivers who are not connected.
    */
   async nearbyChanged(requestIds: string[]): Promise<void> {
     await this.bestEffort('nearby.changed', async () => {
-      if (requestIds.length === 0) return;
-      const drivers = await this.db
-        .selectDistinct({ userId: driverPresence.userId })
-        .from(driverPresence)
-        .innerJoin(
-          towRequests,
-          sql`ST_DWithin(${towRequests.pickup}, ${driverPresence.location}, ${NEARBY_RADIUS_M}::float8)`,
-        )
-        .where(
-          and(
-            inArray(towRequests.id, requestIds),
-            eq(driverPresence.online, true),
-            gt(
-              driverPresence.locationUpdatedAt,
-              new Date(this.now().getTime() - PRESENCE_STALE_MS),
-            ),
-            ne(driverPresence.userId, towRequests.customerId),
-          ),
-        );
-      for (const { userId } of drivers) this.realtime.send(userId, { type: 'nearby.changed' });
+      const drivers = await driversNearRequests(this.db, this.now(), requestIds);
+      for (const userId of new Set(drivers.map((driver) => driver.userId))) {
+        this.realtime.send(userId, { type: 'nearby.changed' });
+      }
     });
+    await this.notifications.requestsOpened(requestIds);
   }
 
   private async bestEffort(what: string, publish: () => Promise<void>): Promise<void> {

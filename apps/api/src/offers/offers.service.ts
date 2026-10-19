@@ -491,7 +491,7 @@ export class OffersService {
   private async expireStale(): Promise<Date> {
     const now = this.now();
     await this.events.nearbyChanged(await expireStaleRequests(this.db, now));
-    await expireStaleOffers(this.db, now);
+    await this.events.offersExpired(await expireStaleOffers(this.db, now));
     return now;
   }
 }

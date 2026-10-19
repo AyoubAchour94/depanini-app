@@ -182,7 +182,7 @@ export class DriversService {
     if (job) return [];
 
     await this.events.nearbyChanged(await expireStaleRequests(this.db, now));
-    await expireStaleOffers(this.db, now);
+    await this.events.offersExpired(await expireStaleOffers(this.db, now));
 
     const origin = point(here.location);
     const distance = sql<number>`ST_Distance(${towRequests.pickup}, ${origin})`;

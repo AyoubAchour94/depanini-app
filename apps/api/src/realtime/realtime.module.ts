@@ -8,7 +8,7 @@ import { TripEvents } from './trip-events.service.js';
 
 /**
  * The `/ws` endpoint and the events services publish on it. Global, so the services
- * that change trips can inject {@link TripEvents}. Needs `WsAdapter` on the app (see `main.ts`).
+ * that change trips can inject {@link TripEvents} and push can ask who is connected. Needs `WsAdapter` on the app (see `main.ts`).
  */
 @Global()
 @Module({
@@ -19,6 +19,6 @@ import { TripEvents } from './trip-events.service.js';
     TripEvents,
     RealtimeGateway,
   ],
-  exports: [TripEvents],
+  exports: [TripEvents, RealtimeService],
 })
 export class RealtimeModule {}
