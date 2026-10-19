@@ -186,3 +186,188 @@ test('an admin approves a driver who has uploaded documents, and the driver can 
     }
   }
 });
+
+/** Deletes the accounts from the API and the Auth emulator. */
+async function cleanUp(accounts: Account[]) {
+  for (const account of accounts) {
+    await fetch(`${API_URL}/me`, {
+      method: 'DELETE',
+      headers: { authorization: `Bearer ${account.idToken}` },
+    }).catch(() => {});
+    await fetch(
+      `${EMULATOR_URL}/identitytoolkit.googleapis.com/v1/accounts:delete?key=fake-api-key`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ idToken: account.idToken }),
+      },
+    ).catch(() => {});
+  }
+}
+
+async function fetchJson(account: Account, route: string): Promise<unknown> {
+  const res = await fetch(`${API_URL}${route}`, {
+    headers: { authorization: `Bearer ${account.idToken}` },
+  });
+  expect(res.status, await res.clone().text()).toBe(200);
+  return res.json();
+}
+
+test('an admin resolves a customer report and a payment dispute on a completed trip', async ({
+  page,
+}) => {
+  const customer = await signUp('customer');
+  const driver = await signUp('driver2');
+  const admin = await signUp('admin2');
+  const customerName = `E2E Customer ${run}`;
+  const reportNote = `Charged more than agreed ${run}`;
+  const disputeNote = `I paid less in cash ${run}`;
+  const reportResolution = `Refunded the difference ${run}`;
+  const disputeResolution = `Driver confirmed the cash amount ${run}`;
+  const pickup = {
+    latitude: 36.8065,
+    longitude: 10.1815,
+    address: 'Avenue Habib Bourguiba, Tunis',
+  };
+  const dropoff = { latitude: 35.8256, longitude: 10.6084, address: 'Sousse' };
+
+  try {
+    // 1. A trip, completed and paid in cash, seeded through the real API.
+    await api(admin, 'GET', '/me');
+    await api(customer, 'PUT', '/me/customer-profile', {
+      body: { fullName: customerName, phone: '+21620000011' },
+    });
+    const driverAccount = await api(driver, 'GET', '/me');
+    await api(driver, 'PUT', '/me/driver-profile', {
+      body: {
+        fullName: `E2E Driver ${run} B`,
+        phone: '+21620000012',
+        truckType: 'flatbed',
+        plateNumber: '124 TU 4568',
+      },
+    });
+    await upload(driver, 'licence', PNG, 'image/png');
+    await upload(driver, 'registration', PNG, 'image/png');
+    await upload(driver, 'insurance', PDF, 'application/pdf');
+    await upload(driver, 'national_id', PNG, 'image/png');
+    await api(driver, 'POST', '/driver/verification/submit');
+    grantAdmin(admin.email);
+    await refreshToken(admin);
+    await api(admin, 'POST', `/admin/drivers/${driverAccount.id as string}/review`, {
+      body: { decision: 'approve' },
+    });
+    await api(driver, 'PUT', '/driver/presence', { body: { online: true, location: pickup } });
+
+    const estimate = await api(customer, 'POST', '/tow-requests/estimate', {
+      body: { pickup, dropoff, vehicleType: 'car' },
+    });
+    const fare = estimate.suggestedFare as number;
+    const request = await api(customer, 'POST', '/tow-requests', {
+      expected: 201,
+      body: {
+        pickup,
+        dropoff,
+        vehicleType: 'car',
+        problemType: 'breakdown',
+        note: `e2e admin ${run}`,
+        proposedFare: fare,
+      },
+    });
+    const requestId = request.id as string;
+    const offer = await api(driver, 'POST', `/tow-requests/${requestId}/offers`, {
+      expected: 201,
+      body: { fare },
+    });
+    await api(customer, 'POST', `/offers/${offer.id as string}/accept`);
+    for (const stage of ['en_route', 'arrived', 'towing']) {
+      await api(driver, 'POST', '/driver/job/stage', { body: { stage } });
+    }
+    await api(driver, 'POST', '/driver/job/complete', { body: { cashReceived: true } });
+    await api(customer, 'POST', `/tow-requests/${requestId}/payment/dispute`, {
+      body: { note: disputeNote },
+    });
+    await api(customer, 'POST', `/tow-requests/${requestId}/reports`, {
+      expected: 201,
+      body: { category: 'overcharged', note: reportNote },
+    });
+
+    // 2. The admin signs in; the report is in the reports queue.
+    await page.goto(ADMIN_URL);
+    await signInOnPage(page, admin);
+    const nav = page.getByRole('navigation', { name: 'Main' });
+    await nav.getByRole('link', { name: 'Reports', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible();
+    await expect(page.getByText(reportNote)).toBeVisible();
+
+    // 3. Resolving needs a note.
+    await page.getByRole('button', { name: 'Resolve' }).first().click();
+    await page.getByRole('button', { name: 'Confirm resolution' }).click();
+    await expect(page.getByRole('dialog').getByRole('alert')).toContainText('Write a note');
+    await page
+      .getByRole('dialog')
+      .getByLabel(/Resolution note/)
+      .fill(reportResolution);
+    await page.getByRole('button', { name: 'Confirm resolution' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByText(reportNote)).toHaveCount(0);
+
+    // 4. The resolved report shows who resolved it.
+    await page.getByLabel('Status').selectOption('resolved');
+    await expect(page.getByText(reportResolution)).toBeVisible();
+    await expect(page.getByText(`Resolved by ${admin.email}`, { exact: false })).toBeVisible();
+
+    // 5. The payment dispute is in its queue, and gets resolved the same way.
+    await nav.getByRole('link', { name: 'Disputes' }).click();
+    await expect(page.getByRole('heading', { name: 'Payment disputes' })).toBeVisible();
+    await expect(page.getByText(disputeNote)).toBeVisible();
+    await page.getByRole('button', { name: 'Resolve' }).first().click();
+    await page
+      .getByRole('dialog')
+      .getByLabel(/Resolution note/)
+      .fill(disputeResolution);
+    await page.getByRole('button', { name: 'Confirm resolution' }).click();
+    await expect(page.getByText(disputeNote)).toHaveCount(0);
+
+    // 6. The trip shows the dispute resolution and the report.
+    await page.goto(`${ADMIN_URL}/trips/${requestId}`);
+    await expect(page.getByRole('region', { name: 'Payment' })).toContainText(disputeResolution);
+    await expect(page.getByRole('region', { name: 'Reports' })).toContainText(reportNote);
+
+    // 7. The customer sees their report resolved, through the API.
+    const mine = (await fetchJson(customer, `/tow-requests/${requestId}/reports`)) as {
+      status: string;
+      resolutionNote: string;
+    }[];
+    expect(mine).toHaveLength(1);
+    expect(mine[0]).toMatchObject({ status: 'resolved', resolutionNote: reportResolution });
+
+    // 8. Both actions are in the audit log.
+    await page
+      .getByRole('navigation', { name: 'Main' })
+      .getByRole('link', { name: 'Audit log' })
+      .click();
+    await expect(page.getByRole('heading', { name: 'Audit log' })).toBeVisible();
+    await expect(page.getByText('Resolved a report').first()).toBeVisible();
+    await expect(page.getByText('Resolved a payment dispute').first()).toBeVisible();
+    await expect(page.getByText(disputeResolution)).toBeVisible();
+    await expect(page.getByText(reportResolution)).toBeVisible();
+
+    // 9. Lookups: the trip is found by the customer's name, and the user by email.
+    await page
+      .getByRole('navigation', { name: 'Main' })
+      .getByRole('link', { name: 'Trips' })
+      .click();
+    await page.getByLabel('Trip id, receipt, customer or driver').fill(customerName);
+    await page.getByRole('button', { name: 'Search' }).click();
+    await expect(page.getByRole('link', { name: pickup.address })).toBeVisible();
+    await page
+      .getByRole('navigation', { name: 'Main' })
+      .getByRole('link', { name: 'Users' })
+      .click();
+    await page.getByLabel('Email or phone').fill(customer.email);
+    await page.getByRole('button', { name: 'Search' }).click();
+    await expect(page.getByRole('link', { name: customerName })).toBeVisible();
+  } finally {
+    await cleanUp([customer, driver, admin]);
+  }
+});

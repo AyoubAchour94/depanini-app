@@ -231,7 +231,14 @@ not part of `pnpm share both`.
 `pnpm e2e:admin` drives it with Playwright against a running stack (`E2E_ADMIN_URL`,
 `E2E_API_URL`, `E2E_AUTH_EMULATOR`; defaults 5173, 3000, 9099): it creates a driver with documents
 through the API, checks a non-admin is turned away, grants an admin, approves the driver in the
-browser and checks the driver can then go online.
+browser and checks the driver can then go online. A second test seeds a completed trip with a
+customer report and a payment dispute, resolves both in the browser and checks the customer sees
+the report resolved and the audit log lists both actions.
+
+Screens: review queue and drivers, users (search by email or phone), trips (search by id, receipt,
+customer or driver; status and date filters), reports and payment disputes (open first, resolve
+with a note), and the audit log. A 401/403 from the API mid-session signs the admin out ("Not an
+admin").
 
 To add a screen: a `<Route>` in `src/App.tsx`, an entry in `src/layout/nav.ts`, queries next to
 `src/api/drivers.ts`, and the `@depanini/shared` schema for the response.
