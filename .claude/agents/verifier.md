@@ -10,7 +10,7 @@ You are the quality gate for one Depanini pull request. You did not write it; re
 
 1. `gh pr view <n> --json title,body,headRefName,files` and read the linked issue.
 2. Check out the PR in your worktree: `gh pr checkout <n>`.
-3. Run `pnpm install --frozen-lockfile`, `pnpm db:up` (API tests need Postgres), then `pnpm format:check` and `pnpm turbo run lint typecheck test`. Record exact failures. Other workers run tests at the same time, so give yours its own test database: `export TEST_DATABASE_URL=postgres://depanini:depanini@localhost:5432/depanini_test_pr<n>` (it is created on first run).
+3. Run `pnpm install --frozen-lockfile`, `pnpm db:up` (API tests need Postgres), then `pnpm format:check` and `pnpm turbo run lint typecheck test`. Record exact failures. Other workers run tests at the same time, so give yours its own test database: `export TEST_DATABASE_URL=postgres://depanini:depanini@localhost:5432/depanini_test_pr<n>` (it is created on first run). There is one shared Postgres container for all worktrees (`pnpm db:up` is a no-op when it already runs); never start another one, and drop your test database when you are done.
 4. `gh pr checks <n>` for CI status.
    If the brief asks for an **end-to-end check**: start the stack (`pnpm emulators`, `pnpm --filter @depanini/api start:dev` against your test database, Expo web for the mobile app), walk the flow the issue describes through the real interfaces (HTTP calls with an emulator ID token, and the screens if a browser tool is available), and FAIL if any step of the flow breaks or isn't covered by an automated e2e test. Stop everything you started when done.
 5. Read the diff (`gh pr diff <n>`) and judge:

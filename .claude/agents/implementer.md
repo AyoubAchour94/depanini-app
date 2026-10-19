@@ -13,7 +13,7 @@ How to work:
 
 1. Branch from `origin/develop`: `git fetch origin && git switch -c <area>/<short-name> origin/develop`.
 2. Test first where the change has behaviour: write a failing test, make it pass, refactor.
-3. Before pushing, run `pnpm format:check` and `pnpm turbo run lint typecheck test` (what CI runs). API tests need Postgres: `pnpm db:up`. All must pass. Other workers run tests at the same time, so give yours its own test database: `export TEST_DATABASE_URL=postgres://depanini:depanini@localhost:5432/depanini_test_<short-name>` (it is created on first run).
+3. Before pushing, run `pnpm format:check` and `pnpm turbo run lint typecheck test` (what CI runs). API tests need Postgres: `pnpm db:up`. All must pass. Other workers run tests at the same time, so give yours its own test database: `export TEST_DATABASE_URL=postgres://depanini:depanini@localhost:5432/depanini_test_<short-name>` (it is created on first run). There is one shared Postgres container for all worktrees (`pnpm db:up` is a no-op when it already runs); never start another one, and drop your test database when you are done.
 4. Commit in small logical commits. End each message with the attribution line from your instructions.
 5. Push and open a PR into `develop` with `gh pr create --base develop`. The body says what changed, why, how it was tested, and `Closes #<n>`.
 

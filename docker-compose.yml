@@ -1,6 +1,10 @@
 # Local development database: Postgres + PostGIS.
 #   pnpm db:up     → start (data persists in the `pgdata` volume)
 #   pnpm db:down   → stop
+# A fixed project name, so git worktrees (e.g. agent worktrees) share this one
+# database instead of each creating its own container on the same port.
+name: depanini-app
+
 services:
   db:
     image: postgis/postgis:17-3.5
