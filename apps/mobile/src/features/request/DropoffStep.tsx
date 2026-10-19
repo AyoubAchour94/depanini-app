@@ -6,6 +6,7 @@ import { env } from '@/config/env';
 import { CenterPin } from '@/features/map/CenterPin';
 import { MissingTokenView } from '@/features/map/MapScreen';
 import { TunisMap } from '@/features/map/TunisMap';
+import { NEARBY_RADIUS_KM } from '@/features/places/geocoding';
 import { useReverseGeocode, useSearchPlaces } from '@/features/places/hooks';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
@@ -56,7 +57,7 @@ function SearchPicker({
   const theme = useTheme();
   const [query, setQuery] = useState(initialQuery);
   const search = useSearchPlaces(query, pickup);
-  const results = (search.data ?? []).filter(isInTunisia);
+  const results = (search.data ?? []).filter(({ place }) => isInTunisia(place));
   const searching = query.trim().length >= 2;
 
   return (
@@ -81,7 +82,7 @@ function SearchPicker({
       ) : searching && results.length === 0 ? (
         <Text style={[styles.note, { color: theme.textMuted }]}>{t.noResults}</Text>
       ) : (
-        results.map((place) => (
+        results.map(({ place, secondary, distanceKm }) => (
           <Pressable
             key={`${place.latitude},${place.longitude},${place.address}`}
             accessibilityRole="button"
@@ -90,6 +91,12 @@ function SearchPicker({
             style={[styles.result, { backgroundColor: theme.surface }]}
           >
             <Text style={[styles.resultText, { color: theme.text }]}>{place.address}</Text>
+            {secondary && !place.address.includes(secondary) ? (
+              <Text style={[styles.hint, { color: theme.textMuted }]}>{secondary}</Text>
+            ) : null}
+            {distanceKm !== undefined && distanceKm > NEARBY_RADIUS_KM ? (
+              <Text style={[styles.hint, { color: theme.textMuted }]}>{t.kmAway(distanceKm)}</Text>
+            ) : null}
           </Pressable>
         ))
       )}
@@ -161,6 +168,7 @@ const styles = StyleSheet.create({
   form: { padding: 16, gap: 12 },
   result: { borderRadius: 10, padding: 14 },
   resultText: { fontSize: 16 },
+  hint: { fontSize: 13, marginTop: 2 },
   sheet: {
     position: 'absolute',
     left: 0,

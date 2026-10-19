@@ -66,6 +66,36 @@ describe('DropoffStep', () => {
     expect(screen.queryByRole('button', { name: 'Paris' })).toBeNull();
   });
 
+  it('biases the search to the pickup, lists far results last with their distance and region', async () => {
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      Response.json({
+        features: [
+          {
+            geometry: { coordinates: [10.5, 33.35] },
+            properties: { full_address: 'Al-Marsa', place_formatted: 'Médenine, Tunisie' },
+          },
+          {
+            geometry: { coordinates: [10.32, 36.88] },
+            properties: { full_address: marsa, place_formatted: 'Tunis, Tunisie' },
+          },
+        ],
+      }),
+    );
+    await renderStep();
+
+    await fireEvent.changeText(screen.getByLabelText('Where should it go?'), 'marsa');
+    await act(() => jest.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS));
+
+    const names = (await screen.findAllByText(/Marsa/)).map((n) => n.props.children);
+    expect(names.indexOf(marsa)).toBeLessThan(names.indexOf('Al-Marsa'));
+    expect(screen.getByText('Médenine, Tunisie')).toBeOnTheScreen();
+    expect(screen.getByText(/^\d+ km away$/)).toBeOnTheScreen();
+    expect(screen.getAllByText(/km away/)).toHaveLength(1);
+    const url = new URL(String((fetchSpy.mock.calls[0] as [URL])[0]));
+    expect(url.searchParams.get('proximity')).toBe('10.18,36.8');
+    expect(url.searchParams.get('bbox')).toBe('7.5,30.2,11.7,37.6');
+  });
+
   it('says so when nothing matches', async () => {
     jest.spyOn(globalThis, 'fetch').mockImplementation(async () => Response.json({ features: [] }));
     await renderStep();
