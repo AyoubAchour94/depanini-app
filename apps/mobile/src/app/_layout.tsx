@@ -17,7 +17,8 @@ import { getFirebaseStatus } from '@/firebase/firebase';
 import { configurePush } from '@/push';
 import { PushProvider } from '@/push/PushProvider';
 import { RealtimeProvider } from '@/realtime/RealtimeProvider';
-import { useTheme } from '@/theme/theme';
+import { useInterFonts } from '@/theme/fonts';
+import { ThemeProvider, useTheme, useThemeSetting } from '@/theme/theme';
 import { variant } from '@/variant/variant';
 
 // Surface Firebase misconfiguration once at startup (logs a warning in dev).
@@ -28,23 +29,29 @@ configurePush();
 void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const theme = useTheme();
   const [queryClient] = useState(() => new QueryClient());
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <StatusBar style={theme.onBrand === '#FFFFFF' ? 'light' : 'dark'} />
-        <RealtimeProvider>
-          <PushProvider>
-            <RequestFlowProvider>
-              <RootNavigator />
-            </RequestFlowProvider>
-          </PushProvider>
-        </RealtimeProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <ThemedStatusBar />
+          <RealtimeProvider>
+            <PushProvider>
+              <RequestFlowProvider>
+                <RootNavigator />
+              </RequestFlowProvider>
+            </PushProvider>
+          </RealtimeProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
+}
+
+function ThemedStatusBar() {
+  const theme = useTheme();
+  return <StatusBar style={theme.scheme === 'dark' ? 'light' : 'dark'} />;
 }
 
 /**
@@ -64,12 +71,16 @@ function RootNavigator() {
   const account = signedIn ? me.data : undefined;
   const onboarded = account ? hasProfileFor(account, variant) : false;
   const accountLoading = signedIn && me.isPending;
+  const fonts = useInterFonts();
+  const themeSetting = useThemeSetting();
+  const assetsReady = fonts.ready && themeSetting.ready;
 
   // The router needs a navigator on the first render, so the stack always
-  // renders; while the session and account load the splash screen hides it.
+  // renders; while the session, account, fonts and theme setting load the
+  // splash screen hides it.
   useEffect(() => {
-    if (auth.status !== 'loading' && !accountLoading) void SplashScreen.hideAsync();
-  }, [auth.status, accountLoading]);
+    if (assetsReady && auth.status !== 'loading' && !accountLoading) void SplashScreen.hideAsync();
+  }, [assetsReady, auth.status, accountLoading]);
 
   return (
     <Stack
@@ -116,6 +127,9 @@ function RootNavigator() {
       </Stack.Protected>
       <Stack.Protected guard={signedIn && !account}>
         <Stack.Screen name="loading-account" options={{ headerShown: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={__DEV__}>
+        <Stack.Screen name="dev/ui" options={{ title: 'UI kit' }} />
       </Stack.Protected>
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="sign-in" options={{ headerShown: false }} />

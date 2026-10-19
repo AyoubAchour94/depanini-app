@@ -47,6 +47,34 @@ export default tseslint.config(
     files: ['apps/mobile/**/*.{ts,tsx}'],
     settings: { 'import/resolver': { typescript: { project: 'apps/mobile/tsconfig.json' } } },
   },
+  // Screens use theme tokens (src/theme/tokens.ts), never colour literals.
+  {
+    files: ['apps/mobile/src/app/**/*.{ts,tsx}', 'apps/mobile/src/features/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'Literal[value=/^#[0-9a-fA-F]{3,8}$/]',
+          message: 'No hex colours in screens: use a token from useTheme() (t.color.*).',
+        },
+        {
+          selector: 'TemplateElement[value.raw=/#[0-9a-fA-F]{3,8}\\b/]',
+          message: 'No hex colours in screens: use a token from useTheme() (t.color.*).',
+        },
+      ],
+    },
+  },
+  // Hex literals that exist today, each owned by the screen slice that restyles it.
+  // Remove the entry (and use a token) in that slice.
+  {
+    files: [
+      'apps/mobile/src/features/map/TunisMap.tsx', // TODO #136 (map-first shell: themed markers)
+      'apps/mobile/src/features/map/TunisMap.web.tsx', // TODO #136
+      'apps/mobile/src/features/status/FirebaseBanner.tsx', // TODO #141 (loading and error states)
+    ],
+    rules: { 'no-restricted-syntax': 'off' },
+  },
   {
     files: ['apps/mobile/**/*.test.{ts,tsx}', 'apps/mobile/jest.setup.ts'],
     languageOptions: { globals: globals.jest },

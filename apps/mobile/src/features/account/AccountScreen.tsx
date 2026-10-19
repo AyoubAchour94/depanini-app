@@ -3,16 +3,24 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { useMe } from '@/api/me';
 import { useSignOut } from '@/auth/useSignOut';
-import { useTheme } from '@/theme/theme';
+import { type ThemePreference, useTheme, useThemeSetting } from '@/theme/theme';
 import { Button } from '@/ui/Button';
+import { ChoiceField } from '@/ui/ChoiceField';
 import { profileFor } from '@/features/profile/onboarding';
 import { requestStrings } from '@/features/request/strings';
 import { describeTruck } from '@/features/profile/truck-types';
 import { variant } from '@/variant/variant';
 
-/** The signed-in account, this app's profile, and sign-out. */
+const APPEARANCE_OPTIONS: readonly { value: ThemePreference; label: string }[] = [
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+];
+
+/** The signed-in account, this app's profile, the appearance setting, and sign-out. */
 export function AccountScreen() {
   const theme = useTheme();
+  const themeSetting = useThemeSetting();
   const me = useMe();
   const signOut = useSignOut();
   const profile = me.data ? profileFor(me.data, variant) : null;
@@ -40,6 +48,12 @@ export function AccountScreen() {
           <Button kind="link" title="Edit details" onPress={() => router.push('/profile')} />
         </View>
       ) : null}
+      <ChoiceField
+        label="Appearance"
+        options={APPEARANCE_OPTIONS}
+        value={themeSetting.preference}
+        onChange={themeSetting.setPreference}
+      />
       {variant.isDriverApp ? null : (
         <Button
           kind="link"
