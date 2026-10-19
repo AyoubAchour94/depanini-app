@@ -2,6 +2,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
+import { ApiError } from '../api/client';
 import { createFakeApi, createFakeAuth } from '../test/fakes';
 import { renderApp } from '../test/render';
 
@@ -64,5 +65,32 @@ describe('admin claim gate', () => {
     renderApp({ auth, api: createFakeApi({ get: () => emptyPage }) });
     await userEvent.click(await screen.findByRole('button', { name: 'Sign out' }));
     expect(await screen.findByRole('button', { name: 'Sign in' })).toBeInTheDocument();
+  });
+});
+
+describe('revoked admin claim mid-session', () => {
+  it.each([401, 403])('signs out and says "Not an admin" on a %i from the API', async (status) => {
+    const auth = createFakeAuth(accounts, 'admin@example.com');
+    const api = createFakeApi({
+      get: () => {
+        throw new ApiError(status, 'Forbidden');
+      },
+    });
+    renderApp({ auth, api });
+    expect(await screen.findByText('Not an admin')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sign in' })).toBeInTheDocument();
+    expect(auth.signOutCalls).toBe(1);
+  });
+
+  it('keeps the session on other API failures', async () => {
+    const auth = createFakeAuth(accounts, 'admin@example.com');
+    const api = createFakeApi({
+      get: () => {
+        throw new ApiError(500, 'Boom');
+      },
+    });
+    renderApp({ auth, api });
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(auth.signOutCalls).toBe(0);
   });
 });

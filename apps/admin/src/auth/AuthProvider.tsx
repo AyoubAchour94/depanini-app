@@ -14,6 +14,8 @@ interface AuthContextValue {
   state: AuthState;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Signs out because the API refused the session (401/403): the admin claim is gone. */
+  endRevokedSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -50,6 +52,10 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
       state,
       signIn: (email, password) => service.signIn(email, password),
       signOut: () => service.signOut(),
+      endRevokedSession: () => {
+        notice.current = NOT_ADMIN_MESSAGE;
+        return service.signOut();
+      },
     }),
     [service, state],
   );

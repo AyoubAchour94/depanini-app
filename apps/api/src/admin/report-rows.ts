@@ -4,6 +4,7 @@ import type { SelectResultFields } from 'drizzle-orm/query-builders/select.types
 
 import type { Database } from '../db/database.module.js';
 import { customerProfiles, driverProfiles, reports, towRequests } from '../db/schema.js';
+import { actorEmail } from './audit-log.js';
 import { micros } from './paging.js';
 
 /** The columns of a report as support sees it, with the reporter's name for their side. */
@@ -22,6 +23,7 @@ export const reportColumns = {
     string | null
   >`case when ${reports.reporterRole} = 'customer' then ${customerProfiles.fullName} else ${driverProfiles.fullName} end`,
   resolvedBy: reports.resolvedBy,
+  resolvedByEmail: actorEmail('report_resolved', reports.id),
   pickupAddress: towRequests.pickupAddress,
   /** `created_at` at full precision, for the cursor. */
   createdAtMicros: micros(reports.createdAt),
@@ -52,5 +54,6 @@ export function toAdminReport(row: ReportRow): AdminReport {
     reporterRole: row.reporterRole,
     reporterName: row.reporterName,
     resolvedBy: row.resolvedBy,
+    resolvedByEmail: row.resolvedByEmail,
   };
 }
