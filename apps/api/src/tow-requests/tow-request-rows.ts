@@ -53,6 +53,10 @@ export const columns = {
   cancelReason: towRequests.cancelReason,
   // The JS `Date` above keeps milliseconds; the cursor needs the full microseconds.
   createdAtMicros: sql<string>`to_char(${towRequests.createdAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
+  /** Same for the history of a driver, which sorts by when the job ended. */
+  endedAtMicros: sql<
+    string | null
+  >`to_char(coalesce(${towRequests.completedAt}, ${towRequests.cancelledAt}) at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
 };
 
 /** The assigned driver's contact, from a left join on `driver_profiles` (see {@link selectTowRequests}). */

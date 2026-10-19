@@ -42,14 +42,15 @@ export const MAX_PAGE_SIZE = 50;
 
 /**
  * Position in the history: the last item of a page. Opaque to the apps.
- * `createdAt` is the column's own text at microsecond precision (a JS `Date` would round it).
+ * `createdAt` is the sort column's own text at microsecond precision (a JS `Date` would round it);
+ * the driver's jobs history keeps its end time (`completed_at` or `cancelled_at`) there.
  */
-interface Cursor {
+export interface Cursor {
   createdAt: string;
   id: string;
 }
 
-const encodeCursor = ({ createdAt, id }: Cursor) =>
+export const encodeCursor = ({ createdAt, id }: Cursor) =>
   Buffer.from(`${createdAt}|${id}`).toString('base64url');
 
 /** The cursor in a string, or `null` if it is not one we issued. */
