@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
 import { useAcceptOffer, useDeclineOffer, useOffers } from '@/api/towRequests';
+import { RatingBadge } from '@/features/trip/RatingBadge';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
 
@@ -50,6 +51,7 @@ export function OffersList({ request, focused }: { request: TowRequest; focused:
                 {t.offerFare(offer.fare)}
               </Text>
             </View>
+            <RatingBadge rating={offer.driver.rating} />
             {higher ? <Text style={{ color: theme.warning }}>{t.offerHigher}</Text> : null}
             <Text style={{ color: theme.textMuted }}>
               {truckTypeLabel(offer.driver.truckType)} · {t.offerEta(offer.etaMin)} ·{' '}

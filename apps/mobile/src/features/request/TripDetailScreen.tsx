@@ -4,6 +4,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { ScrollView, StyleSheet } from 'react-native';
 
 import { HISTORY_KEY, type HistoryPage } from '@/api/towRequests';
+import { RateTripCard } from '@/features/trip/RateTripCard';
 import { ReceiptCard, TripDetail } from '@/features/trip/TripDetail';
 import { useTheme } from '@/theme/theme';
 
@@ -23,7 +24,14 @@ export function TripDetailScreen() {
 
   return (
     <ScrollView style={{ backgroundColor: theme.background }} contentContainerStyle={styles.body}>
-      {request ? <TripDetail request={request} /> : <ReceiptCard requestId={id} />}
+      {request ? (
+        <TripDetail request={request} side="customer" />
+      ) : (
+        <>
+          <RateTripCard side="customer" requestId={id} />
+          <ReceiptCard requestId={id} />
+        </>
+      )}
     </ScrollView>
   );
 }

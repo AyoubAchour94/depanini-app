@@ -230,6 +230,19 @@ describe('ActiveRequestScreen', () => {
     expect(screen.getAllByRole('button', { name: 'Accept' })).toHaveLength(3);
   });
 
+  it("shows each driver's rating, or New below the threshold", async () => {
+    mockApi();
+    offers = [
+      { ...offer(1, 65), driver: { ...offer(1, 65).driver, rating: { average: 4.7, count: 23 } } },
+      { ...offer(2, 70), driver: { ...offer(2, 70).driver, rating: { average: null, count: 2 } } },
+      offer(3, 80),
+    ];
+    await renderScreen();
+
+    expect(await screen.findByText('★ 4.7 (23)')).toBeOnTheScreen();
+    expect(screen.getAllByText('New')).toHaveLength(1);
+  });
+
   it('keeps waiting when there are no offers, and polls every 5 seconds', async () => {
     mockApi();
     await renderScreen();

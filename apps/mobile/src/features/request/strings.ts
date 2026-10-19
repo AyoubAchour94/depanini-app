@@ -1,4 +1,4 @@
-import type { CustomerCancelReason, PaymentStatus } from '@depanini/shared';
+import type { CustomerCancelReason, CustomerRatingTag, PaymentStatus } from '@depanini/shared';
 
 /** User-facing text of the request flow, in one place until localization (Phase 9). */
 export const requestStrings = {
@@ -182,4 +182,15 @@ export const requestStrings = {
     cancelled: 'Cancelled',
     expired: 'Expired',
   },
+
+  /** What the customer can say about the driver, by tag id. */
+  driverTagLabels: {
+    on_time: 'On time',
+    careful_with_vehicle: 'Careful with the vehicle',
+    friendly: 'Friendly',
+    fair_price: 'Fair price',
+    late: 'Late',
+    rough_handling: 'Rough handling',
+    rude: 'Rude',
+  } satisfies Record<CustomerRatingTag, string>,
 } as const;

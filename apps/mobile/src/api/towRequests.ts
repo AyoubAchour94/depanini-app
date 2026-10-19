@@ -6,6 +6,8 @@ import {
   type FareEstimate,
   type FareEstimateInput,
   fareEstimateSchema,
+  type MyRating,
+  myRatingSchema,
   type TowRequest,
   type TowRequestInput,
   towRequestSchema,
@@ -208,5 +210,44 @@ export function useDisputePayment() {
         json: { note },
       }),
     onSettled: () => void invalidate(),
+  });
+}
+
+export const RATING_KEY = ['tow-requests', 'rating'] as const;
+
+/** `GET /tow-requests/:id/rating`: my rating of the other side and whether I can still rate. 404 for a stranger. */
+export function useMyRating(requestId: string) {
+  return useQuery({
+    queryKey: [...RATING_KEY, requestId],
+    queryFn: (): Promise<MyRating> =>
+      apiRequest(`/tow-requests/${requestId}/rating`, myRatingSchema),
+  });
+}
+
+/**
+ * `POST /tow-requests/:id/rating`, for either side (the body differs by tags).
+ * Fails with an `ApiError`: 400 for a bad body (with `issues`), 404 for a
+ * stranger, 409 when it can no longer be rated or was already rated. Settling
+ * refreshes the rating, the offers and the nearby list, whose badges it moves.
+ */
+export function useSubmitRating() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...rating
+    }: {
+      id: string;
+      stars: number;
+      tags: string[];
+      comment?: string;
+    }): Promise<MyRating> =>
+      apiRequest(`/tow-requests/${id}/rating`, myRatingSchema, { method: 'POST', json: rating }),
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: RATING_KEY }),
+        queryClient.invalidateQueries({ queryKey: OFFERS_KEY }),
+        queryClient.invalidateQueries({ queryKey: ['driver', 'requests'] }),
+      ]),
   });
 }

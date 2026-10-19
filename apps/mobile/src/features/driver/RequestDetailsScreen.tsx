@@ -9,6 +9,7 @@ import { MissingTokenView } from '@/features/map/MapScreen';
 import { TunisMap } from '@/features/map/TunisMap';
 import { formatRemaining, useCountdown } from '@/features/request/countdown';
 import { requestStrings } from '@/features/request/strings';
+import { RatingBadge } from '@/features/trip/RatingBadge';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
 
@@ -81,6 +82,7 @@ export function RequestDetailsScreen({ id }: { id: string }) {
       <View style={[styles.card, { backgroundColor: theme.surface }]}>
         <Place label={t.pickupLabel} address={request.pickup.address} />
         <Place label={t.dropoffLabel} address={request.dropoff.address} />
+        <RatingBadge rating={request.customer?.rating} />
         <Text style={{ color: theme.textMuted }}>{t.towDistance(request.distanceM)}</Text>
         <Text style={{ color: theme.text }}>
           {requestStrings.vehicleOptions[request.vehicleType]} ·{' '}

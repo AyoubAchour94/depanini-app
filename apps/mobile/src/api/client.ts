@@ -3,10 +3,18 @@ import type { z } from 'zod';
 import { env } from '@/config/env';
 import { getCurrentIdToken } from '@/firebase/firebase';
 
+/** One failing field of a 400 response. */
+export interface ApiIssue {
+  path: (string | number)[];
+  message: string;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
     readonly status?: number,
+    /** The `issues` of a 400 response, when it names the failing fields. */
+    readonly issues: ApiIssue[] = [],
   ) {
     super(message);
     this.name = 'ApiError';
@@ -44,8 +52,23 @@ export async function apiRequest<T>(
   });
 
   if (!response.ok && !acceptStatuses.includes(response.status)) {
-    throw new ApiError(`${init.method ?? 'GET'} ${path} failed`, response.status);
+    throw new ApiError(
+      `${init.method ?? 'GET'} ${path} failed`,
+      response.status,
+      await readIssues(response),
+    );
   }
   // 204 No Content has no body to parse.
   return schema.parse(response.status === 204 ? undefined : await response.json());
+}
+
+async function readIssues(response: Response): Promise<ApiIssue[]> {
+  if (response.status !== 400) return [];
+  try {
+    const body: unknown = await response.json();
+    const issues = (body as { issues?: unknown } | null)?.issues;
+    return Array.isArray(issues) ? (issues as ApiIssue[]) : [];
+  } catch {
+    return [];
+  }
 }
