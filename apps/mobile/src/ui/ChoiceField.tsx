@@ -1,6 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useTheme } from '@/theme/theme';
+
+import { Text } from './Text';
 
 interface ChoiceFieldProps<T extends string> {
   label: string;
@@ -22,10 +24,10 @@ export function ChoiceField<T extends string>({
   error,
   wrap,
 }: ChoiceFieldProps<T>) {
-  const theme = useTheme();
+  const t = useTheme();
   return (
     <View style={styles.field}>
-      <Text style={[styles.label, { color: theme.text }]}>{label}</Text>
+      <Text variant="label">{label}</Text>
       <View
         accessibilityRole="radiogroup"
         accessibilityLabel={label}
@@ -43,30 +45,40 @@ export function ChoiceField<T extends string>({
                 styles.option,
                 wrap && styles.optionWrapped,
                 {
-                  backgroundColor: selected ? theme.brand : theme.surface,
-                  borderColor: error ? theme.danger : selected ? theme.brand : theme.surface,
+                  borderRadius: t.radius.md,
+                  backgroundColor: selected ? t.color.brandTint : t.color.surface2,
+                  borderColor: error ? t.color.danger : selected ? t.color.brand : 'transparent',
                 },
               ]}
             >
-              <Text style={[styles.optionText, { color: selected ? theme.onBrand : theme.text }]}>
+              <Text variant={selected ? 'bodyStrong' : 'body'} style={styles.optionText}>
                 {option.label}
               </Text>
             </Pressable>
           );
         })}
       </View>
-      {error ? <Text style={[styles.error, { color: theme.danger }]}>{error}</Text> : null}
+      {error ? (
+        <Text variant="caption" tone="danger">
+          {error}
+        </Text>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   field: { gap: 6 },
-  label: { fontSize: 14, fontWeight: '600' },
   options: { flexDirection: 'row', gap: 8 },
   wrap: { flexWrap: 'wrap' },
-  option: { flex: 1, borderRadius: 10, borderWidth: 1, paddingVertical: 12, alignItems: 'center' },
+  option: {
+    flex: 1,
+    borderWidth: 1.5,
+    minHeight: 48,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   optionWrapped: { flexGrow: 1, flexBasis: '30%', paddingHorizontal: 6 },
-  optionText: { fontSize: 16, fontWeight: '600' },
-  error: { fontSize: 13 },
+  optionText: { textAlign: 'center' },
 });

@@ -1,8 +1,10 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { clampFare, FARE_LONG_STEP, FARE_STEP } from '@/features/request/fare';
 import { requestStrings as t } from '@/features/request/strings';
 import { useTheme } from '@/theme/theme';
+
+import { Text } from './Text';
 
 interface FareStepperProps {
   fare: number;
@@ -13,7 +15,6 @@ interface FareStepperProps {
 
 /** A ± control for a fare in dinars: 1 per press, 5 on long press, clamped to `min`–`max`. */
 export function FareStepper({ fare, min, max, onChange }: FareStepperProps) {
-  const theme = useTheme();
   const step = (delta: number) => onChange(clampFare(fare + delta, min, max));
   return (
     <View style={styles.stepper}>
@@ -24,7 +25,7 @@ export function FareStepper({ fare, min, max, onChange }: FareStepperProps) {
         onPress={() => step(-FARE_STEP)}
         onLongPress={() => step(-FARE_LONG_STEP)}
       />
-      <Text accessibilityLiveRegion="polite" style={[styles.fare, { color: theme.text }]}>
+      <Text variant="figure" accessibilityLiveRegion="polite">
         {t.fareAmount(fare)}
       </Text>
       <StepButton
@@ -60,22 +61,24 @@ function StepButton({
       disabled={disabled}
       onPress={onPress}
       onLongPress={onLongPress}
-      style={[styles.stepButton, { backgroundColor: theme.surface, opacity: disabled ? 0.4 : 1 }]}
+      style={[
+        styles.stepButton,
+        {
+          backgroundColor: theme.color.surface2,
+          borderRadius: theme.radius.full,
+          opacity: disabled ? 0.4 : 1,
+        },
+      ]}
     >
-      <Text style={[styles.stepSymbol, { color: theme.text }]}>{symbol}</Text>
+      <Text variant="title" style={styles.stepSymbol}>
+        {symbol}
+      </Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  stepButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepSymbol: { fontSize: 28, fontWeight: '600' },
-  fare: { fontSize: 36, fontWeight: '700' },
+  stepButton: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
+  stepSymbol: { fontSize: 28, lineHeight: 32 },
 });
