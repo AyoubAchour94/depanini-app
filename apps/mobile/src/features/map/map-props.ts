@@ -23,10 +23,14 @@ export interface TunisMapProps {
   markers?: MapMarker[];
   /** Fit the camera to all markers when the set of marker ids changes (not on every coordinate update). */
   fitToMarkers?: boolean;
+  /** Height (px) of what covers the bottom of the map (the sheet); the fit keeps the markers above it. */
+  fitInsetBottom?: number;
 }
 
 /** Padding (px) around the markers when fitting the camera. */
 export const FIT_PADDING = 60;
+/** Extra padding (px) at the top of a fit under a sheet: the controls row and the Mapbox logo. */
+const FIT_TOP_CONTROLS = 60;
 /** Closest zoom the fit may reach, so a single marker doesn't zoom to rooftops. */
 export const FIT_MAX_ZOOM = 15;
 
@@ -43,3 +47,18 @@ export function markerIdsKey(markers: MapMarker[] | undefined): string {
  * They sit at the end of the screen under the floating controls, not at the bottom where the sheet is.
  */
 export const ORNAMENT_TOP = 72;
+
+/**
+ * The padding of a fit: `FIT_PADDING` all around. With `insetBottom` px of the map
+ * covered by a sheet, the markers also stay clear of the sheet and, at the top, of
+ * the floating controls and the Mapbox logo (`ORNAMENT_TOP` plus the logo).
+ */
+export function fitPadding(insetBottom = 0) {
+  if (insetBottom <= 0) return FIT_PADDING;
+  return {
+    top: FIT_PADDING + FIT_TOP_CONTROLS,
+    right: FIT_PADDING,
+    bottom: FIT_PADDING + insetBottom,
+    left: FIT_PADDING,
+  };
+}

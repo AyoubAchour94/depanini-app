@@ -9,8 +9,8 @@ interface ChipProps {
   label: string;
   selected?: boolean;
   onPress?: () => void;
-  /** `radio` when the chip is one of an exclusive set; a plain toggle otherwise. */
-  role?: 'button' | 'radio';
+  /** `radio` when the chip is one of an exclusive set; `none` when it only states something ("Cash") and cannot be pressed. */
+  role?: 'button' | 'radio' | 'none';
   /** A small leading icon or glyph. */
   icon?: ReactNode;
   disabled?: boolean;
@@ -30,7 +30,7 @@ export function Chip({
   const t = useTheme();
   return (
     <Pressable
-      accessibilityRole={role}
+      accessibilityRole={role === 'none' ? undefined : role}
       accessibilityLabel={accessibilityLabel}
       accessibilityState={
         role === 'radio' ? { checked: selected, disabled } : { selected, disabled }

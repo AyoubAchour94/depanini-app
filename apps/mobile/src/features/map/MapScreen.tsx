@@ -3,8 +3,6 @@ import { StyleSheet, View } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 import { env } from '@/config/env';
-import { ApiHealthBadge } from '@/features/status/ApiHealthBadge';
-import { FirebaseBanner } from '@/features/status/FirebaseBanner';
 import { useTheme } from '@/theme/theme';
 import { MapSheet } from '@/ui/MapSheet';
 import { Text } from '@/ui/Text';
@@ -36,9 +34,7 @@ interface MapScreenProps extends MapOptions {
 /**
  * The map-first shell shared by both variants: a full-bleed map (light or
  * dark with the theme), a top row of floating controls and a status pill, and
- * a draggable bottom sheet. It also proves the toolchain end to end: Mapbox
- * renders, the app reaches the API, and Firebase is initialized.
- * `children` are drawn over everything else.
+ * a draggable bottom sheet. `children` are drawn over everything else.
  */
 export function MapScreen({
   children,
@@ -80,8 +76,6 @@ export function MapScreen({
             {topEnd}
           </View>
         ) : null}
-        <ApiHealthBadge />
-        <FirebaseBanner />
       </View>
       {sheet ? <MapSheet {...sheet} /> : null}
       {children}

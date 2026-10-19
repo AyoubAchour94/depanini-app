@@ -25,7 +25,7 @@ export function FareStepper({ fare, min, max, onChange }: FareStepperProps) {
         onPress={() => step(-FARE_STEP)}
         onLongPress={() => step(-FARE_LONG_STEP)}
       />
-      <Text variant="figure" accessibilityLiveRegion="polite">
+      <Text variant="figure" accessibilityLiveRegion="polite" testID="fare-amount">
         {t.fareAmount(fare)}
       </Text>
       <StepButton
