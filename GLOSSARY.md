@@ -126,7 +126,7 @@ The proof of a completed trip, shown in-app to both the customer and the driver,
 The receipt's unique, sequential identifier, like `DPN-2026-000123`: the year of completion in Africa/Tunis, then a six-digit sequence number.
 
 **Disputed payment**:
-A payment the customer reported a problem with, with a short note (1 to 500 characters), kept for support. Answering is optional for the customer: without an answer the payment stays driver confirmed. A dispute never blocks the driver.
+A payment the customer reported a problem with, with a short note (1 to 500 characters), kept for support. Answering is optional for the customer: without an answer the payment stays driver confirmed. A dispute never blocks the driver. Support resolves it once, with a resolution note kept on the payment; the status stays disputed.
 
 **Earnings**:
 A driver's totals for today, this week and this month: the count of completed trips and the sum of their agreed fares, in whole dinars. Periods follow the Africa/Tunis time zone.
@@ -163,4 +163,4 @@ A problem raised by the customer or the driver about a completed or cancelled tr
 A team member who can sign in to the admin web app. The role is the Firebase custom claim `admin`, set by a script on the emulator or by the owner on a real account. Admins review drivers, look up users and trips, and resolve reports and payment disputes.
 
 **Audit log**:
-The record of every admin action (approving or rejecting a driver, resolving a report or a dispute): who did it, when, on what, and the details. It is append-only.
+The record of every admin action (approving or rejecting a driver, resolving a report or a dispute): who did it, when, on what, and the details. It is append-only, and it outlives the admin's account.

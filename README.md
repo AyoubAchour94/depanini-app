@@ -49,6 +49,7 @@ apps/
 │   │   ├── common/               # ZodValidationPipe (request bodies via shared schemas)
 │   │   ├── realtime/             # WebSocket /ws: auth, fan-out of trip events (docs/realtime.md)
 │   │   ├── push/                 # device tokens, push notifications (docs/push.md)
+│   │   ├── admin/                # /admin/*: driver review, lookups, queues, audit log (AdminGuard)
 │   │   └── health/               # GET /health
 │   ├── drizzle/                  # SQL migrations (0000 enables PostGIS)
 │   ├── test/                     # e2e tests (supertest over Fastify)
@@ -159,10 +160,11 @@ Remove those lines to use the real `depanini-dev` project.
 
 ### End-to-end flow check
 
-`pnpm e2e:flow` walks the whole customer + driver flow (profiles, estimate,
-request, presence, nearby, offer, accept, job, trip stages, completion, cancel) over HTTP against a
-running stack, checks each response against the `@depanini/shared` schemas and
-deletes its two throwaway accounts at the end. It needs the built shared
+`pnpm e2e:flow` walks the whole customer + driver flow (profiles, documents, admin
+review, estimate, request, presence, nearby, offer, accept, job, trip stages, completion,
+cancel) over HTTP against a running stack, checks each response against the
+`@depanini/shared` schemas and deletes its throwaway accounts at the end. It grants
+the admin claim to its own admin account through the emulator (see below). It needs the built shared
 package, Postgres, the Auth emulator and the API started with the emulator:
 
 ```bash
@@ -170,11 +172,35 @@ pnpm --filter @depanini/shared build
 pnpm db:up
 pnpm emulators                              # own terminal
 pnpm --filter @depanini/api start:dev       # own terminal
-E2E_DATABASE_URL=postgres://depanini:depanini@localhost:5432/depanini pnpm e2e:flow  # E2E_DATABASE_URL (the API database) is needed to approve the driver until the admin API exists; E2E_API_URL, E2E_AUTH_EMULATOR override the defaults; E2E_WS=off skips /ws; start the API with PUSH_INBOX=1 to check pushes too
+pnpm e2e:flow                               # E2E_API_URL, E2E_AUTH_EMULATOR override the defaults; E2E_WS=off skips /ws; start the API with PUSH_INBOX=1 to check pushes too
 ```
 
 It prints one line per step and exits non-zero on the first failure. Add steps
 to the `STEPS` list in `scripts/e2e/flow.mjs`.
+
+### Admin accounts
+
+Every `/admin/*` route needs a Firebase ID token with the custom claim `admin: true`
+(`AdminGuard`: `401` without a valid token, `403` without the claim). The claim is set
+by a script, never by the API:
+
+```bash
+FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 pnpm admin:grant someone@example.com            # grant (emulator)
+FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 pnpm admin:grant someone@example.com --revoke   # remove it
+```
+
+- The account must already exist (sign up first), and must **sign in again** (or
+  refresh its ID token) before the claim reaches the API. A revoked claim stays in
+  tokens already issued until they expire, an hour at most.
+- The project is `FIREBASE_PROJECT_ID` (or `--project <id>`), `depanini-dev` by default.
+- Without `FIREBASE_AUTH_EMULATOR_HOST` the script **refuses to run**, because it would
+  change a real Firebase project. Granting admin on a real account is the owner's call:
+  pass `--yes-real-project` with credentials (`GOOGLE_APPLICATION_CREDENTIALS`, or
+  `gcloud auth application-default login`).
+- Every admin action (approve, reject, resolve) is written to the audit log
+  (`GET /admin/audit`), which outlives the admin's account.
+
+The script's safety check has unit tests: `pnpm test:scripts`.
 
 ### Browser end-to-end test
 
