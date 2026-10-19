@@ -202,8 +202,8 @@ async function requestTow(c: Page) {
   await c.getByRole('radio', { name: 'Car', exact: true }).click();
   await c.getByRole('radio', { name: 'Breakdown' }).click();
   await button(c, 'Next').click();
-  await expect(shown(c, /^Suggested: \d+ TND$/)).toBeVisible();
-  await button(c, 'Send request').click();
+  await expect(button(c, /^Send request · \d+ TND$/)).toBeVisible();
+  await button(c, /^Send request/).click();
   await expect(shown(c, 'Waiting for drivers…')).toBeVisible();
 }
 

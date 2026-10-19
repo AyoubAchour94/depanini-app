@@ -9,6 +9,7 @@ export default function PickupRoute() {
   useExitGuard();
   return (
     <PickupStep
+      onBack={() => router.back()}
       onConfirm={(pickup) => {
         setPickup(pickup);
         router.navigate('/request/dropoff');

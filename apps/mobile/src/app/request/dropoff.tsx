@@ -10,6 +10,7 @@ export default function DropoffRoute() {
     <DropoffStep
       pickup={pickup}
       initial={dropoff}
+      onBack={() => router.back()}
       onConfirm={(place) => {
         setDropoff(place);
         router.navigate('/request/details');

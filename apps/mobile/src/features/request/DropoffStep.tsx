@@ -1,18 +1,24 @@
 import { isInTunisia, type LatLng, type Place } from '@depanini/shared';
-import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useContext, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 import { env } from '@/config/env';
-import { CenterPin } from '@/features/map/CenterPin';
-import { MissingTokenView } from '@/features/map/MapScreen';
-import { TunisMap } from '@/features/map/TunisMap';
+import { BackButton } from '@/features/map/controls';
+import { MapScreen } from '@/features/map/MapScreen';
+import { shortAddress } from '@/features/places/address';
 import { NEARBY_RADIUS_KM } from '@/features/places/geocoding';
 import { useReverseGeocode, useSearchPlaces } from '@/features/places/hooks';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
+import { Text } from '@/ui/Text';
 import { TextField } from '@/ui/TextField';
 
+import { PlaceReadout } from './PlaceReadout';
 import { requestStrings as t } from './strings';
+
+/** Snap points of the pin sheet: the address, a notice and the pinned action fit at the first. */
+const PIN_SNAPS = [260] as const;
 
 const formatCoordinates = ({ latitude, longitude }: LatLng) =>
   `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
@@ -23,13 +29,15 @@ interface DropoffStepProps {
   /** The drop-off chosen earlier, if the customer came back to this step. */
   initial?: Place | null;
   onConfirm: (dropoff: Place) => void;
+  /** Leaves the step; the back button of the search shows only when given. */
+  onBack?: () => void;
 }
 
 /**
  * Second step of a tow request: the customer searches for the drop-off or
  * drops a pin on the map. `onConfirm` receives the {@link Place}.
  */
-export function DropoffStep({ pickup, initial, onConfirm }: DropoffStepProps) {
+export function DropoffStep({ pickup, initial, onConfirm, onBack }: DropoffStepProps) {
   const [onMap, setOnMap] = useState(false);
   return onMap ? (
     <MapPicker start={initial ?? pickup} onConfirm={onConfirm} onBack={() => setOnMap(false)} />
@@ -39,6 +47,7 @@ export function DropoffStep({ pickup, initial, onConfirm }: DropoffStepProps) {
       initialQuery={initial?.address ?? ''}
       onSelect={onConfirm}
       onPickOnMap={() => setOnMap(true)}
+      onBack={onBack}
     />
   );
 }
@@ -48,24 +57,38 @@ function SearchPicker({
   initialQuery,
   onSelect,
   onPickOnMap,
+  onBack,
 }: {
   pickup: Place;
   initialQuery: string;
   onSelect: (place: Place) => void;
   onPickOnMap: () => void;
+  onBack?: () => void;
 }) {
   const theme = useTheme();
+  const insets = useContext(SafeAreaInsetsContext);
   const [query, setQuery] = useState(initialQuery);
   const search = useSearchPlaces(query, pickup);
   const results = (search.data ?? []).filter(({ place }) => isInTunisia(place));
   const searching = query.trim().length >= 2;
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.form}
-      keyboardShouldPersistTaps="handled"
-      style={{ backgroundColor: theme.background }}
+    <View
+      style={[
+        styles.fill,
+        {
+          backgroundColor: theme.color.background,
+          paddingTop: (insets?.top ?? 0) + theme.space[3],
+          paddingHorizontal: theme.space[4],
+          gap: theme.space[4],
+        },
+      ]}
     >
+      {onBack ? (
+        <View style={styles.top}>
+          <BackButton onPress={onBack} />
+        </View>
+      ) : null}
       <TextField
         label={t.dropoffLabel}
         placeholder={t.dropoffPlaceholder}
@@ -73,35 +96,51 @@ function SearchPicker({
         onChangeText={setQuery}
         autoFocus
       />
-      {!env.mapboxAccessToken ? (
-        <Text style={[styles.note, { color: theme.textMuted }]}>{t.searchUnavailable}</Text>
-      ) : searching && search.isError ? (
-        <Text style={[styles.note, { color: theme.danger }]}>{t.searchFailed}</Text>
-      ) : searching && (search.isFetching || search.isPending) ? (
-        <ActivityIndicator color={theme.brand} />
-      ) : searching && results.length === 0 ? (
-        <Text style={[styles.note, { color: theme.textMuted }]}>{t.noResults}</Text>
-      ) : (
-        results.map(({ place, secondary, distanceKm }) => (
-          <Pressable
-            key={`${place.latitude},${place.longitude},${place.address}`}
-            accessibilityRole="button"
-            accessibilityLabel={place.address}
-            onPress={() => onSelect(place)}
-            style={[styles.result, { backgroundColor: theme.surface }]}
-          >
-            <Text style={[styles.resultText, { color: theme.text }]}>{place.address}</Text>
-            {secondary && !place.address.includes(secondary) ? (
-              <Text style={[styles.hint, { color: theme.textMuted }]}>{secondary}</Text>
-            ) : null}
-            {distanceKm !== undefined && distanceKm > NEARBY_RADIUS_KM ? (
-              <Text style={[styles.hint, { color: theme.textMuted }]}>{t.kmAway(distanceKm)}</Text>
-            ) : null}
-          </Pressable>
-        ))
-      )}
-      <Button kind="link" title={t.pickOnMap} onPress={onPickOnMap} />
-    </ScrollView>
+      <ScrollView
+        style={styles.fill}
+        contentContainerStyle={{
+          gap: theme.space[2],
+          paddingBottom: Math.max(insets?.bottom ?? 0, theme.space[4]),
+        }}
+        keyboardShouldPersistTaps="handled"
+      >
+        {!env.mapboxAccessToken ? (
+          <Text tone="muted">{t.searchUnavailable}</Text>
+        ) : searching && search.isError ? (
+          <Text tone="danger">{t.searchFailed}</Text>
+        ) : searching && (search.isFetching || search.isPending) ? (
+          <ActivityIndicator color={theme.color.brandAccent} />
+        ) : searching && results.length === 0 ? (
+          <Text tone="muted">{t.noResults}</Text>
+        ) : (
+          results.map(({ place, secondary, distanceKm }) => (
+            <Pressable
+              key={`${place.latitude},${place.longitude},${place.address}`}
+              accessibilityRole="button"
+              accessibilityLabel={shortAddress(place.address)}
+              onPress={() => onSelect(place)}
+              style={[
+                styles.result,
+                { backgroundColor: theme.color.surface, borderRadius: theme.radius.md },
+              ]}
+            >
+              <Text variant="bodyStrong">{shortAddress(place.address)}</Text>
+              {secondary && !place.address.includes(secondary) ? (
+                <Text variant="caption" tone="muted">
+                  {shortAddress(secondary)}
+                </Text>
+              ) : null}
+              {distanceKm !== undefined && distanceKm > NEARBY_RADIUS_KM ? (
+                <Text variant="caption" tone="muted">
+                  {t.kmAway(distanceKm)}
+                </Text>
+              ) : null}
+            </Pressable>
+          ))
+        )}
+        <Button kind="secondary" title={t.pickOnMap} onPress={onPickOnMap} />
+      </ScrollView>
+    </View>
   );
 }
 
@@ -114,7 +153,6 @@ function MapPicker({
   onConfirm: (place: Place) => void;
   onBack: () => void;
 }) {
-  const theme = useTheme();
   const [startCenter] = useState<LatLng>({ latitude: start.latitude, longitude: start.longitude });
   // The coordinate under the pin; the start point until the map has settled.
   const [picked, setPicked] = useState<LatLng | null>(null);
@@ -126,60 +164,41 @@ function MapPicker({
   const address = reverse.data?.address ?? formatCoordinates(pin);
 
   return (
-    <View style={styles.fill}>
-      {env.mapboxAccessToken ? (
-        <>
-          <TunisMap
-            accessToken={env.mapboxAccessToken}
-            center={startCenter}
-            onCenterChange={setPicked}
+    <MapScreen
+      center={startCenter}
+      onCenterChange={setPicked}
+      topStart={<BackButton onPress={onBack} />}
+      sheet={{
+        snapPoints: PIN_SNAPS,
+        children: (
+          <PlaceReadout label={t.dropoffPointLabel} address={address} finding={!settled}>
+            {settled && !reverse.data && env.mapboxAccessToken && insideTunisia ? (
+              <Text variant="caption" tone="muted">
+                {t.addressUnavailable}
+              </Text>
+            ) : null}
+            {!insideTunisia ? (
+              <Text variant="caption" tone="danger">
+                {t.outsideTunisia}
+              </Text>
+            ) : null}
+          </PlaceReadout>
+        ),
+        footer: (
+          <Button
+            size="big"
+            title={t.confirmDropoff}
+            disabled={!insideTunisia || !settled}
+            onPress={() => onConfirm({ ...pin, address })}
           />
-          <CenterPin />
-        </>
-      ) : (
-        <MissingTokenView />
-      )}
-      <View style={[styles.sheet, { backgroundColor: theme.background }]}>
-        <Text style={[styles.label, { color: theme.textMuted }]}>{t.dropoffPointLabel}</Text>
-        {!settled ? (
-          <Text style={[styles.address, { color: theme.textMuted }]}>{t.findingAddress}</Text>
-        ) : (
-          <Text style={[styles.address, { color: theme.text }]}>{address}</Text>
-        )}
-        {settled && !reverse.data && env.mapboxAccessToken && insideTunisia ? (
-          <Text style={[styles.note, { color: theme.textMuted }]}>{t.addressUnavailable}</Text>
-        ) : null}
-        {!insideTunisia ? (
-          <Text style={[styles.note, { color: theme.danger }]}>{t.outsideTunisia}</Text>
-        ) : null}
-        <Button
-          title={t.confirmDropoff}
-          disabled={!insideTunisia || !settled}
-          onPress={() => onConfirm({ ...pin, address })}
-        />
-        <Button kind="link" title={t.backToSearch} onPress={onBack} />
-      </View>
-    </View>
+        ),
+      }}
+    />
   );
 }
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  form: { padding: 16, gap: 12 },
-  result: { borderRadius: 10, padding: 14 },
-  resultText: { fontSize: 16 },
-  hint: { fontSize: 13, marginTop: 2 },
-  sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    padding: 16,
-    gap: 8,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-  },
-  label: { fontSize: 13 },
-  address: { fontSize: 17, fontWeight: '600' },
-  note: { fontSize: 14 },
+  top: { flexDirection: 'row' },
+  result: { padding: 14, gap: 2 },
 });

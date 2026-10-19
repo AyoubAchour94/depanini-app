@@ -229,4 +229,13 @@ describe('TunisMap (web)', () => {
       { padding: 60, maxZoom: 15 },
     );
   });
+
+  it('keeps the fitted markers above the sheet', () => {
+    render({ markers: [pickup, truck], fitToMarkers: true, fitInsetBottom: 400 });
+
+    expect(mockMaps[0]!.fitBounds).toHaveBeenLastCalledWith(expect.anything(), {
+      padding: { top: 120, right: 60, bottom: 460, left: 60 },
+      maxZoom: 15,
+    });
+  });
 });

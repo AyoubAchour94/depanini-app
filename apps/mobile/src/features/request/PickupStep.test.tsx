@@ -21,6 +21,8 @@ jest.mock('@/config/env', () => ({
 const location = jest.mocked(Location);
 
 const address = 'Avenue Habib Bourguiba, Tunis, Tunisie';
+/** What the screen shows: the address without the country. */
+const shown = 'Avenue Habib Bourguiba, Tunis';
 const geocodeBody = {
   features: [{ geometry: { coordinates: [10, 36] }, properties: { full_address: address } }],
 };
@@ -52,12 +54,26 @@ describe('PickupStep', () => {
     jest.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json(geocodeBody));
     const onConfirm = await renderStep();
 
-    expect(await screen.findByText(address)).toBeOnTheScreen();
+    expect(await screen.findByText(shown)).toBeOnTheScreen();
     expect(location.requestForegroundPermissionsAsync).toHaveBeenCalledTimes(1);
     expect(screen.queryByText(/Location access is off/)).toBeNull();
 
     fireEvent.press(screen.getByRole('button', { name: 'Confirm pickup' }));
     expect(onConfirm).toHaveBeenCalledWith({ latitude: 36.85, longitude: 10.2, address });
+  });
+
+  it('goes back with the back button', async () => {
+    grantLocation(36.85, 10.2);
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json(geocodeBody));
+    const onBack = jest.fn();
+    await render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <PickupStep onConfirm={jest.fn()} onBack={onBack} />
+      </QueryClientProvider>,
+    );
+
+    fireEvent.press(await screen.findByRole('button', { name: 'Back' }));
+    expect(onBack).toHaveBeenCalled();
   });
 
   it('starts in Tunis with a message when permission is denied', async () => {
@@ -67,7 +83,7 @@ describe('PickupStep', () => {
 
     expect(await screen.findByText(/Location access is off/)).toBeOnTheScreen();
     expect(location.getCurrentPositionAsync).not.toHaveBeenCalled();
-    expect(await screen.findByText(address)).toBeOnTheScreen();
+    expect(await screen.findByText(shown)).toBeOnTheScreen();
 
     fireEvent.press(screen.getByRole('button', { name: 'Confirm pickup' }));
     expect(onConfirm).toHaveBeenCalledWith({ latitude: 36.8065, longitude: 10.1815, address });
@@ -118,7 +134,7 @@ describe('PickupStep', () => {
     grantLocation(36.85, 10.2);
     jest.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json(geocodeBody));
     await renderStep();
-    await screen.findByText(address);
+    await screen.findByText(shown);
 
     const moved = {
       features: [
@@ -140,7 +156,7 @@ describe('PickupStep', () => {
     grantLocation(36.85, 10.2);
     jest.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json(geocodeBody));
     await renderStep();
-    await screen.findByText(address);
+    await screen.findByText(shown);
 
     fireEvent(screen.getByTestId('mapbox-map'), 'mapIdle', {
       properties: { center: [2.35, 48.85] },

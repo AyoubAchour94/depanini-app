@@ -3,6 +3,10 @@ import type { CustomerCancelReason, CustomerRatingTag, PaymentStatus } from '@de
 /** User-facing text of the request flow, in one place until localization (Phase 9). */
 export const requestStrings = {
   requestTow: 'Request a tow',
+  homeTitle: "Where's your vehicle?",
+  homePickupLabel: 'Pickup',
+  currentLocation: 'Your current location',
+  edit: 'Edit',
   pickupTitle: 'Pickup',
   locating: 'Finding your location…',
   findingAddress: 'Finding the address…',
@@ -24,7 +28,6 @@ export const requestStrings = {
   searchUnavailable: 'Search is not available right now. Pick the place on the map instead.',
   kmAway: (km: number) => `${km} km away`,
   pickOnMap: 'Pick on map',
-  backToSearch: 'Back to search',
   dropoffPointLabel: 'Drop-off point',
   confirmDropoff: 'Confirm drop-off',
 
@@ -53,15 +56,19 @@ export const requestStrings = {
   estimating: 'Calculating the fare…',
   estimateFailed: 'Could not calculate the fare. Check your connection and try again.',
   retry: 'Try again',
-  distance: (km: string) => `About ${km} km`,
-  suggestedFare: (fare: number) => `Suggested: ${fare} TND`,
+  routeStats: (km: string, minutes: number) => `${km} km · ~${minutes} min`,
+  yourOffer: 'Your offer',
+  suggestedLabel: 'Suggested',
+  fareHint: 'Drivers accept or counter',
+  cash: 'Cash',
+  vehicleAndProblem: (vehicle: string, problem: string) => `${vehicle} · ${problem}`,
   fareExplainer:
     'Drivers can accept this fare or counter with their own. You pick which offer to take.',
-  fareRange: (min: number, max: number) => `You can offer between ${min} and ${max} TND.`,
   decreaseFare: 'Decrease fare',
   increaseFare: 'Increase fare',
   fareAmount: (fare: number) => `${fare} TND`,
   sendRequest: 'Send request',
+  sendRequestFor: (fare: number) => `Send request · ${fare} TND`,
   submitFailed: 'Could not send your request. Try again.',
   fareRejected: 'That fare is no longer allowed. We updated the range, check it and try again.',
 
