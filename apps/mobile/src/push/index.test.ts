@@ -1,3 +1,4 @@
+import { getToken, onTokenRefresh } from '@react-native-firebase/messaging';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
@@ -19,6 +20,8 @@ jest.mock('@/api/devices', () => ({
 }));
 
 const notifications = jest.mocked(Notifications);
+const fcmToken = jest.mocked(getToken);
+const refresh = jest.mocked(onTokenRefresh);
 const device = Device as { isDevice: boolean };
 const put = jest.mocked(putDevice);
 const del = jest.mocked(deleteDevice);
@@ -33,14 +36,13 @@ function signIn() {
 
 const granted = { granted: true, canAskAgain: true } as Notifications.NotificationPermissionsStatus;
 const denied = { granted: false, canAskAgain: true } as Notifications.NotificationPermissionsStatus;
-const token = (data: string) => ({ type: 'fcm', data }) as Notifications.DevicePushToken;
 
 beforeEach(() => {
   jest.clearAllMocks();
   device.isDevice = true;
   notifications.getPermissionsAsync.mockResolvedValue(denied);
   notifications.requestPermissionsAsync.mockResolvedValue(denied);
-  notifications.getDevicePushTokenAsync.mockResolvedValue(token('fcm-1'));
+  fcmToken.mockResolvedValue('fcm-1');
   notifications.getLastNotificationResponse.mockReturnValue(null);
 });
 
@@ -53,6 +55,24 @@ describe('registerForPush', () => {
 
     expect(notifications.requestPermissionsAsync).toHaveBeenCalledTimes(1);
     expect(put).toHaveBeenCalledWith({ token: 'fcm-1', platform: 'ios', appVariant: 'user' });
+  });
+
+  it('reads the FCM token only after permission is granted, with one prompt', async () => {
+    signIn();
+    const order: string[] = [];
+    notifications.requestPermissionsAsync.mockImplementationOnce(async () => {
+      order.push('permission');
+      return granted;
+    });
+    fcmToken.mockImplementationOnce(async () => {
+      order.push('token');
+      return 'fcm-1';
+    });
+
+    await registerForPush();
+
+    expect(order).toEqual(['permission', 'token']);
+    expect(notifications.requestPermissionsAsync).toHaveBeenCalledTimes(1);
   });
 
   it('registers with the platform of the phone', async () => {
@@ -83,7 +103,7 @@ describe('registerForPush', () => {
 
     await registerForPush();
 
-    expect(notifications.getDevicePushTokenAsync).not.toHaveBeenCalled();
+    expect(fcmToken).not.toHaveBeenCalled();
     expect(put).not.toHaveBeenCalled();
   });
 
@@ -156,37 +176,37 @@ describe('registerForPush', () => {
 
 describe('watchPushToken', () => {
   function listener() {
-    const subscription = { remove: jest.fn() };
-    notifications.addPushTokenListener.mockReturnValue(subscription);
+    const unsubscribe = jest.fn();
+    refresh.mockReturnValue(unsubscribe);
     const stop = watchPushToken();
-    const [callback] = notifications.addPushTokenListener.mock.calls[0]!;
-    return { callback, stop, subscription };
+    const [, callback] = refresh.mock.calls[0]!;
+    return { callback, stop, unsubscribe };
   }
   const flush = () => new Promise((resolve) => setImmediate(resolve));
 
   it('registers a refreshed token', async () => {
     signIn();
     notifications.getPermissionsAsync.mockResolvedValue(granted);
-    const { callback, stop, subscription } = listener();
+    const { callback, stop, unsubscribe } = listener();
 
-    callback(token('fcm-2'));
+    callback('fcm-2');
     await flush();
 
     expect(put).toHaveBeenCalledWith(expect.objectContaining({ token: 'fcm-2' }));
     stop();
-    expect(subscription.remove).toHaveBeenCalled();
+    expect(unsubscribe).toHaveBeenCalled();
   });
 
   it('ignores a new token without permission or a signed-in user', async () => {
     signIn();
     const { callback } = listener();
-    callback(token('fcm-3'));
+    callback('fcm-3');
     await flush();
     expect(put).not.toHaveBeenCalled();
 
     setPushUser(null);
     notifications.getPermissionsAsync.mockResolvedValue(granted);
-    callback(token('fcm-3'));
+    callback('fcm-3');
     await flush();
     expect(put).not.toHaveBeenCalled();
   });
@@ -206,7 +226,7 @@ describe('unregisterPush', () => {
   it('looks the token up when this run never registered one', async () => {
     signIn();
     notifications.getPermissionsAsync.mockResolvedValue(granted);
-    notifications.getDevicePushTokenAsync.mockResolvedValue(token('fcm-old'));
+    fcmToken.mockResolvedValue('fcm-old');
 
     await unregisterPush();
 

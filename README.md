@@ -234,6 +234,11 @@ do nothing), a Firebase project with the variant's config files (§3), an APNs k
 for iOS (#100), and the native build itself (#2). The API sends with
 `PUSH_PROVIDER=fcm` (see `docs/push.md`).
 
+The token is an **FCM registration token on both platforms** (the API sends through
+FCM, which maps it to APNs on iOS): `@react-native-firebase/messaging` provides it,
+`expo-notifications` does the permission prompt (one prompt), the Android channel, the
+foreground behaviour and tap handling.
+
 1. Install the dev build of the variant and sign in. If notifications were already
    allowed on this phone, the token is registered right after sign-in.
 2. Otherwise the permission prompt comes at the first useful moment, never at app

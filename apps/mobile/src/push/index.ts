@@ -1,4 +1,5 @@
 import { type PushData, pushDataSchema } from '@depanini/shared';
+import { getMessaging, getToken, onTokenRefresh } from '@react-native-firebase/messaging';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { AndroidImportance } from 'expo-notifications';
@@ -102,21 +103,27 @@ export async function unregisterPush(): Promise<void> {
   }
 }
 
-/** Re-registers when the OS hands out a new token, while permission is granted. Returns the unsubscribe. */
+/** Re-registers when FCM hands out a new token, while permission is granted. Returns the unsubscribe. */
 export function watchPushToken(): () => void {
-  const subscription = Notifications.addPushTokenListener(({ data }) => {
-    const uid = currentUid;
-    if (!uid || typeof data !== 'string') return;
-    void (async () => {
-      try {
-        if (!(await Notifications.getPermissionsAsync()).granted) return;
-        await sendToken(uid, data);
-      } catch {
-        // The next token change or registration tries again.
-      }
-    })();
-  });
-  return () => subscription.remove();
+  let unsubscribe: () => void;
+  try {
+    unsubscribe = onTokenRefresh(getMessaging(), (data) => {
+      const uid = currentUid;
+      if (!uid || !data) return;
+      void (async () => {
+        try {
+          if (!(await Notifications.getPermissionsAsync()).granted) return;
+          await sendToken(uid, data);
+        } catch {
+          // The next token change or registration tries again.
+        }
+      })();
+    });
+  } catch {
+    // Firebase is not configured in this build: there is no token to follow.
+    return () => {};
+  }
+  return unsubscribe;
 }
 
 /**
@@ -140,8 +147,10 @@ export function subscribePushTaps(onTap: (data: PushData) => void): () => void {
 }
 
 async function currentToken(): Promise<string | null> {
-  const { data } = await Notifications.getDevicePushTokenAsync();
-  return typeof data === 'string' && data ? data : null;
+  // The API sends through FCM, so both platforms register an FCM token (on iOS, FCM maps it
+  // to the APNs token). Called only once permission is granted, which is what registers the
+  // phone for remote notifications.
+  return (await getToken(getMessaging())) || null;
 }
 
 async function grantedToken(): Promise<string | null> {
