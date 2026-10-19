@@ -180,7 +180,7 @@ export class DriversService {
       .limit(1);
     if (job) return [];
 
-    await expireStaleRequests(this.db, now);
+    await this.events.nearbyChanged(await expireStaleRequests(this.db, now));
     await expireStaleOffers(this.db, now);
 
     const origin = point(here.location);

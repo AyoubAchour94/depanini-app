@@ -12,35 +12,39 @@ const logger = new Logger('Expiry');
  * pass lost to a deadlock or serialization failure is harmless and the next one
  * catches up.
  */
-async function bestEffort(what: string, run: () => Promise<unknown>): Promise<void> {
+async function bestEffort<T>(what: string, run: () => Promise<T>): Promise<T | undefined> {
   try {
-    await run();
+    return await run();
   } catch (error) {
     if (!isDeadlock(error) && !isSerializationFailure(error)) throw error;
     logger.debug(`Skipped expiring ${what}: ${(error as Error).message}`);
+    return undefined;
   }
 }
 
 /**
  * Marks open requests past their expiry as expired (there is no cron yet): the
- * customer's own when `customerId` is given, otherwise everyone's.
+ * customer's own when `customerId` is given, otherwise everyone's. Returns the ids it
+ * flipped, so the caller can tell nearby drivers (empty when a pass was skipped).
  */
 export async function expireStaleRequests(
   db: Database,
   now: Date,
   customerId?: string,
-): Promise<void> {
+): Promise<string[]> {
   const conditions: (SQL | undefined)[] = [
     eq(towRequests.status, 'open'),
     lte(towRequests.expiresAt, now),
     customerId ? eq(towRequests.customerId, customerId) : undefined,
   ];
-  await bestEffort('requests', () =>
+  const expired = await bestEffort('requests', () =>
     db
       .update(towRequests)
       .set({ status: 'expired', updatedAt: now })
-      .where(and(...conditions)),
+      .where(and(...conditions))
+      .returning({ id: towRequests.id }),
   );
+  return (expired ?? []).map((row) => row.id);
 }
 
 /**

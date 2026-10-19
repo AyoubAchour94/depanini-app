@@ -291,6 +291,7 @@ export class OffersService {
       }
       await this.events.requestsUpdated([accepted.request.id]);
       await this.events.offersUpdated(accepted.offerIds);
+      await this.events.nearbyChanged([accepted.request.id]);
       return accepted.request;
     }
   }
@@ -489,7 +490,7 @@ export class OffersService {
   /** Runs the lazy expiry of requests and offers, and returns the time it used. */
   private async expireStale(): Promise<Date> {
     const now = this.now();
-    await expireStaleRequests(this.db, now);
+    await this.events.nearbyChanged(await expireStaleRequests(this.db, now));
     await expireStaleOffers(this.db, now);
     return now;
   }
