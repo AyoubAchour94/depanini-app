@@ -24,8 +24,10 @@ hook point). The caller passes the **event** it just committed (a stage change w
 a cancel with who cancelled, an offer accepted, declined, ...), and the push is built from that
 event, never from the row's state at send time, so two quick changes are two pushes in the right
 order. Only the recipients (customer, assigned driver, offer's driver) and their tokens are read
-back. The `/ws` events still read the latest row. Pushes are sent one after another, in the order
-the events happened.
+back. The `/ws` events still read the latest row. Pushes about the same request (offers: the
+same offer) are sent one after another, in the order the events happened; different requests do not
+wait for each other. A send that gets no answer from the push service in 10 s is logged as a warning
+and given up on (its tokens are kept), so one hung call holds back only that request's next push.
 
 | Kind               | Recipient (app)    | When                                                                                                                                                                                                                                                     |
 | ------------------ | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

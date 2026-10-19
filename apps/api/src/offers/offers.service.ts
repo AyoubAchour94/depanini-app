@@ -289,7 +289,7 @@ export class OffersService {
         if (!isDeadlock(error) || attempt === ACCEPT_ATTEMPTS) throw error;
         continue;
       }
-      await this.events.requestsUpdated([accepted.request.id]);
+      await this.events.requestsUpdated([accepted.request.id], null);
       await this.events.offersUpdated([offerId], 'accepted');
       await this.events.offersUpdated(accepted.rejectedIds, 'rejected');
       await this.events.offersUpdated(accepted.withdrawnIds, 'withdrawn');

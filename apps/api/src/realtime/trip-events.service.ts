@@ -40,9 +40,9 @@ export class TripEvents {
   /**
    * `request.updated` to each request's customer (as on `GET /tow-requests/active`) and
    * its assigned driver (the job while assigned, as on `GET /driver/job`; else the request).
-   * `event` is what the caller just did, for the push; leave it out when nothing is to be pushed.
+   * `event` is what the caller just did, for the push; `null` when nothing is to be pushed.
    */
-  async requestsUpdated(ids: string[], event?: RequestEvent): Promise<void> {
+  async requestsUpdated(ids: string[], event: RequestEvent | null): Promise<void> {
     await this.bestEffort('request.updated', async () => {
       if (ids.length === 0) return;
       const now = this.now();

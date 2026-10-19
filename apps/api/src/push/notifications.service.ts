@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, type OnApplicationShutdown } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional, type OnApplicationShutdown } from '@nestjs/common';
 import type { PushData, PushKind } from '@depanini/shared';
 import { and, eq, gt, inArray } from 'drizzle-orm';
 
@@ -11,6 +11,11 @@ import { type AppVariant, DeviceTokens } from './device-tokens.service.js';
 import { CUSTOMER_CANCELLED_BODY, PUSH_MESSAGES, TRIP_STAGE_BODIES } from './messages.js';
 import type { OfferEvent, RequestEvent } from './push-event.js';
 import { PUSH_SENDER, type PushSender } from './push-sender.js';
+
+/** The longest one push may take to send before it is given up on (and the next one goes). */
+export const SEND_TIMEOUT_MS = 10_000;
+/** Injection token to override {@link SEND_TIMEOUT_MS}. */
+export const PUSH_SEND_TIMEOUT_MS = Symbol('PUSH_SEND_TIMEOUT_MS');
 
 /** The longest shutdown waits for pushes still on their way. */
 export const SHUTDOWN_FLUSH_MS = 5000;
@@ -117,7 +122,8 @@ function collapseKeyOf({ kind, requestId }: PushData): string {
 export class NotificationsService implements OnApplicationShutdown {
   private readonly logger = new Logger(NotificationsService.name);
   private readonly pending = new Set<Promise<void>>();
-  private tail: Promise<void> = Promise.resolve();
+  /** The last job queued per key (a request or offer id): jobs of one key run in order. */
+  private readonly chains = new Map<string, Promise<void>>();
 
   constructor(
     @Inject(DB) private readonly db: Database,
@@ -125,47 +131,50 @@ export class NotificationsService implements OnApplicationShutdown {
     @Inject(PUSH_SENDER) private readonly sender: PushSender,
     private readonly tokens: DeviceTokens,
     private readonly realtime: RealtimeService,
+    @Optional() @Inject(PUSH_SEND_TIMEOUT_MS) private readonly sendTimeoutMs = SEND_TIMEOUT_MS,
   ) {}
 
   /** What just happened to these requests (see {@link RequestEvent}); only the people to tell are read. */
-  requestsChanged(ids: string[], event?: RequestEvent): void {
+  requestsChanged(ids: string[], event: RequestEvent | null): void {
     if (!event) return;
-    this.dispatch('request', async () => {
-      if (ids.length === 0) return;
-      const rows = await this.db
-        .select({
-          id: towRequests.id,
-          customerId: towRequests.customerId,
-          driverId: towRequests.assignedDriverId,
-        })
-        .from(towRequests)
-        .where(inArray(towRequests.id, ids));
-      for (const row of rows) await this.deliver(requestPush(row.id, event, row));
-    });
+    for (const id of ids) {
+      this.dispatch('request', id, async () => {
+        const rows = await this.db
+          .select({
+            id: towRequests.id,
+            customerId: towRequests.customerId,
+            driverId: towRequests.assignedDriverId,
+          })
+          .from(towRequests)
+          .where(inArray(towRequests.id, [id]));
+        for (const row of rows) await this.deliver(requestPush(row.id, event, row));
+      });
+    }
   }
 
   /** What just happened to these offers (see {@link OfferEvent}); only the people to tell are read. */
   offersChanged(ids: string[], event: OfferEvent): void {
     if (event === 'withdrawn') return;
-    this.dispatch('offer', async () => {
-      if (ids.length === 0) return;
-      const rows = await this.db
-        .select({
-          id: towOffers.id,
-          requestId: towOffers.requestId,
-          driverId: towOffers.driverId,
-          customerId: towRequests.customerId,
-        })
-        .from(towOffers)
-        .innerJoin(towRequests, eq(towRequests.id, towOffers.requestId))
-        .where(inArray(towOffers.id, ids));
-      for (const row of rows) await this.deliver(offerPush(row.id, event, row));
-    });
+    for (const id of ids) {
+      this.dispatch('offer', `offer:${id}`, async () => {
+        const rows = await this.db
+          .select({
+            id: towOffers.id,
+            requestId: towOffers.requestId,
+            driverId: towOffers.driverId,
+            customerId: towRequests.customerId,
+          })
+          .from(towOffers)
+          .innerJoin(towRequests, eq(towRequests.id, towOffers.requestId))
+          .where(inArray(towOffers.id, [id]));
+        for (const row of rows) await this.deliver(offerPush(row.id, event, row));
+      });
+    }
   }
 
   /** Online drivers in range of the requests that are open: the reverse of the nearby list. */
   requestsOpened(ids: string[]): void {
-    this.dispatch('nearby request', async () => {
+    this.dispatch('nearby request', null, async () => {
       if (ids.length === 0) return;
       const now = this.now();
       const open = await this.db
@@ -198,15 +207,28 @@ export class NotificationsService implements OnApplicationShutdown {
     const tokens = await this.tokens.forUser(push.userId, push.appVariant);
     if (tokens.length === 0) return;
     const message = PUSH_MESSAGES[push.data.kind];
+    let timer: NodeJS.Timeout | undefined;
+    const timedOut = new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () => reject(new Error(`no answer from the push service in ${this.sendTimeoutMs} ms`)),
+        this.sendTimeoutMs,
+      );
+    });
     try {
-      await this.sender.send(tokens, {
-        title: message.title,
-        body: push.body ?? message.body,
-        data: push.data,
-        collapseKey: collapseKeyOf(push.data),
-      });
+      // On a timeout the send is left to finish or fail on its own; its tokens are not touched.
+      await Promise.race([
+        this.sender.send(tokens, {
+          title: message.title,
+          body: push.body ?? message.body,
+          data: push.data,
+          collapseKey: collapseKeyOf(push.data),
+        }),
+        timedOut,
+      ]);
     } catch (error) {
       this.logger.warn(`Could not send ${push.data.kind}: ${(error as Error).message}`);
+    } finally {
+      clearTimeout(timer);
     }
   }
 
@@ -229,18 +251,23 @@ export class NotificationsService implements OnApplicationShutdown {
   }
 
   /**
-   * Starts `run` without waiting for it: a slow provider must not slow the request. Jobs run
-   * one after another, in the order they were started, so events reach a device in the order
-   * they happened. Errors are logged.
+   * Starts `run` without waiting for it: a slow provider must not slow the request. Jobs with
+   * the same `key` (a request or offer) run one after another, in the order they were started,
+   * so its events reach a device in the order they happened; other keys, and `null`, do not
+   * wait for each other. Errors are logged.
    */
-  private dispatch(what: string, run: () => Promise<void>): void {
-    const job: Promise<void> = this.tail
+  private dispatch(what: string, key: string | null, run: () => Promise<void>): void {
+    const previous = (key && this.chains.get(key)) || Promise.resolve();
+    const job: Promise<void> = previous
       .then(run)
       .catch((error: Error) => {
         this.logger.warn(`Could not push ${what} changes: ${error.message}`);
       })
-      .finally(() => this.pending.delete(job));
-    this.tail = job;
+      .finally(() => {
+        this.pending.delete(job);
+        if (key && this.chains.get(key) === job) this.chains.delete(key);
+      });
+    if (key) this.chains.set(key, job);
     this.pending.add(job);
   }
 }
