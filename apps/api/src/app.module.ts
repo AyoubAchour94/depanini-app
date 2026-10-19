@@ -7,6 +7,7 @@ import { DatabaseModule } from './db/database.module.js';
 import { DriversModule } from './drivers/drivers.module.js';
 import { HealthModule } from './health/health.module.js';
 import { OffersModule } from './offers/offers.module.js';
+import { PaymentsModule } from './payments/payments.module.js';
 import { RealtimeModule } from './realtime/realtime.module.js';
 import { TowRequestsModule } from './tow-requests/tow-requests.module.js';
 
@@ -20,6 +21,7 @@ import { TowRequestsModule } from './tow-requests/tow-requests.module.js';
     TowRequestsModule,
     DriversModule,
     OffersModule,
+    PaymentsModule,
     RealtimeModule,
   ],
 })

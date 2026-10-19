@@ -36,6 +36,7 @@ import {
   toDriverJob,
   toTowRequest,
 } from '../tow-requests/tow-request-rows.js';
+import { recordCashPayment } from '../payments/payments.service.js';
 import { isUniqueViolation } from '../tow-requests/tow-requests.service.js';
 import { customerOfferColumns, offerColumns, toCustomerOffer, toOffer } from './offer-rows.js';
 
@@ -422,7 +423,10 @@ export class OffersService {
     return (await this.job(driverId))!;
   }
 
-  /** Completes the driver's job (dropped off). `404` if there is none, `409` unless towing. */
+  /**
+   * Completes the driver's job (dropped off, the agreed fare received in cash) and records the
+   * payment in the same transaction. `404` if there is none, `409` unless towing.
+   */
   async complete(driverId: string): Promise<TowRequest> {
     const now = this.now();
     const completed = await this.db.transaction(async (tx) => {
@@ -434,6 +438,7 @@ export class OffersService {
         .update(towRequests)
         .set({ status: 'completed', completedAt: now, updatedAt: now })
         .where(eq(towRequests.id, job.id));
+      await recordCashPayment(tx, { requestId: job.id, amountTnd: job.agreedFareTnd!, now });
       const [row] = await selectTowRequests(tx).where(eq(towRequests.id, job.id));
       return toTowRequest(row!);
     });
@@ -448,7 +453,7 @@ export class OffersService {
   private async lockJob(
     tx: Pick<Database, 'select'>,
     driverId: string,
-  ): Promise<{ id: string; tripStage: TripStage | null }> {
+  ): Promise<{ id: string; tripStage: TripStage | null; agreedFareTnd: number | null }> {
     const [found] = await tx
       .select({ id: towRequests.id })
       .from(towRequests)
@@ -460,6 +465,7 @@ export class OffersService {
         status: towRequests.status,
         assignedDriverId: towRequests.assignedDriverId,
         tripStage: towRequests.tripStage,
+        agreedFareTnd: towRequests.agreedFareTnd,
       })
       .from(towRequests)
       .where(eq(towRequests.id, found.id))

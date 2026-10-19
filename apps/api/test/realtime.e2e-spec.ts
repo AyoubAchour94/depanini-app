@@ -316,7 +316,9 @@ describe('realtime /ws (e2e)', () => {
         connect(zed),
       ]);
 
-      const res = await api('post', '/driver/job/complete', dan).expect(200);
+      const res = await api('post', '/driver/job/complete', dan)
+        .send({ cashReceived: true })
+        .expect(200);
 
       const forCustomer = towRequestSchema.parse((await customer.next('request.updated')).request);
       expect(forCustomer).toMatchObject({
@@ -325,6 +327,66 @@ describe('realtime /ws (e2e)', () => {
         driver: { fullName: 'Dan Driver', truckType: 'flatbed', phone: null, plateNumber: null },
       });
       expect((await driver.next('request.updated')).request).toEqual(res.body);
+      await expectQuiet(stranger);
+    });
+
+    it('carries the payment on complete, and goes to both on confirm and dispute', async () => {
+      const { req } = await assign();
+      for (const next of ['en_route', 'arrived', 'towing']) await stage(next);
+      const [customer, driver, stranger] = await Promise.all([
+        connect(alice),
+        connect(dan),
+        connect(zed),
+      ]);
+
+      const done = await api('post', '/driver/job/complete', dan)
+        .send({ cashReceived: true })
+        .expect(200);
+      const completedForCustomer = (await customer.next('request.updated')).request;
+      expect(completedForCustomer).toMatchObject({
+        payment: { status: 'driver_confirmed', amountTnd: suggested },
+      });
+      expect(completedForCustomer).toEqual(
+        (await api('get', '/tow-requests/active', alice).expect(200)).body,
+      );
+      expect((await driver.next('request.updated')).request).toEqual(done.body);
+
+      const confirmed = await api('post', `/tow-requests/${req.id}/payment/confirm`, alice).expect(
+        200,
+      );
+      for (const client of [customer, driver]) {
+        const { request: pushed } = await client.next('request.updated');
+        expect(towRequestSchema.parse(pushed)).toMatchObject({
+          id: req.id,
+          payment: { status: 'customer_confirmed' },
+        });
+        expect(pushed).toEqual(confirmed.body);
+      }
+      expect(confirmed.body.payment.receiptNo).toBe(done.body.payment.receiptNo);
+      await expectQuiet(stranger);
+    });
+
+    it('goes to both when the customer disputes the payment', async () => {
+      const { req } = await assign();
+      for (const next of ['en_route', 'arrived', 'towing']) await stage(next);
+      await api('post', '/driver/job/complete', dan).send({ cashReceived: true }).expect(200);
+      const [customer, driver, stranger] = await Promise.all([
+        connect(alice),
+        connect(dan),
+        connect(zed),
+      ]);
+
+      await api('post', `/tow-requests/${req.id}/payment/dispute`, alice)
+        .send({ note: 'Asked for more' })
+        .expect(200);
+      for (const client of [customer, driver]) {
+        const { request: pushed } = await client.next('request.updated');
+        expect(towRequestSchema.parse(pushed)).toMatchObject({
+          id: req.id,
+          payment: { status: 'disputed' },
+        });
+        expect(JSON.stringify(pushed)).not.toContain('Asked for more');
+      }
       await expectQuiet(stranger);
     });
 
@@ -337,7 +399,9 @@ describe('realtime /ws (e2e)', () => {
       });
 
       try {
-        const res = await api('post', '/driver/job/complete', dan).expect(200);
+        const res = await api('post', '/driver/job/complete', dan)
+          .send({ cashReceived: true })
+          .expect(200);
         expect(res.body).toMatchObject({ status: 'completed' });
         expect(send).toHaveBeenCalled();
       } finally {

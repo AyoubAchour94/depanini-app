@@ -9,7 +9,13 @@ import { eq, sql } from 'drizzle-orm';
 import type { SelectResultFields } from 'drizzle-orm/query-builders/select.types';
 
 import type { Database } from '../db/database.module.js';
-import { customerProfiles, driverPresence, driverProfiles, towRequests } from '../db/schema.js';
+import {
+  customerProfiles,
+  driverPresence,
+  driverProfiles,
+  payments,
+  towRequests,
+} from '../db/schema.js';
 
 // How a `tow_requests` row becomes what each side sees. The REST endpoints and the
 // realtime events both map rows through here, so an event is never wider than REST.
@@ -64,7 +70,17 @@ const presenceColumns = {
   driverLocationUpdatedAt: driverPresence.locationUpdatedAt,
 };
 
+/** The cash payment of a completed request, from a left join on `payments`. Never the dispute note. */
+const paymentColumns = {
+  paymentStatus: payments.status,
+  paymentAmountTnd: payments.amountTnd,
+  paymentReceiptNo: payments.receiptNo,
+};
+
 type Row = SelectResultFields<typeof columns> &
+  Partial<{
+    [K in keyof typeof paymentColumns]: SelectResultFields<typeof paymentColumns>[K] | null;
+  }> &
   Partial<{
     [K in keyof typeof driverColumns]: SelectResultFields<typeof driverColumns>[K] | null;
   }> &
@@ -78,10 +94,11 @@ type Row = SelectResultFields<typeof columns> &
  */
 export const selectTowRequests = (db: Pick<Database, 'select'>) =>
   db
-    .select({ ...columns, ...driverColumns, ...presenceColumns })
+    .select({ ...columns, ...driverColumns, ...presenceColumns, ...paymentColumns })
     .from(towRequests)
     .leftJoin(driverProfiles, eq(driverProfiles.userId, towRequests.assignedDriverId))
-    .leftJoin(driverPresence, eq(driverPresence.userId, towRequests.assignedDriverId));
+    .leftJoin(driverPresence, eq(driverPresence.userId, towRequests.assignedDriverId))
+    .leftJoin(payments, eq(payments.requestId, towRequests.id));
 
 /**
  * A row as the apps see it. The driver shows while the request is assigned, with phone and plate;
@@ -140,6 +157,14 @@ export function toTowRequest(row: Row, now?: Date): TowRequest {
     cancelledBy: row.cancelledBy,
     cancelReason: row.cancelReason,
     driverLocation,
+    payment:
+      row.paymentStatus != null
+        ? {
+            status: row.paymentStatus,
+            amountTnd: row.paymentAmountTnd!,
+            receiptNo: row.paymentReceiptNo!,
+          }
+        : null,
     etaMin: driverLocation && target ? etaTo(target, driverLocation) : null,
     driver:
       (row.status === 'assigned' || row.status === 'completed') && row.driverFullName

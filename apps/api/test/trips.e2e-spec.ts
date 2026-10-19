@@ -202,16 +202,16 @@ describe('trip stages, completion and cancel rules (e2e)', () => {
 
     it('is 409 before towing', async () => {
       const req = await assign();
-      await api('post', '/driver/job/complete', dan).expect(409);
+      await api('post', '/driver/job/complete', dan).send({ cashReceived: true }).expect(409);
       await advanceTo('arrived');
-      await api('post', '/driver/job/complete', dan).expect(409);
+      await api('post', '/driver/job/complete', dan).send({ cashReceived: true }).expect(409);
       expect((await row(req.id)).status).toBe('assigned');
     });
 
     it('is 404 for a driver without a job', async () => {
       await assign();
       await advanceTo('towing');
-      await api('post', '/driver/job/complete', eve).expect(404);
+      await api('post', '/driver/job/complete', eve).send({ cashReceived: true }).expect(404);
     });
 
     it('completes the request from towing', async () => {
@@ -219,7 +219,9 @@ describe('trip stages, completion and cancel rules (e2e)', () => {
       await advanceTo('towing');
       secondsLater(600);
 
-      const res = await api('post', '/driver/job/complete', dan).expect(200);
+      const res = await api('post', '/driver/job/complete', dan)
+        .send({ cashReceived: true })
+        .expect(200);
 
       expect(towRequestSchema.parse(res.body)).toMatchObject({
         id: req.id,
@@ -229,7 +231,7 @@ describe('trip stages, completion and cancel rules (e2e)', () => {
       });
       expect((await row(req.id)).completedAt).toEqual(now);
       await api('get', '/driver/job', dan).expect(204);
-      await api('post', '/driver/job/complete', dan).expect(404);
+      await api('post', '/driver/job/complete', dan).send({ cashReceived: true }).expect(404);
       await stage(dan, 'en_route').expect(404);
       const history = await api('get', '/tow-requests', alice).expect(200);
       expect(history.body.items[0]).toMatchObject({ status: 'completed' });
@@ -238,7 +240,7 @@ describe('trip stages, completion and cancel rules (e2e)', () => {
     it('keeps the driver on the completed request, without phone or plate', async () => {
       const req = await assign();
       await advanceTo('towing');
-      await api('post', '/driver/job/complete', dan).expect(200);
+      await api('post', '/driver/job/complete', dan).send({ cashReceived: true }).expect(200);
 
       const history = await api('get', '/tow-requests', alice).expect(200);
       for (const completed of [await active(), towRequestSchema.parse(history.body.items[0])]) {
@@ -253,7 +255,7 @@ describe('trip stages, completion and cancel rules (e2e)', () => {
     it('frees the driver and the customer', async () => {
       await assign();
       await advanceTo('towing');
-      await api('post', '/driver/job/complete', dan).expect(200);
+      await api('post', '/driver/job/complete', dan).send({ cashReceived: true }).expect(200);
       const created = await createRequest().expect(201);
       await api('post', `/tow-requests/${created.body.id}/offers`, dan)
         .send({ fare: suggested })
@@ -265,7 +267,7 @@ describe('trip stages, completion and cancel rules (e2e)', () => {
     it('still returns the completed request for 10 minutes, then none', async () => {
       const req = await assign();
       await advanceTo('towing');
-      await api('post', '/driver/job/complete', dan).expect(200);
+      await api('post', '/driver/job/complete', dan).send({ cashReceived: true }).expect(200);
 
       secondsLater(9 * 60);
       expect(await active()).toMatchObject({ id: req.id, status: 'completed' });
@@ -276,7 +278,7 @@ describe('trip stages, completion and cancel rules (e2e)', () => {
     it('prefers a newer open request to the completed one', async () => {
       await assign();
       await advanceTo('towing');
-      await api('post', '/driver/job/complete', dan).expect(200);
+      await api('post', '/driver/job/complete', dan).send({ cashReceived: true }).expect(200);
       const created = await createRequest().expect(201);
       expect((await active()).id).toBe(created.body.id);
     });
@@ -314,7 +316,7 @@ describe('trip stages, completion and cancel rules (e2e)', () => {
     it('has neither once completed', async () => {
       await assign();
       await advanceTo('towing');
-      await api('post', '/driver/job/complete', dan).expect(200);
+      await api('post', '/driver/job/complete', dan).send({ cashReceived: true }).expect(200);
       const req = await active();
       expect(req.driverLocation ?? null).toBeNull();
       expect(req.etaMin ?? null).toBeNull();
@@ -380,7 +382,7 @@ describe('trip stages, completion and cancel rules (e2e)', () => {
     it('is 409 for a completed request', async () => {
       const req = await assign();
       await advanceTo('towing');
-      await api('post', '/driver/job/complete', dan).expect(200);
+      await api('post', '/driver/job/complete', dan).send({ cashReceived: true }).expect(200);
       await cancel(req.id).expect(409);
     });
   });
