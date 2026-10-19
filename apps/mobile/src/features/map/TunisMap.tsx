@@ -1,12 +1,21 @@
 import { TUNIS_CENTER } from '@depanini/shared';
 import Mapbox, { Camera, MapView, MarkerView } from '@rnmapbox/maps';
-import { useEffect, useRef, type ComponentRef } from 'react';
+import { useContext, useEffect, useRef, type ComponentRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/theme/theme';
 
-import { markerColor } from './marker-colors';
-import { FIT_MAX_ZOOM, FIT_PADDING, markerIdsKey, type TunisMapProps } from './map-props';
+import { mapStyleUrl } from './map-style';
+import { markerColors } from './marker-colors';
+import {
+  FIT_MAX_ZOOM,
+  FIT_PADDING,
+  markerIdsKey,
+  ORNAMENT_TOP,
+  type TunisMapProps,
+} from './map-props';
 
 const DEFAULT_ZOOM = 14;
 
@@ -23,6 +32,7 @@ export function TunisMap({
   fitToMarkers,
 }: TunisMapProps) {
   const theme = useTheme();
+  const ornamentTop = (useContext(SafeAreaInsetsContext)?.top ?? 0) + ORNAMENT_TOP;
   const camera = useRef<ComponentRef<typeof Camera>>(null);
   // Idempotent; must run before the native MapView mounts.
   void Mapbox.setAccessToken(accessToken);
@@ -57,7 +67,10 @@ export function TunisMap({
   return (
     <MapView
       style={StyleSheet.absoluteFill}
-      styleURL={Mapbox.StyleURL.Street}
+      styleURL={mapStyleUrl(theme.scheme)}
+      // The sheet covers the bottom of the map, so the ornaments move to the top.
+      logoPosition={{ top: ornamentTop, right: 8 }}
+      attributionPosition={{ top: ornamentTop, right: 104 }}
       onMapIdle={(state) => {
         // Mapbox reports [longitude, latitude].
         const [longitude, latitude] = state.properties.center;
@@ -72,20 +85,27 @@ export function TunisMap({
         zoomLevel={DEFAULT_ZOOM}
         animationMode="none"
       />
-      {(markers ?? []).map(({ id, kind, coordinate }) => (
-        <MarkerView key={id} coordinate={[coordinate.longitude, coordinate.latitude]}>
-          <View
-            testID={`marker-${id}`}
-            style={[
-              styles.marker,
-              kind === 'truck' && styles.truck,
-              { backgroundColor: markerColor(kind, theme) },
-            ]}
-          >
-            {kind === 'truck' ? <Text>🚚</Text> : null}
-          </View>
-        </MarkerView>
-      ))}
+      {(markers ?? []).map(({ id, kind, coordinate }) => {
+        const colors = markerColors(kind, theme);
+        return (
+          <MarkerView key={id} coordinate={[coordinate.longitude, coordinate.latitude]}>
+            <View
+              testID={`marker-${id}`}
+              style={[
+                styles.marker,
+                kind === 'truck' && styles.truck,
+                {
+                  backgroundColor: colors.fill,
+                  borderColor: colors.ring,
+                  boxShadow: theme.shadow.float,
+                },
+              ]}
+            >
+              {kind === 'truck' ? <Text style={{ color: colors.glyph }}>🚚</Text> : null}
+            </View>
+          </MarkerView>
+        );
+      })}
     </MapView>
   );
 }
@@ -96,7 +116,6 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 3,
-    borderColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },

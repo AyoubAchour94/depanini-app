@@ -69,8 +69,6 @@ export default tseslint.config(
   // Remove the entry (and use a token) in that slice.
   {
     files: [
-      'apps/mobile/src/features/map/TunisMap.tsx', // TODO #136 (map-first shell: themed markers)
-      'apps/mobile/src/features/map/TunisMap.web.tsx', // TODO #136
       'apps/mobile/src/features/status/FirebaseBanner.tsx', // TODO #141 (loading and error states)
     ],
     rules: { 'no-restricted-syntax': 'off' },

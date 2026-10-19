@@ -6,8 +6,15 @@ import { useEffect, useRef } from 'react';
 
 import { useTheme } from '@/theme/theme';
 
-import { markerColor } from './marker-colors';
-import { FIT_MAX_ZOOM, FIT_PADDING, markerIdsKey, type TunisMapProps } from './map-props';
+import { mapStyleUrl } from './map-style';
+import { markerColors } from './marker-colors';
+import {
+  FIT_MAX_ZOOM,
+  FIT_PADDING,
+  markerIdsKey,
+  ORNAMENT_TOP,
+  type TunisMapProps,
+} from './map-props';
 
 const DEFAULT_ZOOM = 14;
 
@@ -19,8 +26,8 @@ function createMarkerElement(): HTMLDivElement {
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: '50%',
-    border: '3px solid #FFFFFF',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
+    borderStyle: 'solid',
+    borderWidth: '3px',
   });
   return el;
 }
@@ -47,16 +54,22 @@ export function TunisMap({
     onChange.current = onCenterChange;
   });
   const initialCenter = useRef(center);
+  // The map is created once; a later theme change restyles it in place (see below).
+  const scheme = useRef(theme.scheme);
 
   useEffect(() => {
     if (!container.current) return;
     const instance = new mapboxgl.Map({
       accessToken,
       container: container.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
+      style: mapStyleUrl(scheme.current),
       center: [initialCenter.current.longitude, initialCenter.current.latitude],
       zoom: DEFAULT_ZOOM,
+      // The sheet covers the bottom of the map, so the ornaments move to the top.
+      logoPosition: 'top-right',
+      attributionControl: false,
     });
+    instance.addControl(new mapboxgl.AttributionControl({ compact: true }), 'top-right');
     instance.on('moveend', () => {
       const { lat, lng } = instance.getCenter();
       onChange.current?.({ latitude: lat, longitude: lng });
@@ -70,6 +83,20 @@ export function TunisMap({
       instance.remove();
     };
   }, [accessToken]);
+
+  // Switch the style in place: same map, same markers, no remount.
+  const appliedScheme = useRef(theme.scheme);
+  useEffect(() => {
+    scheme.current = theme.scheme;
+    if (appliedScheme.current === theme.scheme) return;
+    appliedScheme.current = theme.scheme;
+    const instance = map.current;
+    if (!instance) return;
+    // Mapbox GL throws when a style is swapped while another is still loading.
+    const apply = () => instance.setStyle(mapStyleUrl(scheme.current));
+    if (instance.isStyleLoaded()) apply();
+    else instance.once('style.load', apply);
+  }, [theme.scheme]);
 
   useEffect(() => {
     map.current?.jumpTo({ center: [center.longitude, center.latitude] });
@@ -98,7 +125,11 @@ export function TunisMap({
       const size = kind === 'truck' ? 34 : 24;
       element.style.width = `${size}px`;
       element.style.height = `${size}px`;
-      element.style.backgroundColor = markerColor(kind, theme);
+      const colors = markerColors(kind, theme);
+      element.style.backgroundColor = colors.fill;
+      element.style.borderColor = colors.ring;
+      element.style.color = colors.glyph;
+      element.style.boxShadow = theme.shadow.float;
       element.textContent = kind === 'truck' ? '🚚' : '';
       marker.setLngLat([coordinate.longitude, coordinate.latitude]);
     }
@@ -124,5 +155,10 @@ export function TunisMap({
     );
   }, [idsKey, fitToMarkers, accessToken]);
 
-  return <div ref={container} style={{ position: 'absolute', inset: 0 }} />;
+  return (
+    <>
+      <style>{`.mapboxgl-ctrl-top-left,.mapboxgl-ctrl-top-right{top:${ORNAMENT_TOP}px}`}</style>
+      <div ref={container} style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
+    </>
+  );
 }

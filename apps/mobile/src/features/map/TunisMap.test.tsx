@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react-native';
+import { useColorScheme } from 'react-native';
 
 import type { MapMarker } from './map-props';
 import { TunisMap } from './TunisMap';
@@ -12,8 +13,8 @@ jest.mock('@rnmapbox/maps', () => {
   return {
     __esModule: true,
     default: { setAccessToken: jest.fn(async () => null), StyleURL: { Street: 'street' } },
-    MapView: ({ children }: { children: unknown }) =>
-      createElement(View, { testID: 'mapbox-map' }, children),
+    MapView: ({ children, styleURL }: { children: unknown; styleURL: string }) =>
+      createElement(View, { testID: 'mapbox-map', accessibilityLabel: styleURL }, children),
     Camera: forwardRef((_props: object, ref: unknown) => {
       useImperativeHandle(ref, () => ({ fitBounds: mockFitBounds, setCamera: mockSetCamera }));
       return null;
@@ -38,8 +39,27 @@ const truck: MapMarker = {
   coordinate: { latitude: 36.82, longitude: 10.2 },
 };
 
+jest.mock('react-native/Libraries/Utilities/useColorScheme', () => ({
+  default: jest.fn(() => 'light'),
+}));
+
 describe('TunisMap (native)', () => {
   beforeEach(() => jest.clearAllMocks());
+
+  it('follows the theme with the light and dark Mapbox styles', async () => {
+    const scheme = jest.mocked(useColorScheme);
+    scheme.mockReturnValue('light');
+    const { rerender } = await render(<TunisMap accessToken="pk.test" />);
+    expect(screen.getByTestId('mapbox-map').props.accessibilityLabel).toBe(
+      'mapbox://styles/mapbox/streets-v12',
+    );
+
+    scheme.mockReturnValue('dark');
+    await rerender(<TunisMap accessToken="pk.test" />);
+    expect(screen.getByTestId('mapbox-map').props.accessibilityLabel).toBe(
+      'mapbox://styles/mapbox/dark-v11',
+    );
+  });
 
   it('renders no markers and never fits the camera without markers', async () => {
     await render(<TunisMap accessToken="pk.test" fitToMarkers />);

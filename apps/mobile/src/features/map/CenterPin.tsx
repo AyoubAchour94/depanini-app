@@ -14,8 +14,13 @@ export function CenterPin() {
   const theme = useTheme();
   return (
     <View style={styles.anchor} pointerEvents="none" testID="center-pin">
-      <View style={[styles.head, { backgroundColor: theme.brand, borderColor: theme.onBrand }]} />
-      <View style={[styles.stem, { backgroundColor: theme.brand }]} />
+      <View
+        style={[
+          styles.head,
+          { backgroundColor: theme.color.map.pickup, borderColor: theme.color.map.truckRing },
+        ]}
+      />
+      <View style={[styles.stem, { backgroundColor: theme.color.map.pickup }]} />
     </View>
   );
 }
