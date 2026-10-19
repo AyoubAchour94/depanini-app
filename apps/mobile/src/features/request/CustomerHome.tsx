@@ -40,7 +40,7 @@ export function CustomerHome() {
             <Text style={{ color: theme.textMuted }}>
               {t.routeSummary(open.pickup.address, open.dropoff.address)}
             </Text>
-            <Text style={{ color: theme.brand, fontWeight: '600' }}>{t.viewRequest}</Text>
+            <Text style={{ color: theme.color.brandText, fontWeight: '600' }}>{t.viewRequest}</Text>
           </Pressable>
         ) : (
           <Button

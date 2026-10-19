@@ -1,6 +1,8 @@
-import { StyleSheet, Text, TextInput, type TextInputProps, View } from 'react-native';
+import { StyleSheet, TextInput, type TextInputProps, View } from 'react-native';
 
 import { useTheme } from '@/theme/theme';
+
+import { Text } from './Text';
 
 interface TextFieldProps extends TextInputProps {
   label: string;
@@ -10,29 +12,36 @@ interface TextFieldProps extends TextInputProps {
 
 /** A labelled text input in the app's theme. */
 export function TextField({ label, error, style, ...inputProps }: TextFieldProps) {
-  const theme = useTheme();
+  const t = useTheme();
   return (
     <View style={styles.field}>
-      <Text style={[styles.label, { color: theme.text }]}>{label}</Text>
+      <Text variant="label">{label}</Text>
       <TextInput
         accessibilityLabel={label}
-        placeholderTextColor={theme.textMuted}
+        placeholderTextColor={t.color.muted}
         style={[
+          t.type.body,
           styles.input,
-          { backgroundColor: theme.surface, color: theme.text },
-          error ? { borderColor: theme.danger, borderWidth: 1 } : null,
+          {
+            backgroundColor: t.color.surface2,
+            color: t.color.text,
+            borderRadius: t.radius.md,
+            borderColor: error ? t.color.danger : 'transparent',
+          },
           style,
         ]}
         {...inputProps}
       />
-      {error ? <Text style={[styles.error, { color: theme.danger }]}>{error}</Text> : null}
+      {error ? (
+        <Text variant="caption" tone="danger">
+          {error}
+        </Text>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   field: { gap: 6 },
-  label: { fontSize: 14, fontWeight: '600' },
-  input: { borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
-  error: { fontSize: 13 },
+  input: { minHeight: 56, paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1 },
 });
