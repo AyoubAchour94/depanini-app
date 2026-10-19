@@ -17,3 +17,20 @@ export function profileFor(
 export function hasProfileFor(me: MeResponse, variant: VariantConfig): boolean {
   return profileFor(me, variant) !== null;
 }
+
+let driverOnboardingDone = false;
+
+/**
+ * Remembers that the driver just saved their profile for the first time, so the driver home
+ * opens the verification screen once (the router is already moving to the home by then).
+ */
+export function markDriverOnboardingDone() {
+  driverOnboardingDone = true;
+}
+
+/** True once after {@link markDriverOnboardingDone}. */
+export function consumeDriverOnboardingDone(): boolean {
+  const done = driverOnboardingDone;
+  driverOnboardingDone = false;
+  return done;
+}

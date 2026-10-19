@@ -38,8 +38,7 @@ function driverRoute(data: PushData, context: PushRouteContext): Href | null {
   switch (data.kind) {
     case 'verification_approved':
     case 'verification_rejected':
-      // The screen arrives with the driver verification slice; typed routes don't know it yet.
-      return '/verification' as Href;
+      return '/verification';
     case 'nearby_request':
       return data.requestId && context.hasNearbyRequest(data.requestId)
         ? { pathname: '/job-offer/[id]', params: { id: data.requestId } }

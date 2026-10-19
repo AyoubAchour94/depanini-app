@@ -1,5 +1,6 @@
-import type { NearbyRequest } from '@depanini/shared';
+import type { NearbyRequest, VerificationStatus } from '@depanini/shared';
 import { router, useIsFocused, useLocalSearchParams } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -11,9 +12,12 @@ import {
 } from 'react-native';
 
 import { useDriverJob, useNearbyRequests } from '@/api/driver';
+import { useVerification } from '@/api/verification';
+import { consumeDriverOnboardingDone } from '@/features/profile/onboarding';
 import { formatRemaining, useCountdown } from '@/features/request/countdown';
 import { requestStrings } from '@/features/request/strings';
 import { RatingBadge } from '@/features/trip/RatingBadge';
+import { verificationStrings as v } from '@/features/verification/strings';
 import { REQUEST_CANCELLED_NOTICE } from '@/push/routing';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
@@ -37,6 +41,23 @@ export function DriverHome() {
     !!job.data,
   );
   const nearby = useNearbyRequests({ enabled: online && !job.data, poll: focused });
+  const verification = useVerification({ poll: focused });
+  const status = verification.data?.status;
+  // Until the state loads the switch stays usable: the API refuses an unapproved driver anyway.
+  const gated = status !== undefined && status !== 'approved';
+  const approvedNotice = useApprovalNotice(status);
+
+  // Approval was lost (or never given): go offline and show the card.
+  useEffect(() => {
+    if (gated && online) goOffline();
+  }, [gated, online, goOffline]);
+
+  // A driver who just finished the profile is sent to the documents once.
+  useEffect(() => {
+    // The router is not ready to navigate during the first render. No cleanup: in development
+    // effects run twice, and the flag is already used up by the first run.
+    if (consumeDriverOnboardingDone()) setTimeout(() => router.push('/verification'), 0);
+  }, []);
 
   return (
     <View style={[styles.fill, { backgroundColor: theme.background }]}>
@@ -46,11 +67,29 @@ export function DriverHome() {
         </Text>
         <Switch
           accessibilityLabel={t.onlineSwitch}
-          value={online}
+          value={online && !gated}
+          disabled={gated}
+          accessibilityState={{ disabled: gated }}
           onValueChange={(next) => (next ? void goOnline() : goOffline())}
           trackColor={{ true: theme.success }}
         />
       </View>
+      {gated ? (
+        <View style={[styles.verifyCard, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.distance, { color: theme.text }]}>{v.homeCardTitle}</Text>
+          <Text style={{ color: status === 'rejected' ? theme.danger : theme.textMuted }}>
+            {status === 'rejected'
+              ? v.homeCardStatus.rejected(verification.data?.rejectionReason)
+              : v.homeCardStatus[status]}
+          </Text>
+          <Button title={v.homeCardOpen} kind="link" onPress={() => router.push('/verification')} />
+        </View>
+      ) : approvedNotice.visible ? (
+        <View style={[styles.verifyCard, { backgroundColor: theme.surface }]}>
+          <Text style={{ color: theme.success, fontWeight: '600' }}>{v.homeApprovedNotice}</Text>
+          <Button title={v.homeApprovedDismiss} kind="link" onPress={approvedNotice.dismiss} />
+        </View>
+      ) : null}
       <View style={styles.links}>
         <Button title={t.myJobs} kind="link" onPress={() => router.push('/jobs')} />
         <Button title={t.earnings} kind="link" onPress={() => router.push('/earnings')} />
@@ -114,6 +153,22 @@ export function DriverHome() {
       )}
     </View>
   );
+}
+
+/**
+ * Whether to tell the driver they were approved: only when the approval arrives while the
+ * app is open (the push or the verification screen tells them otherwise), and only once.
+ */
+function useApprovalNotice(status: VerificationStatus | undefined) {
+  const previous = useRef(status);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    if (status === 'approved' && previous.current && previous.current !== 'approved') {
+      setVisible(true);
+    }
+    previous.current = status;
+  }, [status]);
+  return { visible, dismiss: () => setVisible(false) };
 }
 
 /** Dev/test builds: where the driver app thinks the driver is, with a way to change it. */
@@ -191,6 +246,7 @@ const styles = StyleSheet.create({
   loading: { padding: 24, alignItems: 'center', gap: 12 },
   list: { padding: 16, gap: 12 },
   jobCard: { margin: 16 },
+  verifyCard: { borderRadius: 12, marginHorizontal: 16, marginBottom: 4, padding: 16, gap: 6 },
   card: { borderRadius: 12, padding: 16, gap: 6 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   distance: { fontSize: 16, fontWeight: '600' },

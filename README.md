@@ -206,7 +206,7 @@ The script's safety check has unit tests: `pnpm test:scripts`.
 
 `pnpm e2e:web` drives the real screens of both web apps with Playwright
 (Chromium): a customer and a driver each get a browser context, sign up, set
-up their profiles, and walk a tow from request to completion (offer, accept,
+up their profiles, upload the driver's documents (fixtures in `e2e/web/fixtures/`) and get them rejected once, then approved by a throwaway admin through the admin API (`E2E_API_URL`, `E2E_AUTH_EMULATOR`; the admin claim is granted with `scripts/admin-grant.mjs`), and walk a tow from request to completion (offer, accept,
 trip steps, cash drop-off, payment confirmation, receipts, earnings, history),
 then delete their accounts through the UI. It records a trace on failure, and
 screenshots of both receipts in `test-results/`.

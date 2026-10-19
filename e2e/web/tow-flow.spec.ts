@@ -1,8 +1,15 @@
+import { execFileSync } from 'node:child_process';
+
 import { type Browser, type BrowserContext, expect, type Page, test } from '@playwright/test';
 
 // The apps under test. `pnpm share both` serves them on 8081 and 8082.
 const CUSTOMER_URL = (process.env.E2E_CUSTOMER_URL ?? 'http://localhost:8081').replace(/\/$/, '');
 const DRIVER_URL = (process.env.E2E_DRIVER_URL ?? 'http://localhost:8082').replace(/\/$/, '');
+
+// The API and the Auth emulator, which the test uses to approve the driver as an admin.
+const API_URL = (process.env.E2E_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+const AUTH_EMULATOR = (process.env.E2E_AUTH_EMULATOR ?? 'http://127.0.0.1:9099').replace(/\/$/, '');
+const FIXTURES = 'e2e/web/fixtures';
 
 /** Tunis centre. The browser reports this position, so the pickup starts here. */
 const TUNIS = { latitude: 36.8065, longitude: 10.1815 };
@@ -89,6 +96,82 @@ async function signUp(page: Page, url: string, email: string) {
   await button(page, 'Create account').click();
 }
 
+type Review = { decision: 'approve' } | { decision: 'reject'; reason: string };
+
+/** A throwaway admin in the Auth emulator, and a helper that reviews drivers as that admin. */
+async function newAdmin() {
+  const emulator = async (endpoint: string, body: object) => {
+    const res = await fetch(
+      `${AUTH_EMULATOR}/identitytoolkit.googleapis.com/v1/accounts:${endpoint}?key=fake-api-key`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      },
+    );
+    expect(res.status, `emulator ${endpoint}`).toBe(200);
+    return (await res.json()) as { idToken: string };
+  };
+  const email = `e2e-admin-${run}@example.com`;
+  await emulator('signUp', { email, password: PASSWORD, returnSecureToken: true });
+  // The grant script is an ES module the CommonJS test runner cannot import, so run it as a CLI.
+  execFileSync('node', ['scripts/admin-grant.mjs', email], {
+    env: { ...process.env, FIREBASE_AUTH_EMULATOR_HOST: new URL(AUTH_EMULATOR).host },
+    stdio: 'pipe',
+  });
+  // A fresh token carries the new claim.
+  const { idToken } = await emulator('signInWithPassword', {
+    email,
+    password: PASSWORD,
+    returnSecureToken: true,
+  });
+  const call = async (method: string, path: string, body?: object) => {
+    const res = await fetch(`${API_URL}${path}`, {
+      method,
+      headers: {
+        authorization: `Bearer ${idToken}`,
+        ...(body ? { 'content-type': 'application/json' } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    expect(res.status, `${method} ${path}`).toBeLessThan(300);
+    return res.json();
+  };
+  return {
+    /** Approves, or with a reason rejects, the pending driver with this name. */
+    async review(fullName: string, decision: Review) {
+      let cursor: string | null = null;
+      do {
+        const query: string = `status=pending&limit=50${cursor ? `&cursor=${cursor}` : ''}`;
+        const page = (await call('GET', `/admin/drivers?${query}`)) as {
+          items: { userId: string; fullName: string }[];
+          nextCursor: string | null;
+        };
+        const found = page.items.find((item) => item.fullName === fullName);
+        if (found) {
+          await call('POST', `/admin/drivers/${found.userId}/review`, decision);
+          return;
+        }
+        cursor = page.nextCursor;
+      } while (cursor);
+      throw new Error(`${fullName} is not in the pending review queue`);
+    },
+    async remove() {
+      await emulator('delete', { idToken });
+    },
+  };
+}
+
+/**
+ * Adds a page to a document on the driver's verification screen. The picker opens the
+ * browser's file chooser; the test answers it with a fixture file.
+ */
+async function addDocumentPage(d: Page, action: string, kind: string, file: string) {
+  const chooser = d.waitForEvent('filechooser');
+  await button(d, `${action}: ${kind}`).click();
+  await (await chooser).setFiles(`${FIXTURES}/${file}`);
+}
+
 async function deleteAccount(page: Page, url: string) {
   await page.goto(`${url}/`);
   await button(page, 'Account').click();
@@ -130,6 +213,7 @@ test('customer requests a tow and a driver completes it', async ({ browser }, te
   const c = customerUser.page;
   const d = driverUser.page;
   await stubDropoffSearch(c);
+  let admin: Awaited<ReturnType<typeof newAdmin>> | undefined;
 
   try {
     // 1. Both sign up and complete their profiles.
@@ -146,6 +230,36 @@ test('customer requests a tow and a driver completes it', async ({ browser }, te
     await d.getByRole('radio', { name: 'Flatbed' }).click();
     await field(d, 'Plate number').fill(driver.plate);
     await button(d, 'Finish').click();
+
+    // 1b. Onboarding ends on the verification screen: the driver uploads the four documents
+    // (a wrong file type is refused first), submits, is rejected once, fixes it and is approved
+    // by an admin through the real admin API.
+    await expect(shown(d, /^Upload each document/)).toBeVisible();
+    await expect(button(d, 'Submit for review')).toBeDisabled();
+    await addDocumentPage(d, 'Add PDF', "Driver's licence", 'not-a-document.txt');
+    await expect(shown(d, /^That file type is not accepted/)).toBeVisible();
+    await addDocumentPage(d, 'Choose photo', "Driver's licence", 'document.png');
+    await addDocumentPage(d, 'Add PDF', 'Vehicle registration (carte grise)', 'document.pdf');
+    await addDocumentPage(d, 'Choose photo', 'Insurance certificate', 'document.png');
+    await expect(button(d, 'Submit for review')).toBeDisabled();
+    await addDocumentPage(d, 'Add PDF', 'National ID (CIN)', 'document.pdf');
+    await expect(shown(d, 'Uploaded (1 page)')).toHaveCount(4);
+    await expect(button(d, 'Submit for review')).toBeEnabled();
+    await button(d, 'Submit for review').click();
+    await expect(shown(d, /^Under review/)).toBeVisible();
+    await expect(button(d, 'Submit for review')).toHaveCount(0);
+
+    // The screen checks for the decision every few seconds while it is pending.
+    admin = await newAdmin();
+    await admin.review(driver.name, { decision: 'reject', reason: 'The photos are blurry' });
+    await expect(shown(d, 'Rejected: The photos are blurry')).toBeVisible({ timeout: 40_000 });
+    await addDocumentPage(d, 'Add PDF', "Driver's licence", 'document.pdf');
+    await expect(shown(d, 'Rejected (2 pages)')).toBeVisible();
+    await button(d, 'Submit for review').click();
+    await expect(shown(d, /^Under review/)).toBeVisible();
+    await admin.review(driver.name, { decision: 'approve' });
+    await expect(shown(d, 'Approved. You can go online.')).toBeVisible({ timeout: 40_000 });
+    await d.goBack();
 
     // 2. The driver sets a test location in Tunis and goes online.
     await button(d, 'Set on map').click();
@@ -260,6 +374,7 @@ test('customer requests a tow and a driver completes it', async ({ browser }, te
     await deleteAccount(c, CUSTOMER_URL);
     await deleteAccount(d, DRIVER_URL);
   } finally {
+    await admin?.remove();
     await customerUser.context.close();
     await driverUser.context.close();
   }

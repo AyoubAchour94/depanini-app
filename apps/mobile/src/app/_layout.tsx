@@ -5,12 +5,14 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 
 import { useMe } from '@/api/me';
+import { useRefetchVerificationWhenNotApproved } from '@/api/verification';
 import { AuthProvider, useAuth } from '@/auth/AuthProvider';
 import { env } from '@/config/env';
 import { driverStrings } from '@/features/driver/strings';
 import { hasProfileFor } from '@/features/profile/onboarding';
 import { RequestFlowProvider } from '@/features/request/RequestFlowContext';
 import { requestStrings } from '@/features/request/strings';
+import { verificationStrings } from '@/features/verification/strings';
 import { getFirebaseStatus } from '@/firebase/firebase';
 import { configurePush } from '@/push';
 import { PushProvider } from '@/push/PushProvider';
@@ -57,6 +59,8 @@ function RootNavigator() {
   const signedIn = auth.status === 'signed-in';
   // Fetch the account as soon as someone signs in (creates it on first sign-in).
   const me = useMe();
+  // A driver call refused with `driver_not_approved` brings the verification card back.
+  useRefetchVerificationWhenNotApproved();
   const account = signedIn ? me.data : undefined;
   const onboarded = account ? hasProfileFor(account, variant) : false;
   const accountLoading = signedIn && me.isPending;
@@ -102,6 +106,7 @@ function RootNavigator() {
         <Stack.Screen name="jobs/index" options={{ title: driverStrings.myJobsTitle }} />
         <Stack.Screen name="jobs/[id]" options={{ title: driverStrings.jobDetailTitle }} />
         <Stack.Screen name="earnings" options={{ title: driverStrings.earningsTitle }} />
+        <Stack.Screen name="verification" options={{ title: verificationStrings.title }} />
       </Stack.Protected>
       <Stack.Protected guard={onboarded && variant.isDriverApp && env.enableTestLocation}>
         <Stack.Screen name="test-location" options={{ title: driverStrings.testLocationTitle }} />
