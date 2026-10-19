@@ -808,6 +808,45 @@ const STEPS = [
     },
   },
   {
+    name: 'the customer reports the trip once, strangers get 404, and the admin resolution shows',
+    async run(ctx) {
+      const path = `/tow-requests/${ctx.request.id}/reports`;
+      const body = { category: 'overcharged', note: `e2e report ${run}` };
+      await api(ctx.stranger, 'POST', path, { expect: 404, body });
+      await api(ctx.stranger, 'GET', path, { expect: 404 });
+      await api(ctx.customer, 'POST', path, {
+        expect: 400,
+        body: { category: 'overcharged', note: '' },
+      });
+      const created = await api(ctx.customer, 'POST', path, {
+        expect: 201,
+        body,
+        schema: shared.reportSchema,
+      });
+      assert.equal(created.status, 'open');
+      await api(ctx.customer, 'POST', path, { expect: 409, body });
+
+      const list = async (user) => {
+        const reports = await api(user, 'GET', path);
+        return reports.map((report) => shared.reportSchema.parse(report));
+      };
+      assert.deepEqual(
+        (await list(ctx.customer)).map((report) => report.id),
+        [created.id],
+      );
+      assert.deepEqual(await list(ctx.driver), []);
+
+      await api(ctx.admin, 'POST', `/admin/reports/${created.id}/resolve`, {
+        body: { note: 'Refunded the difference' },
+        schema: shared.adminReportSchema,
+      });
+      const [seen] = await list(ctx.customer);
+      assert.equal(seen.status, 'resolved');
+      assert.equal(seen.resolutionNote, 'Refunded the difference');
+      assert.ok(seen.resolvedAt);
+    },
+  },
+  {
     name: 'the same pair again: the offer shows the driver rating count, nearby the customer one',
     async run(ctx) {
       const request = await api(ctx.customer, 'POST', '/tow-requests', {

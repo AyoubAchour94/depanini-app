@@ -25,7 +25,7 @@ export const reportStatusSchema = z.enum(REPORT_STATUSES);
 
 export type ReportStatus = z.infer<typeof reportStatusSchema>;
 
-/** Body of `POST /tow-requests/:id/report`. */
+/** Body of `POST /tow-requests/:id/reports`. */
 export const reportInputSchema = z.object({
   category: reportCategorySchema,
   note: z

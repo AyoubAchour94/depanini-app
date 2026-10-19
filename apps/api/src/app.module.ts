@@ -12,6 +12,7 @@ import { OffersModule } from './offers/offers.module.js';
 import { PaymentsModule } from './payments/payments.module.js';
 import { PushModule } from './push/push.module.js';
 import { RatingsModule } from './ratings/ratings.module.js';
+import { ReportsModule } from './reports/reports.module.js';
 import { RealtimeModule } from './realtime/realtime.module.js';
 import { TowRequestsModule } from './tow-requests/tow-requests.module.js';
 import { VerificationModule } from './verification/verification.module.js';
@@ -28,6 +29,7 @@ import { VerificationModule } from './verification/verification.module.js';
     OffersModule,
     PaymentsModule,
     RatingsModule,
+    ReportsModule,
     PushModule,
     RealtimeModule,
     FilesModule,
