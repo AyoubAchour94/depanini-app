@@ -107,6 +107,23 @@ async function receiptNo(page: Page): Promise<string> {
   return (await value.innerText()).trim();
 }
 
+/** The customer picks the Tunis pin, a La Marsa drop-off and sends the request. */
+async function requestTow(c: Page) {
+  await button(c, 'Request a tow').click();
+  // The browser position is inside Tunisia, so the pin starts there.
+  const confirmPickup = button(c, 'Confirm pickup');
+  await expect(confirmPickup).toBeEnabled();
+  await confirmPickup.click();
+  await field(c, 'Where should it go?').fill('La Marsa');
+  await c.getByRole('button', { name: /Marsa/ }).first().click();
+  await c.getByRole('radio', { name: 'Car', exact: true }).click();
+  await c.getByRole('radio', { name: 'Breakdown' }).click();
+  await button(c, 'Next').click();
+  await expect(shown(c, /^Suggested: \d+ TND$/)).toBeVisible();
+  await button(c, 'Send request').click();
+  await expect(shown(c, 'Waiting for drivers…')).toBeVisible();
+}
+
 test('customer requests a tow and a driver completes it', async ({ browser }, testInfo) => {
   const customerUser = await newUser(browser);
   const driverUser = await newUser(browser);
@@ -141,19 +158,7 @@ test('customer requests a tow and a driver completes it', async ({ browser }, te
     await expect(d.getByRole('switch', { name: 'Online' })).toBeChecked();
 
     // 3. The customer requests a tow near it.
-    await button(c, 'Request a tow').click();
-    // The browser position is inside Tunisia, so the pin starts there.
-    const confirmPickup = button(c, 'Confirm pickup');
-    await expect(confirmPickup).toBeEnabled();
-    await confirmPickup.click();
-    await field(c, 'Where should it go?').fill('La Marsa');
-    await c.getByRole('button', { name: /Marsa/ }).first().click();
-    await c.getByRole('radio', { name: 'Car', exact: true }).click();
-    await c.getByRole('radio', { name: 'Breakdown' }).click();
-    await button(c, 'Next').click();
-    await expect(shown(c, /^Suggested: \d+ TND$/)).toBeVisible();
-    await button(c, 'Send request').click();
-    await expect(shown(c, 'Waiting for drivers…')).toBeVisible();
+    await requestTow(c);
 
     // 4. The driver sees it and sends an offer; the customer accepts.
     // A new request reaches the driver as a `nearby.changed` push over the socket.
@@ -186,6 +191,21 @@ test('customer requests a tow and a driver completes it', async ({ browser }, te
     await expect(shown(c, new RegExp(`Did you pay ${fare} TND`))).toBeVisible();
     await button(c, 'Yes, I paid').click();
     await expect(shown(c, 'Payment confirmed')).toBeVisible();
+
+    // Both sides rate the other. The driver tries 2 stars without a tag first.
+    await expect(shown(c, 'Rate your driver')).toBeVisible();
+    await button(c, '5 stars').click();
+    await c.getByRole('checkbox', { name: 'On time' }).click();
+    await button(c, 'Send rating').click();
+    await expect(shown(c, 'Thanks for rating')).toBeVisible();
+
+    await expect(shown(d, 'Rate your customer')).toBeVisible();
+    await button(d, '2 stars').click();
+    await button(d, 'Send rating').click();
+    await expect(shown(d, 'Tell us what went wrong: pick at least one tag.')).toBeVisible();
+    await d.getByRole('checkbox', { name: 'Made me wait' }).click();
+    await button(d, 'Send rating').click();
+    await expect(shown(d, 'Thanks for rating')).toBeVisible();
     await button(c, 'Done').click();
     await button(c, 'Account').click();
     await button(c, 'My requests').click();
@@ -211,7 +231,32 @@ test('customer requests a tow and a driver completes it', async ({ browser }, te
     await expect(today).toContainText(`${fare} TND`);
     await expect(today).toContainText('1 trip');
 
-    // 8. Clean up through the UI.
+    // 8. A second request shows the ratings. Each side has one rating so far,
+    // below the threshold of three, so both badges read "New".
+    await c.goto(`${CUSTOMER_URL}/`);
+    await requestTow(c);
+    await d.goto(`${DRIVER_URL}/`);
+    const online = d.getByRole('switch', { name: 'Online' });
+    await expect(online).toBeVisible();
+    if (!(await online.isChecked())) {
+      await online.click();
+      await expect(online).toBeChecked();
+    }
+    const row = button(d, /^View request/).filter({ hasText: DROPOFF_ADDRESS });
+    await expect(row).toContainText('New', { timeout: 10_000 });
+    await row.click();
+    const acceptAgain = d.getByRole('button', { name: /^Accept for \d+ TND$/ });
+    await expect(shown(d, 'New')).toBeVisible();
+    await acceptAgain.click();
+    const offerCard = c.locator('div:visible', { hasText: driver.name }).filter({
+      has: button(c, 'Accept'),
+    });
+    await expect(offerCard.last()).toContainText('New');
+    await c.screenshot({ path: testInfo.outputPath('offer-rating.png'), fullPage: true });
+    await button(c, 'Cancel request').click();
+    await expect(button(c, 'Request a tow')).toBeVisible();
+
+    // 9. Clean up through the UI.
     await deleteAccount(c, CUSTOMER_URL);
     await deleteAccount(d, DRIVER_URL);
   } finally {
