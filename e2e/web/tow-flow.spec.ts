@@ -330,6 +330,14 @@ test('customer requests a tow and a driver completes it', async ({ browser }, te
     await expect(shown(c, 'Receipt', { exact: true })).toBeVisible();
     await c.screenshot({ path: testInfo.outputPath('receipt-customer.png'), fullPage: true });
 
+    // The customer reports a problem with the trip (not the payment dispute).
+    await button(c, 'Report a problem with this trip').click();
+    await c.getByRole('radio', { name: 'Overcharged' }).click();
+    await field(c, 'What happened?').fill('Asked for more than the agreed fare');
+    await button(c, 'Send report').click();
+    await expect(shown(c, 'Report sent')).toBeVisible();
+    await expect(shown(c, 'Open', { exact: true })).toBeVisible();
+
     await button(d, 'Back to requests').click();
     await button(d, 'My jobs').click();
     await button(d, /^View job/)
