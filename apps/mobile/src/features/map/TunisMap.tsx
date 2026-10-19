@@ -1,13 +1,21 @@
 import { TUNIS_CENTER } from '@depanini/shared';
 import Mapbox, { Camera, MapView, MarkerView } from '@rnmapbox/maps';
-import { useEffect, useRef, type ComponentRef } from 'react';
+import { useContext, useEffect, useRef, type ComponentRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/theme/theme';
 
 import { mapStyleUrl } from './map-style';
 import { markerColors } from './marker-colors';
-import { FIT_MAX_ZOOM, FIT_PADDING, markerIdsKey, type TunisMapProps } from './map-props';
+import {
+  FIT_MAX_ZOOM,
+  FIT_PADDING,
+  markerIdsKey,
+  ORNAMENT_TOP,
+  type TunisMapProps,
+} from './map-props';
 
 const DEFAULT_ZOOM = 14;
 
@@ -24,6 +32,7 @@ export function TunisMap({
   fitToMarkers,
 }: TunisMapProps) {
   const theme = useTheme();
+  const ornamentTop = (useContext(SafeAreaInsetsContext)?.top ?? 0) + ORNAMENT_TOP;
   const camera = useRef<ComponentRef<typeof Camera>>(null);
   // Idempotent; must run before the native MapView mounts.
   void Mapbox.setAccessToken(accessToken);
@@ -59,6 +68,9 @@ export function TunisMap({
     <MapView
       style={StyleSheet.absoluteFill}
       styleURL={mapStyleUrl(theme.scheme)}
+      // The sheet covers the bottom of the map, so the ornaments move to the top.
+      logoPosition={{ top: ornamentTop, right: 8 }}
+      attributionPosition={{ top: ornamentTop, right: 104 }}
       onMapIdle={(state) => {
         // Mapbox reports [longitude, latitude].
         const [longitude, latitude] = state.properties.center;

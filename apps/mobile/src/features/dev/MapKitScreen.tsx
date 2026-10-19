@@ -59,7 +59,7 @@ export function MapKitScreen() {
               <Chip label="Home · La Marsa" onPress={() => {}} />
               <Chip label="Garage · Lac 2" onPress={() => {}} />
             </View>
-            {Array.from({ length: 8 }, (_, i) => (
+            {Array.from({ length: 20 }, (_, i) => (
               <Text key={i} tone="muted">
                 More details {i + 1}: scrolls only at the full snap point.
               </Text>

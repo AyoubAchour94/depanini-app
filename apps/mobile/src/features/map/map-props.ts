@@ -37,3 +37,9 @@ export function markerIdsKey(markers: MapMarker[] | undefined): string {
     .sort()
     .join('|');
 }
+
+/**
+ * Distance (px) from the top of the map to its Mapbox logo and attribution.
+ * They sit at the end of the screen under the floating controls, not at the bottom where the sheet is.
+ */
+export const ORNAMENT_TOP = 72;

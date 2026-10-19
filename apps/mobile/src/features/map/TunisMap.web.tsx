@@ -8,7 +8,13 @@ import { useTheme } from '@/theme/theme';
 
 import { mapStyleUrl } from './map-style';
 import { markerColors } from './marker-colors';
-import { FIT_MAX_ZOOM, FIT_PADDING, markerIdsKey, type TunisMapProps } from './map-props';
+import {
+  FIT_MAX_ZOOM,
+  FIT_PADDING,
+  markerIdsKey,
+  ORNAMENT_TOP,
+  type TunisMapProps,
+} from './map-props';
 
 const DEFAULT_ZOOM = 14;
 
@@ -59,7 +65,11 @@ export function TunisMap({
       style: mapStyleUrl(scheme.current),
       center: [initialCenter.current.longitude, initialCenter.current.latitude],
       zoom: DEFAULT_ZOOM,
+      // The sheet covers the bottom of the map, so the ornaments move to the top.
+      logoPosition: 'top-right',
+      attributionControl: false,
     });
+    instance.addControl(new mapboxgl.AttributionControl({ compact: true }), 'top-right');
     instance.on('moveend', () => {
       const { lat, lng } = instance.getCenter();
       onChange.current?.({ latitude: lat, longitude: lng });
@@ -80,7 +90,12 @@ export function TunisMap({
     scheme.current = theme.scheme;
     if (appliedScheme.current === theme.scheme) return;
     appliedScheme.current = theme.scheme;
-    map.current?.setStyle(mapStyleUrl(theme.scheme));
+    const instance = map.current;
+    if (!instance) return;
+    // Mapbox GL throws when a style is swapped while another is still loading.
+    const apply = () => instance.setStyle(mapStyleUrl(scheme.current));
+    if (instance.isStyleLoaded()) apply();
+    else instance.once('style.load', apply);
   }, [theme.scheme]);
 
   useEffect(() => {
@@ -140,5 +155,10 @@ export function TunisMap({
     );
   }, [idsKey, fitToMarkers, accessToken]);
 
-  return <div ref={container} style={{ position: 'absolute', inset: 0 }} />;
+  return (
+    <>
+      <style>{`.mapboxgl-ctrl-top-left,.mapboxgl-ctrl-top-right{top:${ORNAMENT_TOP}px}`}</style>
+      <div ref={container} style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
+    </>
+  );
 }

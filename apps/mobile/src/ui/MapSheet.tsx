@@ -150,9 +150,11 @@ export function MapSheet({
   });
 
   // Created once; its handlers only read refs, and only when a gesture runs.
-  // eslint-disable-next-line react-hooks/refs -- the lint sees the refs captured by those handlers as render-time reads
-  const [pan] = useState(() =>
+  const makePan = (claimOnStart: boolean) =>
     PanResponder.create({
+      // The handle takes the gesture at once: on web the pointer is only followed
+      // while it is over the view that has the gesture, and a quick drag leaves the sheet.
+      onStartShouldSetPanResponder: () => claimOnStart,
       onMoveShouldSetPanResponderCapture: (_e, g) => {
         if (Math.abs(g.dy) < DRAG_SLOP || Math.abs(g.dy) < Math.abs(g.dx)) return false;
         // At the top snap point the content scrolls; only a pull down from its top drags the sheet.
@@ -176,8 +178,11 @@ export function MapSheet({
       onPanResponderTerminate: () => {
         settleRef.current(nearestSnap(heightsRef.current, current.current, 0));
       },
-    }),
-  );
+    });
+  // eslint-disable-next-line react-hooks/refs -- the lint sees the refs captured by the handlers as render-time reads
+  const [pan] = useState(() => makePan(false));
+  // eslint-disable-next-line react-hooks/refs -- same
+  const [handlePan] = useState(() => makePan(true));
 
   // Lift the sheet above the keyboard. Measured against the window so a
   // platform that already resized the screen for the keyboard counts as 0.
@@ -234,7 +239,8 @@ export function MapSheet({
           testID={`${testID}-card`}
         >
           <View
-            style={[styles.grabber, { backgroundColor: t.color.grab }]}
+            {...handlePan.panHandlers}
+            style={styles.handleZone}
             accessible
             accessibilityRole="adjustable"
             accessibilityLabel="Sheet size"
@@ -244,7 +250,9 @@ export function MapSheet({
               settle(index + (e.nativeEvent.actionName === 'increment' ? 1 : -1))
             }
             testID={`${testID}-grabber`}
-          />
+          >
+            <View style={[styles.bar, { backgroundColor: t.color.grab }]} />
+          </View>
           <ScrollView
             ref={scroller}
             style={styles.content}
@@ -277,14 +285,14 @@ export function MapSheet({
 const styles = StyleSheet.create({
   sheet: { position: 'absolute', left: 0, right: 0 },
   card: { flex: 1, paddingBottom: 0, overflow: 'hidden' },
-  grabber: {
-    width: 40,
-    height: 5,
-    borderRadius: 3,
-    alignSelf: 'center',
-    marginTop: 0,
-    marginBottom: 16,
+  // A taller hit area than the 5px bar; the negative margin keeps the layout of `Sheet`.
+  handleZone: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    marginTop: -8,
+    marginBottom: 8,
     userSelect: 'none',
   },
+  bar: { width: 40, height: 5, borderRadius: 3 },
   content: { flex: 1 },
 });
