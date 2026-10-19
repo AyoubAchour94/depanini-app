@@ -4,6 +4,7 @@
  */
 import type {
   CancelledBy,
+  DevicePlatform,
   RatingTag,
   OfferStatus,
   PaymentMethod,
@@ -247,4 +248,24 @@ export const ratings = pgTable(
     // Summaries average everything a user received from one side.
     index('ratings_ratee_idx').on(table.rateeUserId, table.raterRole),
   ],
+);
+
+/**
+ * A push token of one install of an app. The token is the key: a token that moves to
+ * another account (sign-out, sign-in) is reassigned, never duplicated.
+ */
+export const deviceTokens = pgTable(
+  'device_tokens',
+  {
+    /** The native FCM/APNs token. */
+    token: text().primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    platform: text().$type<DevicePlatform>().notNull(),
+    /** Which app registered it: pushes for customer events go to `user`, driver events to `driver`. */
+    appVariant: text('app_variant').$type<'user' | 'driver'>().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('device_tokens_user_idx').on(table.userId, table.appVariant)],
 );
