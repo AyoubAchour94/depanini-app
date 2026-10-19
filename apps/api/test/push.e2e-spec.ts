@@ -10,6 +10,7 @@ import { eq } from 'drizzle-orm';
 import request from 'supertest';
 
 import { deviceTokens, users } from '../src/db/schema.js';
+import { TRIP_STAGE_BODIES } from '../src/push/messages.js';
 import { NotificationsService } from '../src/push/notifications.service.js';
 import type { PushSender } from '../src/push/push-sender.js';
 import { createTestApp } from './support/test-app.js';
@@ -380,10 +381,28 @@ describe('push notifications (e2e)', () => {
       const danOffer = await makeOffer(dan, id);
       await clearInbox();
       await api('post', `/tow-requests/${id}/cancel`, alice).send({}).expect(200);
-      expect((await inbox(dan)).map((push) => push.data)).toEqual([
-        { kind: 'offer_rejected', requestId: id, offerId: danOffer },
+      const pushes = await inbox(dan);
+      expect(pushes.map((push) => push.data)).toEqual([
+        { kind: 'trip_cancelled', requestId: id, offerId: danOffer },
       ]);
+      expect(pushes[0]!.body).toBe('The customer cancelled this request.');
       expect(await inbox(alice)).toEqual([]);
+    });
+
+    it('says what the stage was when two changes follow each other, in order', async () => {
+      await setUp();
+      const id = await createRequest();
+      await api('post', `/offers/${await makeOffer(dan, id)}/accept`, alice).expect(200);
+      await clearInbox();
+
+      // No flush in between: the second change is made before the first push has gone out.
+      await stage('en_route');
+      await stage('arrived');
+      const stages = await inbox(alice);
+      expect(stages.map((push) => [push.data.kind, push.body])).toEqual([
+        ['trip_stage', TRIP_STAGE_BODIES.en_route],
+        ['trip_stage', TRIP_STAGE_BODIES.arrived],
+      ]);
     });
 
     it('sends driver events to driver tokens and customer events to user tokens only', async () => {
@@ -545,7 +564,11 @@ describe('push notifications (e2e)', () => {
           ['delete', '/dev/push-inbox'],
         ] as const) {
           const res = await call(method, path).expect(404);
-          expect(res.body).toMatchObject({ statusCode: 404, error: 'Not Found' });
+          expect(res.body).toMatchObject({
+            statusCode: 404,
+            error: 'Not Found',
+            message: `Cannot ${method.toUpperCase()} ${path}`,
+          });
         }
       } finally {
         await other.close();

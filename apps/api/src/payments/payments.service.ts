@@ -155,7 +155,7 @@ export class PaymentsService {
       const [row] = await selectTowRequests(tx).where(eq(towRequests.id, requestId));
       return toTowRequest(row!);
     });
-    await this.events.requestsUpdated([requestId]);
+    await this.events.requestsUpdated([requestId], { type: 'payment_answered' });
     return answered;
   }
 }

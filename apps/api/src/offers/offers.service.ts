@@ -166,7 +166,7 @@ export class OffersService {
       }
       throw error;
     }
-    await this.events.offersUpdated([created.id]);
+    await this.events.offersUpdated([created.id], 'received');
     return created;
   }
 
@@ -186,7 +186,7 @@ export class OffersService {
       )
       .returning(offerColumns);
     if (withdrawn) {
-      await this.events.offersUpdated([withdrawn.id]);
+      await this.events.offersUpdated([withdrawn.id], 'withdrawn');
       return toOffer(withdrawn);
     }
 
@@ -265,7 +265,7 @@ export class OffersService {
       .where(and(eq(towOffers.id, offerId), owned));
     if (!offer) throw new NotFoundException('Offer not found');
     if (!declined) throw new ConflictException('Only a pending offer can be declined');
-    await this.events.offersUpdated([declined.id]);
+    await this.events.offersUpdated([declined.id], 'declined');
     return toCustomerOffer(offer);
   }
 
@@ -279,7 +279,7 @@ export class OffersService {
   async accept(customerId: string, offerId: string): Promise<TowRequest> {
     const now = await this.expireStale();
     for (let attempt = 1; ; attempt += 1) {
-      let accepted: { request: TowRequest; offerIds: string[] };
+      let accepted: { request: TowRequest; rejectedIds: string[]; withdrawnIds: string[] };
       try {
         accepted = await this.acceptOnce(customerId, offerId, now);
       } catch (error) {
@@ -290,7 +290,9 @@ export class OffersService {
         continue;
       }
       await this.events.requestsUpdated([accepted.request.id]);
-      await this.events.offersUpdated(accepted.offerIds);
+      await this.events.offersUpdated([offerId], 'accepted');
+      await this.events.offersUpdated(accepted.rejectedIds, 'rejected');
+      await this.events.offersUpdated(accepted.withdrawnIds, 'withdrawn');
       await this.events.nearbyChanged([accepted.request.id]);
       return accepted.request;
     }
@@ -301,7 +303,7 @@ export class OffersService {
     customerId: string,
     offerId: string,
     now: Date,
-  ): Promise<{ request: TowRequest; offerIds: string[] }> {
+  ): Promise<{ request: TowRequest; rejectedIds: string[]; withdrawnIds: string[] }> {
     return this.db.transaction(async (tx) => {
       // The offer's request and driver never change, so they can be read before locking.
       const [target] = await tx
@@ -390,7 +392,8 @@ export class OffersService {
       const [assigned] = await selectTowRequests(tx).where(eq(towRequests.id, target.requestId));
       return {
         request: toTowRequest(assigned!, now),
-        offerIds: [offerId, ...[...rejected, ...withdrawn].map((o) => o.id)],
+        rejectedIds: rejected.map((o) => o.id),
+        withdrawnIds: withdrawn.map((o) => o.id),
       };
     });
   }
@@ -420,7 +423,7 @@ export class OffersService {
         .where(eq(towRequests.id, job.id));
       return job.id;
     });
-    await this.events.requestsUpdated([jobId]);
+    await this.events.requestsUpdated([jobId], { type: 'stage', stage });
     return (await this.job(driverId))!;
   }
 
@@ -443,7 +446,7 @@ export class OffersService {
       const [row] = await selectTowRequests(tx).where(eq(towRequests.id, job.id));
       return toTowRequest(row!);
     });
-    await this.events.requestsUpdated([completed.id]);
+    await this.events.requestsUpdated([completed.id], { type: 'completed' });
     return completed;
   }
 

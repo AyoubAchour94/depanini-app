@@ -10,6 +10,9 @@ export const TRIP_STAGE_BODIES = {
   towing: 'Your vehicle is on the truck and on its way.',
 } as const;
 
+/** `trip_cancelled` for a driver whose offer was pending when the customer cancelled the request. */
+export const CUSTOMER_CANCELLED_BODY = 'The customer cancelled this request.';
+
 export const PUSH_MESSAGES: Record<PushKind, { title: string; body: string }> = {
   nearby_request: { title: 'New request nearby', body: 'A customer near you needs a tow.' },
   offer_received: {

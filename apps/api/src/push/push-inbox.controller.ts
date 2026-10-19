@@ -6,7 +6,9 @@ import {
   Inject,
   NotFoundException,
   Query,
+  Req,
 } from '@nestjs/common';
+import type { FastifyRequest } from 'fastify';
 
 import { z } from 'zod';
 
@@ -31,8 +33,8 @@ export class PushInboxController {
 
   /** The pushes sent to the user's devices, oldest first, each with the app that got it. */
   @Get()
-  async inbox(@Query('userId') userId?: string) {
-    const sender = this.enabled();
+  async inbox(@Req() req: FastifyRequest, @Query('userId') userId?: string) {
+    const sender = this.enabled(req);
     if (!z.uuid().safeParse(userId).success) return [];
     const devices = await this.tokens.variantsOf(userId!);
     return sender.forTokens(devices.map((device) => device.token)).map((push) => ({
@@ -43,21 +45,18 @@ export class PushInboxController {
 
   @Delete()
   @HttpCode(204)
-  clear(): void {
-    this.enabled().clear();
+  clear(@Req() req: FastifyRequest): void {
+    this.enabled(req).clear();
   }
 
-  private enabled(): LogPushSender {
+  /** The sender, or the 404 an unknown route gives (same text, with the real method and URL). */
+  private enabled(req: FastifyRequest): LogPushSender {
     if (
       this.env.NODE_ENV === 'production' ||
       !this.env.PUSH_INBOX ||
       !(this.sender instanceof LogPushSender)
     ) {
-      throw new NotFoundException({
-        message: 'Cannot GET /dev/push-inbox',
-        error: 'Not Found',
-        statusCode: 404,
-      });
+      throw new NotFoundException(`Cannot ${req.method} ${req.url}`);
     }
     return this.sender;
   }
