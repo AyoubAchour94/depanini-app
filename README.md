@@ -170,7 +170,7 @@ pnpm --filter @depanini/shared build
 pnpm db:up
 pnpm emulators                              # own terminal
 pnpm --filter @depanini/api start:dev       # own terminal
-pnpm e2e:flow                               # E2E_API_URL, E2E_AUTH_EMULATOR override the defaults; E2E_WS=off skips /ws; start the API with PUSH_INBOX=1 to check pushes too
+E2E_DATABASE_URL=postgres://depanini:depanini@localhost:5432/depanini pnpm e2e:flow  # E2E_DATABASE_URL (the API database) is needed to approve the driver until the admin API exists; E2E_API_URL, E2E_AUTH_EMULATOR override the defaults; E2E_WS=off skips /ws; start the API with PUSH_INBOX=1 to check pushes too
 ```
 
 It prints one line per step and exits non-zero on the first failure. Add steps

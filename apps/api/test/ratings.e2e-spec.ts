@@ -17,6 +17,7 @@ import { z } from 'zod';
 import { ratings, towRequests, users } from '../src/db/schema.js';
 import * as schema from '../src/db/schema.js';
 import { NotificationsService } from '../src/push/notifications.service.js';
+import { approveDriverByToken } from './support/approve-driver.js';
 import { createTestApp } from './support/test-app.js';
 import { connectTestDatabase, TEST_DATABASE_URL } from './support/test-database.js';
 import { openSocket, type TestSocket } from './support/ws-client.js';
@@ -68,10 +69,12 @@ describe('ratings (e2e)', () => {
     api('put', '/me/customer-profile', token)
       .send({ fullName: name, phone: '+21698111111' })
       .expect(200);
-  const driverProfile = (token: string, name: string, plate: string) =>
-    api('put', '/me/driver-profile', token)
+  const driverProfile = async (token: string, name: string, plate: string) => {
+    await api('put', '/me/driver-profile', token)
       .send({ fullName: name, phone: '+21698222222', truckType: 'flatbed', plateNumber: plate })
       .expect(200);
+    await approveDriverByToken(database.db, token);
+  };
   const online = (driver: string) =>
     api('put', '/driver/presence', driver).send({ online: true, location: laMarsa }).expect(200);
 

@@ -24,6 +24,7 @@ const driverProfileColumns = {
   phone: driverProfiles.phone,
   truckType: driverProfiles.truckType,
   plateNumber: driverProfiles.plateNumber,
+  verificationStatus: driverProfiles.verificationStatus,
 };
 
 /** An account with the profiles it holds (`null` until filled in). */
@@ -160,7 +161,10 @@ export class AccountsService {
   }
 
   /** Creates or replaces the account's driver profile. */
-  async saveDriverProfile(userId: string, profile: DriverProfile): Promise<DriverProfile> {
+  async saveDriverProfile(
+    userId: string,
+    profile: Omit<DriverProfile, 'verificationStatus'>,
+  ): Promise<DriverProfile> {
     const [saved] = await this.db
       .insert(driverProfiles)
       .values({ userId, ...profile })

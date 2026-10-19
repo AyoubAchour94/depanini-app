@@ -13,6 +13,7 @@ import { eq } from 'drizzle-orm';
 import request from 'supertest';
 
 import { payments, towRequests, users } from '../src/db/schema.js';
+import { approveDriverByToken } from './support/approve-driver.js';
 import { createTestApp } from './support/test-app.js';
 import { connectTestDatabase } from './support/test-database.js';
 
@@ -66,6 +67,7 @@ describe('cash payment, receipts, confirm and dispute (e2e)', () => {
         plateNumber: PLATE,
       })
       .expect(200);
+    await approveDriverByToken(database.db, driver);
     await api('put', '/driver/presence', driver)
       .send({ online: true, location: laMarsa })
       .expect(200);
@@ -113,6 +115,7 @@ describe('cash payment, receipts, confirm and dispute (e2e)', () => {
         plateNumber: 'EVE 1',
       })
       .expect(200);
+    await approveDriverByToken(database.db, eve);
     await api('put', '/me/customer-profile', zed)
       .send({ fullName: 'Zed Customer', phone: '+21698333333' })
       .expect(200);

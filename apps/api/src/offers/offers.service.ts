@@ -26,6 +26,7 @@ import { and, asc, desc, eq, gt, ne, sql } from 'drizzle-orm';
 import { DB, type Database } from '../db/database.module.js';
 import { driverPresence, driverProfiles, towOffers, towRequests } from '../db/schema.js';
 import { TripEvents } from '../realtime/trip-events.service.js';
+import { assertDriverApproved } from '../verification/driver-approval.js';
 import { CLOCK, type Clock } from '../tow-requests/clock.js';
 import { isDeadlock } from '../tow-requests/deadlock.js';
 import { expireStaleOffers, expireStaleRequests } from '../tow-requests/expiry.js';
@@ -77,6 +78,7 @@ export class OffersService {
    * already has a pending offer on it.
    */
   async create(driverId: string, requestId: string, fare: number): Promise<Offer> {
+    await assertDriverApproved(this.db, driverId);
     const now = await this.expireStale();
     const [presence] = await this.db
       .select({

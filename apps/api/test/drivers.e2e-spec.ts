@@ -13,6 +13,7 @@ import request from 'supertest';
 import { z } from 'zod';
 
 import { driverPresence, towOffers, towRequests, users } from '../src/db/schema.js';
+import { approveDriverByToken } from './support/approve-driver.js';
 import { createTestApp } from './support/test-app.js';
 import { connectTestDatabase } from './support/test-database.js';
 
@@ -57,8 +58,8 @@ describe('driver presence and nearby requests (e2e)', () => {
     const req = request(app.getHttpServer())[method](path);
     return token ? req.set('Authorization', `Bearer ${token}`) : req;
   };
-  const makeDriver = (token: string) =>
-    api('put', '/me/driver-profile', token)
+  const makeDriver = async (token: string) => {
+    await api('put', '/me/driver-profile', token)
       .send({
         fullName: 'Driver',
         phone: '+21698123456',
@@ -66,6 +67,8 @@ describe('driver presence and nearby requests (e2e)', () => {
         plateNumber: '123 TUN 4567',
       })
       .expect(200);
+    await approveDriverByToken(database.db, token);
+  };
   const putPresence = (token: string | undefined, body: object) =>
     api('put', '/driver/presence', token).send(body);
   const goOnline = (token: string, location = tunis) =>

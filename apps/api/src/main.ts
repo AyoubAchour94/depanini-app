@@ -7,6 +7,7 @@ import { WsAdapter } from '@nestjs/platform-ws';
 import { AppModule } from './app.module.js';
 import type { Env } from './config/env.js';
 import { ENV } from './config/env.module.js';
+import { registerMultipart } from './files/multipart.js';
 
 // Local dev convenience: load apps/api/.env when present. In production
 // (Cloud Run) variables are set on the service and no file exists.
@@ -19,6 +20,7 @@ try {
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
   app.enableShutdownHooks();
+  await registerMultipart(app);
   // `/ws` (see src/realtime) shares the HTTP server and port.
   app.useWebSocketAdapter(new WsAdapter(app));
 

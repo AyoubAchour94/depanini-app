@@ -6,6 +6,7 @@
 // To add a step, append `{ name, run(ctx) }` to STEPS. Steps run in order and share `ctx`.
 import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
+import { crc32, deflateSync } from 'node:zlib';
 
 const require = createRequire(import.meta.url);
 // Built shared package (`pnpm --filter @depanini/shared build`).
@@ -18,6 +19,11 @@ const WS = process.env.E2E_WS !== 'off';
 /** How long a `/ws` event may take to arrive after the change that causes it. */
 const WS_EVENT_MS = 2000;
 const run = Date.now().toString(36);
+/**
+ * Postgres of the API under test. Only needed to approve the driver's documents directly
+ * until the admin API exists; point it at the same database as the API.
+ */
+const DATABASE_URL = process.env.E2E_DATABASE_URL;
 
 const TUNIS_PICKUP = {
   latitude: 36.8065,
@@ -27,6 +33,98 @@ const TUNIS_PICKUP = {
 const TUNIS_DROPOFF = { latitude: 36.8625, longitude: 10.1956, address: 'La Marsa, Tunis' };
 /** Where the driver is once on the way: close to the pickup, so the ETA is a few minutes. */
 const DRIVER_NEAR_PICKUP = { latitude: TUNIS_PICKUP.latitude + 0.01, longitude: 10.1815 };
+
+/** A valid 1x1 PNG, built here so the script needs no fixture files. */
+function tinyPng() {
+  const chunk = (type, data) => {
+    const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(data.length);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(body));
+    return Buffer.concat([length, body, crc]);
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(1, 0); // width
+  header.writeUInt32BE(1, 4); // height
+  header.set([8, 2, 0, 0, 0], 8); // 8-bit RGB
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', header),
+    chunk('IDAT', deflateSync(Buffer.from([0, 255, 0, 0]))), // filter byte + one red pixel
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
+}
+
+/** A valid one-page PDF. */
+function tinyPdf() {
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 72 72] >>',
+  ];
+  let pdf = '%PDF-1.4\n';
+  const offsets = objects.map((object, i) => {
+    const offset = pdf.length;
+    pdf += `${i + 1} 0 obj\n${object}\nendobj\n`;
+    return offset;
+  });
+  const xref = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const offset of offsets) pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(pdf, 'ascii');
+}
+
+/** Uploads one page with POST /driver/documents (multipart); checks the status and schema. */
+async function uploadDocument(user, kind, bytes, contentType, { expect = 201 } = {}) {
+  const form = new FormData();
+  form.set('kind', kind);
+  form.set('file', new Blob([bytes], { type: contentType }), 'scan');
+  const res = await fetch(`${API}/driver/documents`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${user.idToken}` },
+    body: form,
+  });
+  const text = await res.text();
+  assert.equal(
+    res.status,
+    expect,
+    `POST /driver/documents: expected ${expect}, got ${res.status} ${text}`,
+  );
+  if (expect !== 201) return undefined;
+  const parsed = shared.driverDocumentSchema.safeParse(JSON.parse(text));
+  assert.ok(
+    parsed.success,
+    `POST /driver/documents: response does not match schema: ${parsed.error}`,
+  );
+  return parsed.data;
+}
+
+/** Approves the driver's documents straight in Postgres (until the admin API replaces this). */
+async function approveInDatabase(userId) {
+  assert.ok(
+    DATABASE_URL,
+    'Set E2E_DATABASE_URL to the API database (e.g. postgres://depanini:depanini@localhost:5432/depanini) ' +
+      'so the flow can approve the driver; the admin API will replace this step.',
+  );
+  const pg = createRequire(new URL('../../apps/api/package.json', import.meta.url))('pg');
+  const client = new pg.Client({ connectionString: DATABASE_URL });
+  await client.connect();
+  try {
+    const { rowCount } = await client.query(
+      "update driver_profiles set verification_status = 'approved', reviewed_at = now() where user_id = $1",
+      [userId],
+    );
+    assert.equal(
+      rowCount,
+      1,
+      'no driver profile to approve; is E2E_DATABASE_URL the API database?',
+    );
+  } finally {
+    await client.end();
+  }
+}
 
 /** A fetch against the API as `user`; checks the status and, if given, the response schema. */
 async function api(user, method, path, { body, expect = 200, schema } = {}) {
@@ -224,6 +322,63 @@ const STEPS = [
         expect: 400,
         body: { token: '', platform: 'android', appVariant: 'user' },
       });
+    },
+  },
+  {
+    name: 'driver uploads the four documents, submits them, and is not approved yet',
+    async run({ driver }) {
+      const png = tinyPng();
+      const pdf = tinyPdf();
+      // A text file claiming to be a PNG is refused by its bytes.
+      await uploadDocument(driver, 'licence', Buffer.from('not an image'), 'image/png', {
+        expect: 415,
+      });
+      const page = await uploadDocument(driver, 'licence', png, 'image/png');
+      await uploadDocument(driver, 'licence', pdf, 'application/pdf');
+      await uploadDocument(driver, 'registration', pdf, 'application/pdf');
+      await uploadDocument(driver, 'insurance', png, 'image/png');
+
+      // Not complete yet: submitting is refused and the missing kind is reported.
+      await api(driver, 'POST', '/driver/verification/submit', { expect: 409 });
+      const partial = await api(driver, 'GET', '/driver/verification', {
+        schema: shared.verificationSchema,
+      });
+      assert.deepEqual(partial.missingKinds, ['national_id']);
+
+      await uploadDocument(driver, 'national_id', png, 'image/png');
+      const submitted = await api(driver, 'POST', '/driver/verification/submit', {
+        schema: shared.verificationSchema,
+      });
+      assert.equal(submitted.status, 'pending');
+      assert.equal(submitted.documents.length, 5);
+      assert.deepEqual(submitted.missingKinds, []);
+
+      // The owner can read a page back, with safe headers.
+      const res = await fetch(`${API}/files/${page.id}`, {
+        headers: { authorization: `Bearer ${driver.idToken}` },
+      });
+      assert.equal(res.status, 200);
+      assert.equal(res.headers.get('content-type'), 'image/png');
+      assert.equal(res.headers.get('x-content-type-options'), 'nosniff');
+      assert.equal(res.headers.get('cache-control'), 'private, no-store');
+      assert.deepEqual(Buffer.from(await res.arrayBuffer()), png);
+
+      // A pending driver cannot go online or see requests.
+      for (const [method, path, body] of [
+        ['PUT', '/driver/presence', { online: true, location: TUNIS_PICKUP }],
+        ['GET', '/driver/requests/nearby', undefined],
+      ]) {
+        const refused = await api(driver, method, path, { expect: 403, body });
+        assert.equal(refused.code, shared.DRIVER_NOT_APPROVED);
+      }
+    },
+  },
+  {
+    name: 'approve the driver in the database (the admin API replaces this)',
+    async run({ driver }) {
+      await approveInDatabase(driver.id);
+      const me = await api(driver, 'GET', '/me', { schema: shared.meResponseSchema });
+      assert.equal(me.driverProfile?.verificationStatus, 'approved');
     },
   },
   {
