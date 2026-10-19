@@ -12,6 +12,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  type CompleteJobInput,
+  completeJobInputSchema,
   type CustomerOffer,
   type DriverJob,
   type JobStageInput,
@@ -86,10 +88,18 @@ export class OffersController {
     return this.offers.advance(await this.driverId(request), stage);
   }
 
-  /** Drops the vehicle off: completes the job, from `towing` only. */
+  /**
+   * Drops the vehicle off: completes the job, from `towing` only, and records the cash
+   * payment of the agreed fare. `400` unless the body confirms `cashReceived`.
+   */
   @Post('driver/job/complete')
   @HttpCode(200)
-  async complete(@Req() request: AuthenticatedRequest): Promise<TowRequest> {
+  async complete(
+    @Req() request: AuthenticatedRequest,
+    // Only validated: the pipe rejects anything but `{ cashReceived: true }`.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    @Body(new ZodValidationPipe(completeJobInputSchema)) _input: CompleteJobInput,
+  ): Promise<TowRequest> {
     return this.offers.complete(await this.driverId(request));
   }
 

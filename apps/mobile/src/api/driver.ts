@@ -162,7 +162,10 @@ export function useCompleteJob() {
   const invalidate = useInvalidateDriverQueries();
   return useMutation({
     mutationFn: (): Promise<TowRequest> =>
-      apiRequest('/driver/job/complete', towRequestSchema, { method: 'POST' }),
+      apiRequest('/driver/job/complete', towRequestSchema, {
+        method: 'POST',
+        json: { cashReceived: true },
+      }),
     onSettled: invalidate,
   });
 }

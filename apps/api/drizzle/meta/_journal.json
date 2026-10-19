@@ -57,6 +57,13 @@
       "when": 1792361357889,
       "tag": "0007_trip_stages",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792375358169,
+      "tag": "0008_payments",
+      "breakpoints": true
     }
   ]
 }

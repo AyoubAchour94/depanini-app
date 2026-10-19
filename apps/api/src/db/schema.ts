@@ -5,6 +5,8 @@
 import type {
   CancelledBy,
   OfferStatus,
+  PaymentMethod,
+  PaymentStatus,
   ProblemType,
   TowRequestStatus,
   TripStage,
@@ -17,6 +19,7 @@ import {
   boolean,
   index,
   integer,
+  pgSequence,
   pgTable,
   text,
   timestamp,
@@ -186,3 +189,27 @@ export const towOffers = pgTable(
       .where(sql`${table.status} = 'pending'`),
   ],
 );
+
+/**
+ * Numbers the receipts: `DPN-<year>-<nextval>`. One sequence for all years, not one per
+ * year, so a number is unique whatever its year prefix and concurrent completions never
+ * clash. The year only labels the receipt (from `completed_at`, in Africa/Tunis), and the
+ * count does not restart in January. Gaps are fine: a rolled-back completion burns a number.
+ */
+export const receiptSeq = pgSequence('receipt_seq');
+
+/** The cash payment of a completed request, created in the transaction that completes it. */
+export const payments = pgTable('payments', {
+  requestId: uuid('request_id')
+    .primaryKey()
+    .references(() => towRequests.id, { onDelete: 'cascade' }),
+  /** Whole dinars: the agreed fare. */
+  amountTnd: integer('amount_tnd').notNull(),
+  method: text().$type<PaymentMethod>().notNull().default('cash'),
+  status: text().$type<PaymentStatus>().notNull().default('driver_confirmed'),
+  receiptNo: text('receipt_no').notNull().unique(),
+  driverConfirmedAt: timestamp('driver_confirmed_at', { withTimezone: true }).notNull(),
+  /** When the customer confirmed or disputed; null while unanswered. */
+  customerAnsweredAt: timestamp('customer_answered_at', { withTimezone: true }),
+  disputeNote: text('dispute_note'),
+});

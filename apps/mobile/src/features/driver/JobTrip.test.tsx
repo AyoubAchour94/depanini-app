@@ -255,6 +255,7 @@ describe('dropping off', () => {
     await flush();
 
     expect(api.calls('POST /driver/job/complete')).toHaveLength(1);
+    expect(api.calls('POST /driver/job/complete')[0]?.body).toEqual({ cashReceived: true });
     expect(await screen.findByText(t.summaryHeading)).toBeOnTheScreen();
     expect(screen.getByText('Avenue Bourguiba')).toBeOnTheScreen();
     expect(screen.getByText('La Marsa')).toBeOnTheScreen();

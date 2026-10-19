@@ -375,13 +375,24 @@ const STEPS = [
     },
   },
   {
-    name: 'driver drops off; the request completes in both histories',
+    name: 'driver must confirm the cash; then drops off and the request completes in both histories',
     async run(ctx) {
+      await api(ctx.driver, 'POST', '/driver/job/complete', { expect: 400 });
+      await api(ctx.driver, 'POST', '/driver/job/complete', {
+        expect: 400,
+        body: { cashReceived: false },
+      });
+      await api(ctx.driver, 'GET', '/driver/job', { schema: shared.driverJobSchema });
       const completed = await api(ctx.driver, 'POST', '/driver/job/complete', {
+        body: { cashReceived: true },
         schema: shared.towRequestSchema,
       });
       assert.equal(completed.status, 'completed');
       assert.ok(completed.completedAt);
+      assert.equal(completed.payment.status, 'driver_confirmed');
+      assert.equal(completed.payment.amountTnd, ctx.offer.fare);
+      assert.match(completed.payment.receiptNo, shared.RECEIPT_NO_PATTERN);
+      ctx.receiptNo = completed.payment.receiptNo;
       await api(ctx.driver, 'GET', '/driver/job', { expect: 204 });
       // The customer still gets the completed request for a few minutes, for the summary.
       const active = await api(ctx.customer, 'GET', '/tow-requests/active', {
@@ -401,6 +412,54 @@ const STEPS = [
       assert.equal(done?.status, 'completed');
       assert.equal(done?.driver?.phone ?? null, null);
       assert.equal(done?.driver?.plateNumber ?? null, null);
+      assert.deepEqual(done?.payment, active.payment);
+    },
+  },
+  {
+    name: 'customer confirms the payment (once), and a dispute after that is rejected',
+    async run(ctx) {
+      const base = `/tow-requests/${ctx.request.id}/payment`;
+      // The driver is not the customer: not found.
+      await api(ctx.driver, 'POST', `${base}/confirm`, { expect: 404 });
+      const confirmed = await api(ctx.customer, 'POST', `${base}/confirm`, {
+        schema: shared.towRequestSchema,
+      });
+      assert.equal(confirmed.payment.status, 'customer_confirmed');
+      assert.equal(confirmed.payment.receiptNo, ctx.receiptNo);
+      await api(ctx.customer, 'POST', `${base}/confirm`, { expect: 409 });
+      await api(ctx.customer, 'POST', `${base}/dispute`, { expect: 409, body: { note: 'late' } });
+      const active = await api(ctx.customer, 'GET', '/tow-requests/active', {
+        schema: shared.towRequestSchema,
+      });
+      assert.equal(active.payment.status, 'customer_confirmed');
+    },
+  },
+  {
+    name: 'both parties fetch the same receipt, with no phone or plate',
+    async run(ctx) {
+      const path = `/tow-requests/${ctx.request.id}/receipt`;
+      const receipts = [];
+      for (const user of [ctx.customer, ctx.driver]) {
+        const res = await fetch(`${API}${path}`, {
+          headers: { authorization: `Bearer ${user.idToken}` },
+        });
+        const text = await res.text();
+        assert.equal(res.status, 200, `GET ${path}: ${res.status} ${text}`);
+        // The raw JSON, not only what the schema keeps after stripping unknown keys.
+        for (const secret of ['+21620000001', '+21620000002', '123 TU 4567', 'phone', 'plate']) {
+          assert.ok(!text.includes(secret), `the receipt contains "${secret}"`);
+        }
+        const parsed = shared.receiptSchema.safeParse(JSON.parse(text));
+        assert.ok(parsed.success, `GET ${path}: not a receipt: ${parsed.error}`);
+        receipts.push(text);
+      }
+      assert.equal(receipts[0], receipts[1]);
+      const receipt = JSON.parse(receipts[0]);
+      assert.equal(receipt.receiptNo, ctx.receiptNo);
+      assert.equal(receipt.agreedFare, ctx.offer.fare);
+      assert.equal(receipt.method, 'cash');
+      assert.equal(receipt.driver.fullName, 'E2E Driver');
+      assert.equal(receipt.customer.fullName, 'E2E Customer');
     },
   },
   {
