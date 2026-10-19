@@ -13,6 +13,10 @@ const envSchema = z
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     PORT: z.coerce.number().int().positive().default(3000),
     DATABASE_URL: z.url(),
+    /** Most Postgres connections the API opens. */
+    DB_POOL_MAX: z.coerce.number().int().positive().default(10),
+    /** How long a request waits for a free connection before failing with `503`. */
+    DB_CONNECTION_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
     /** Firebase project whose ID tokens we accept (e.g. `depanini-dev`). */
     FIREBASE_PROJECT_ID: z.string().min(1),
     /**

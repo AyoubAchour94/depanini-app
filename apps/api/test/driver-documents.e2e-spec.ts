@@ -13,6 +13,7 @@ import { eq } from 'drizzle-orm';
 import request from 'supertest';
 
 import { driverDocuments, driverProfiles, files, users } from '../src/db/schema.js';
+import { driversNearRequests } from '../src/realtime/nearby-drivers.js';
 import { MAX_PAGES_PER_KIND } from '../src/verification/verification.service.js';
 import { approveDriver, approveDriverByToken } from './support/approve-driver.js';
 import { createTestApp } from './support/test-app.js';
@@ -473,6 +474,67 @@ describe('driver documents, verification and the online gate (e2e)', () => {
       await api('get', `/files/${file!.id}`, eve).expect(404);
       await api('get', `/files/${unknownId}`, dan).expect(404);
       await api('get', '/files/nope', dan).expect(404);
+    });
+  });
+
+  describe('concurrent uploads', () => {
+    it('finish, respect the page cap and keep the API alive with more uploads than pool connections', async () => {
+      await makeDriver(dan);
+      const uploads = Array.from({ length: 25 }, () =>
+        upload(dan, 'licence', PNG, { contentType: 'image/png' }),
+      );
+      let polling = true;
+      const healthStatuses: number[] = [];
+      const poll = (async () => {
+        while (polling) {
+          healthStatuses.push((await api('get', '/health')).status);
+          await new Promise((resolve) => setTimeout(resolve, 25));
+        }
+      })();
+
+      const statuses = (await Promise.all(uploads)).map((res) => res.status);
+      polling = false;
+      await poll;
+
+      expect(statuses.filter((status) => status === 201)).toHaveLength(MAX_PAGES_PER_KIND);
+      expect(statuses.filter((status) => status === 409)).toHaveLength(25 - MAX_PAGES_PER_KIND);
+      expect(healthStatuses.length).toBeGreaterThan(0);
+      expect(healthStatuses.every((status) => status === 200)).toBe(true);
+      expect(await database.db.select().from(files)).toHaveLength(MAX_PAGES_PER_KIND);
+      expect((await verification(dan)).documents.map((d) => d.page)).toEqual(
+        Array.from({ length: MAX_PAGES_PER_KIND }, (_, i) => i + 1),
+      );
+    });
+  });
+
+  describe('nearby fan-out', () => {
+    it('only targets approved drivers', async () => {
+      await makeDriver(dan);
+      await makeDriver(eve);
+      await makeCustomer(alice);
+      for (const token of [dan, eve]) {
+        await approveDriverByToken(database.db, token);
+        await api('put', '/driver/presence', token)
+          .send({ online: true, location: tunis })
+          .expect(200);
+      }
+      const created = await api('post', '/tow-requests', alice)
+        .send({
+          pickup: tunis,
+          dropoff: sousse,
+          vehicleType: 'car',
+          problemType: 'breakdown',
+          proposedFare: suggestFare(estimateRoadDistanceM(tunis, sousse), 'car'),
+        })
+        .expect(201);
+      // Eve loses her approval while still marked online.
+      await database.db
+        .update(driverProfiles)
+        .set({ verificationStatus: 'rejected' })
+        .where(eq(driverProfiles.userId, await userId('eve')));
+
+      const near = await driversNearRequests(database.db, new Date(), [created.body.id]);
+      expect(near).toEqual([{ userId: await userId('dan'), requestId: created.body.id }]);
     });
   });
 

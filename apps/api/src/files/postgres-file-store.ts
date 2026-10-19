@@ -6,18 +6,23 @@ import { eq } from 'drizzle-orm';
 
 import { DB, type Database } from '../db/database.module.js';
 import { files } from '../db/schema.js';
-import type { FileStore, StoredFile } from './file-store.js';
+import type { DbExecutor, FileStore, StoredFile } from './file-store.js';
 
 /** {@link FileStore} that keeps the bytes in the `files` table (`bytea`). */
 @Injectable()
 export class PostgresFileStore implements FileStore {
   constructor(@Inject(DB) private readonly db: Database) {}
 
-  async put(ownerUserId: string, contentType: UploadContentType, bytes: Buffer): Promise<string> {
+  async put(
+    ownerUserId: string,
+    contentType: UploadContentType,
+    bytes: Buffer,
+    executor: DbExecutor = this.db,
+  ): Promise<string> {
     if (bytes.length === 0 || bytes.length > UPLOAD_MAX_BYTES) {
       throw new RangeError(`A file must be 1 to ${UPLOAD_MAX_BYTES} bytes, not ${bytes.length}`);
     }
-    const [row] = await this.db
+    const [row] = await executor
       .insert(files)
       .values({
         ownerUserId,
@@ -44,7 +49,7 @@ export class PostgresFileStore implements FileStore {
     return row ?? null;
   }
 
-  async delete(fileId: string): Promise<void> {
-    await this.db.delete(files).where(eq(files.id, fileId));
+  async delete(fileId: string, executor: DbExecutor = this.db): Promise<void> {
+    await executor.delete(files).where(eq(files.id, fileId));
   }
 }

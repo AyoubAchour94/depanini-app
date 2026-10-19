@@ -1,5 +1,10 @@
 import type { UploadContentType } from '@depanini/shared';
 
+import type { Database } from '../db/database.module.js';
+
+/** What a {@link FileStore} runs its queries on: the database, or a transaction of it. */
+export type DbExecutor = Pick<Database, 'select' | 'insert' | 'delete'>;
+
 /** Injection token for the {@link FileStore}. */
 export const FILE_STORE = Symbol('FILE_STORE');
 
@@ -19,9 +24,14 @@ export interface StoredFile {
  */
 export interface FileStore {
   /** Stores `bytes` for `ownerUserId` and returns the new file's id. */
-  put(ownerUserId: string, contentType: UploadContentType, bytes: Buffer): Promise<string>;
+  put(
+    ownerUserId: string,
+    contentType: UploadContentType,
+    bytes: Buffer,
+    executor?: DbExecutor,
+  ): Promise<string>;
   /** The file, or `null` if there is none. */
   get(fileId: string): Promise<StoredFile | null>;
   /** Deletes the file (and whatever refers to it); does nothing if there is none. */
-  delete(fileId: string): Promise<void>;
+  delete(fileId: string, executor?: DbExecutor): Promise<void>;
 }

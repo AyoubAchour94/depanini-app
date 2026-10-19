@@ -80,7 +80,6 @@ export class VerificationService {
     contentType: UploadContentType,
     bytes: Buffer,
   ): Promise<DriverDocument> {
-    let fileId: string | undefined;
     try {
       return await this.db.transaction(async (tx) => {
         await this.lockEditable(tx, driverId);
@@ -92,7 +91,7 @@ export class VerificationService {
         if (page > MAX_PAGES_PER_KIND) {
           throw new ConflictException(`A document has at most ${MAX_PAGES_PER_KIND} pages`);
         }
-        fileId = await this.store.put(driverId, contentType, bytes);
+        const fileId = await this.store.put(driverId, contentType, bytes, tx);
         const [row] = await tx
           .insert(driverDocuments)
           // A page's id is its file's id, so `GET /files/:id` serves a page by the id the API lists.
@@ -108,7 +107,6 @@ export class VerificationService {
         };
       });
     } catch (error) {
-      if (fileId) await this.store.delete(fileId);
       if (isUniqueViolation(error)) throw new ConflictException('Try uploading the page again');
       throw error;
     }

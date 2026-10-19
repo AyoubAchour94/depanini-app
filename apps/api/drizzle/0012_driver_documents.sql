@@ -28,3 +28,6 @@ ALTER TABLE "files" ADD CONSTRAINT "files_owner_user_id_users_id_fk" FOREIGN KEY
 CREATE UNIQUE INDEX "driver_documents_page_idx" ON "driver_documents" USING btree ("driver_user_id","kind","page");--> statement-breakpoint
 CREATE UNIQUE INDEX "driver_documents_file_idx" ON "driver_documents" USING btree ("file_id");--> statement-breakpoint
 ALTER TABLE "driver_profiles" ADD CONSTRAINT "driver_profiles_reviewed_by_users_id_fk" FOREIGN KEY ("reviewed_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;
+--> statement-breakpoint
+-- Every existing driver is now unsubmitted, so none may stay online.
+UPDATE "driver_presence" SET "online" = false WHERE "online";
