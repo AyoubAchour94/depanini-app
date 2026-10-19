@@ -32,6 +32,15 @@ export default tseslint.config(
     languageOptions: { globals: globals.vitest },
   },
 
+  // Admin web app: the same React config as the app, for the browser.
+  ...expoConfig.map((config) => ({ ...config, files: ['apps/admin/**/*.{ts,tsx}'] })),
+  {
+    files: ['apps/admin/**/*.{ts,tsx}'],
+    extends: [...tseslint.configs.recommended],
+    languageOptions: { globals: { ...globals.browser, ...globals.vitest } },
+    settings: { 'import/resolver': { typescript: { project: 'apps/admin/tsconfig.json' } } },
+  },
+
   // Mobile: Expo's recommended config (React, hooks, import resolution).
   ...expoConfig.map((config) => ({ ...config, files: ['apps/mobile/**/*.{ts,tsx,js}'] })),
   {
