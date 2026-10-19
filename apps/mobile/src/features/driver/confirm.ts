@@ -20,18 +20,21 @@ export function confirmCancelJob(): Promise<boolean> {
   });
 }
 
-/** Asks whether the vehicle is dropped off, which ends the job. Resolves true to continue. */
-export function confirmDropoff(): Promise<boolean> {
+/**
+ * Asks whether the vehicle is dropped off and the cash received, which ends the
+ * job. Resolves true to continue.
+ */
+export function confirmDropoff(fare: number): Promise<boolean> {
   if (Platform.OS === 'web') {
     return Promise.resolve(
       window.confirm(`${t.confirmDropoffTitle}
-${t.confirmDropoffMessage}`),
+${t.confirmDropoffMessage(fare)}`),
     );
   }
   return new Promise((resolve) => {
     Alert.alert(
       t.confirmDropoffTitle,
-      t.confirmDropoffMessage,
+      t.confirmDropoffMessage(fare),
       [
         { text: t.notYet, style: 'cancel', onPress: () => resolve(false) },
         { text: t.confirmDropoff, onPress: () => resolve(true) },

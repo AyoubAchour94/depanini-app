@@ -92,6 +92,9 @@ function RootNavigator() {
           name="job"
           options={{ title: driverStrings.jobTitle, headerBackVisible: false }}
         />
+        <Stack.Screen name="jobs/index" options={{ title: driverStrings.myJobsTitle }} />
+        <Stack.Screen name="jobs/[id]" options={{ title: driverStrings.jobDetailTitle }} />
+        <Stack.Screen name="earnings" options={{ title: driverStrings.earningsTitle }} />
       </Stack.Protected>
       <Stack.Protected guard={onboarded && variant.isDriverApp && env.enableTestLocation}>
         <Stack.Screen name="test-location" options={{ title: driverStrings.testLocationTitle }} />

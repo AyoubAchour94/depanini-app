@@ -48,6 +48,10 @@ export function DriverHome() {
           trackColor={{ true: theme.success }}
         />
       </View>
+      <View style={styles.links}>
+        <Button title={t.myJobs} kind="link" onPress={() => router.push('/jobs')} />
+        <Button title={t.earnings} kind="link" onPress={() => router.push('/earnings')} />
+      </View>
       {isTestLocationEnabled() ? <TestLocationRow /> : null}
       {problem ? (
         <Text style={[styles.note, { color: theme.danger }]}>
@@ -165,6 +169,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   switchLabel: { fontSize: 18, fontWeight: '600' },
+  links: { flexDirection: 'row', gap: 24, paddingHorizontal: 16, paddingVertical: 12 },
   note: { fontSize: 14, padding: 16 },
   testRow: { paddingHorizontal: 16, paddingBottom: 12, gap: 6 },
   testActions: { flexDirection: 'row', gap: 20 },

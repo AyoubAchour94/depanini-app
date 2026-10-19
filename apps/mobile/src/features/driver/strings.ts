@@ -1,5 +1,7 @@
 import type { DriverCancelReason, TripStage } from '@depanini/shared';
 
+import { formatTnd } from '@/features/trip/money';
+
 /** User-facing text of the driver app, in one place until localization (Phase 9). */
 export const driverStrings = {
   homeTitle: 'Requests',
@@ -88,11 +90,14 @@ export const driverStrings = {
     arrived: 'Vehicle loaded',
     towing: 'Dropped off',
   } satisfies Record<TripStage, string>,
+  /** The last step's button: the drop-off that also confirms the cash. */
+  droppedOffCash: (fare: number) => `Dropped off · cash received ${formatTnd(fare)}`,
   stageConflict: 'The job has changed. We refreshed it, check the next step.',
   stageFailed: 'Could not update the job. Try again.',
   completeFailed: 'Could not finish the job. Try again.',
   confirmDropoffTitle: 'Vehicle dropped off?',
-  confirmDropoffMessage: 'This ends the job.',
+  confirmDropoffMessage: (fare: number) =>
+    `Confirm you received ${formatTnd(fare)} in cash from the customer. This ends the job.`,
   confirmDropoff: 'Yes, dropped off',
   notYet: 'Not yet',
 
@@ -111,4 +116,21 @@ export const driverStrings = {
   summaryTitle: 'Job done',
   summaryHeading: 'Trip complete',
   summaryRoute: 'Route',
+  receiptNo: 'Receipt no.',
+
+  myJobs: 'My jobs',
+  myJobsTitle: 'My jobs',
+  myJobsEmpty: 'No finished jobs yet.',
+  myJobsFailed: 'Could not load your jobs. Check your connection and try again.',
+  loadMore: 'Load more',
+  retry: 'Try again',
+  viewJob: 'View job',
+  jobDetailTitle: 'Trip',
+  jobNotFound: 'This trip is not available.',
+
+  earnings: 'Earnings',
+  earningsTitle: 'Earnings',
+  earningsFailed: 'Could not load your earnings. Check your connection and try again.',
+  earningsPeriods: { today: 'Today', week: 'This week', month: 'This month' },
+  trips: (n: number) => (n === 1 ? '1 trip' : `${n} trips`),
 };
