@@ -8,13 +8,15 @@ import {
   type TowRequest,
 } from '@depanini/shared';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
 import { useSubmitReport, useTripReports } from '@/api/reports';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
 import { ChoiceField } from '@/ui/ChoiceField';
+import { Pill } from '@/ui/Pill';
+import { Text } from '@/ui/Text';
 import { TextField } from '@/ui/TextField';
 
 import { tripStrings as t } from './strings';
@@ -85,15 +87,22 @@ export function ReportProblemCard({ request }: { request: TowRequest }) {
 
   const conflict = submit.error instanceof ApiError && submit.error.status === 409;
   return (
-    <View style={[styles.card, { backgroundColor: theme.surface }]}>
+    <View
+      style={{
+        backgroundColor: theme.color.surface,
+        borderRadius: theme.radius.xl,
+        padding: theme.space[4],
+        gap: theme.space[3],
+      }}
+    >
       {sent ? (
-        <Text accessibilityLiveRegion="polite" style={[styles.sent, { color: theme.success }]}>
+        <Text accessibilityLiveRegion="polite" variant="heading" tone="success">
           {t.reportSent}
         </Text>
       ) : null}
       {mine.length > 0 ? (
         <>
-          <Text style={[styles.title, { color: theme.text }]}>{t.reportsTitle}</Text>
+          <Text variant="heading">{t.reportsTitle}</Text>
           {mine.map((report) => (
             <ReportRow key={report.id} report={report} />
           ))}
@@ -124,21 +133,21 @@ export function ReportProblemCard({ request }: { request: TowRequest }) {
             editable={!submit.isPending}
             error={errors.note}
           />
-          <Text style={[styles.counter, { color: theme.textMuted }]}>
+          <Text variant="caption" tone="muted" style={styles.counter}>
             {t.reportNoteCounter(note.length, MAX_REPORT_NOTE_LENGTH)}
           </Text>
           {submit.isError ? (
-            <Text style={{ color: theme.danger }}>
+            <Text tone="danger" variant="bodyStrong">
               {conflict ? t.reportConflict : t.reportFailed}
             </Text>
           ) : null}
-          <Button title={t.reportSend} loading={submit.isPending} onPress={onSend} />
+          <Button size="big" title={t.reportSend} loading={submit.isPending} onPress={onSend} />
           <Button title={t.reportBack} kind="link" onPress={() => setOpen(false)} />
         </>
       ) : canSend ? (
         <Button
           title={t.reportLink}
-          kind="link"
+          kind="secondary"
           onPress={() => {
             submit.reset();
             setSent(false);
@@ -151,31 +160,28 @@ export function ReportProblemCard({ request }: { request: TowRequest }) {
 }
 
 function ReportRow({ report }: { report: Report }) {
-  const theme = useTheme();
   return (
     <View style={styles.row}>
       <View style={styles.rowHead}>
-        <Text style={[styles.category, { color: theme.text }]}>
+        <Text variant="bodyStrong" style={styles.category}>
           {t.reportCategories[report.category]}
         </Text>
-        <Text style={{ color: report.status === 'resolved' ? theme.success : theme.warning }}>
-          {t.reportStatus[report.status]}
-        </Text>
+        <Pill
+          tone={report.status === 'resolved' ? 'success' : 'warning'}
+          label={t.reportStatus[report.status]}
+        />
       </View>
-      <Text style={{ color: theme.textMuted }}>{report.note}</Text>
+      <Text tone="muted">{report.note}</Text>
       {report.status === 'resolved' && report.resolutionNote ? (
-        <Text style={{ color: theme.text }}>{t.reportResolution(report.resolutionNote)}</Text>
+        <Text>{t.reportResolution(report.resolutionNote)}</Text>
       ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 12, padding: 16, gap: 10 },
-  title: { fontSize: 18, fontWeight: '600' },
-  sent: { fontSize: 16, fontWeight: '600' },
   row: { gap: 4 },
-  rowHead: { flexDirection: 'row', justifyContent: 'space-between' },
-  category: { fontWeight: '600' },
-  counter: { fontSize: 12, textAlign: 'right' },
+  rowHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+  category: { flex: 1 },
+  counter: { textAlign: 'right' },
 });
