@@ -103,6 +103,20 @@ export const driverStrings = {
   confirmDropoff: 'Yes, dropped off',
   notYet: 'Not yet',
 
+  collectInCash: 'Collect in cash',
+  /** The stage bar's labels, in order. */
+  stageBar: ['Accepted', 'On the way', 'Arrived', 'Towing', 'Done'],
+  /** The navigation banner: what the driver is heading for, by stage. */
+  navTarget: {
+    accepted: 'to pickup',
+    en_route: 'to pickup',
+    arrived: 'at pickup',
+    towing: 'to drop-off',
+  } satisfies Record<TripStage, string>,
+  navDistance: (m: number) =>
+    m < 995 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1)} km`,
+  cashReceived: 'Cash received',
+
   timelineTitle: 'Trip',
   timeline: {
     assigned: 'Accepted',
