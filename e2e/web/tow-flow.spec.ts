@@ -296,7 +296,7 @@ test('customer requests a tow and a driver completes it', async ({ browser }, te
     await expect(shown(c, 'Your driver has arrived')).toBeVisible();
     await button(d, 'Vehicle loaded').click();
     await expect(shown(c, 'Towing your vehicle')).toBeVisible();
-    await button(d, `Dropped off · cash received ${fare} TND`).click();
+    await button(d, `Dropped off · cash ${fare} TND`).click();
     await expect(shown(d, 'Trip complete')).toBeVisible();
     const driverReceiptNo = await receiptNo(d);
     await expect(shown(c, 'Trip complete')).toBeVisible();

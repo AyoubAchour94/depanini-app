@@ -138,7 +138,7 @@ export function JobScreen() {
         />
       }
       sheet={{
-        snapPoints: ['half', 'full'],
+        snapPoints: ['68%', 'full'],
         footer: (
           <View style={{ gap: theme.space[2] }}>
             {conflict ? (
@@ -182,8 +182,8 @@ export function JobScreen() {
                 accessibilityLabel={t.callCustomer(customer.fullName)}
                 onPress={() => void Linking.openURL(`tel:+${customer.phone.replace(/\D/g, '')}`)}
               >
-                <Text variant="heading" tone="brand">
-                  {'✆'}
+                <Text variant="label" tone="brand">
+                  {t.call}
                 </Text>
               </RoundButton>
             </View>
@@ -268,7 +268,7 @@ function Timeline({
 }
 
 /** What the driver sees after dropping off: the cash taken, the route, the receipt and when each step happened. */
-function Summary({ request }: { request: TowRequest }) {
+export function Summary({ request }: { request: TowRequest }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const card = { backgroundColor: theme.color.surface, borderRadius: theme.radius.xl };

@@ -67,6 +67,7 @@ export const driverStrings = {
   noJob: 'You have no job right now.',
   backToHome: 'Back to requests',
   customerLabel: 'Customer',
+  call: 'Call',
   callCustomer: (name: string) => `Call ${name}`,
   agreedFare: 'Agreed fare',
   cancelJob: 'Cancel job',
@@ -93,7 +94,7 @@ export const driverStrings = {
     towing: 'Dropped off',
   } satisfies Record<TripStage, string>,
   /** The last step's button: the drop-off that also confirms the cash. */
-  droppedOffCash: (fare: number) => `Dropped off · cash received ${formatTnd(fare)}`,
+  droppedOffCash: (fare: number) => `Dropped off · cash ${formatTnd(fare)}`,
   stageConflict: 'The job has changed. We refreshed it, check the next step.',
   stageFailed: 'Could not update the job. Try again.',
   completeFailed: 'Could not finish the job. Try again.',
