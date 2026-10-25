@@ -48,13 +48,15 @@ export function EarningsScreen() {
             style={[
               styles.card,
               {
-                backgroundColor: theme.color.surface,
+                backgroundColor: hero ? theme.color.brandTint : theme.color.surface,
+                borderWidth: hero ? 1 : 0,
+                borderColor: theme.color.brandAccent,
                 borderRadius: theme.radius.xl,
                 padding: hero ? theme.space[6] : theme.space[5],
               },
             ]}
           >
-            <Text variant="label" tone="muted">
+            <Text variant="label" tone={hero ? 'brand' : 'muted'}>
               {t.earningsPeriods[period]}
             </Text>
             <Num size={hero ? 'display' : 'figure'} value={data[period].totalTnd} unit="TND" />

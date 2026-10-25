@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '@/api/client';
 import { useAdvanceJob, useCancelJob, useCompleteJob, useDriverJob } from '@/api/driver';
 import { MapScreen } from '@/features/map/MapScreen';
+import { shortAddress } from '@/features/places/address';
 import { requestStrings } from '@/features/request/strings';
 import { RateTripCard } from '@/features/trip/RateTripCard';
 import { LiveIndicator } from '@/realtime/LiveIndicator';
@@ -133,7 +134,7 @@ export function JobScreen() {
         <NavBanner
           title={stage === 'towing' ? t.dropoffLabel : t.pickupLabel}
           target={t.navTarget[stage]}
-          address={target.address}
+          address={shortAddress(target.address)}
           distance={truck ? t.navDistance(haversineM(truck, target)) : undefined}
         />
       }
@@ -188,7 +189,7 @@ export function JobScreen() {
               </RoundButton>
             </View>
             <Divider />
-            <Stops pickup={pickup.address} dropoff={dropoff.address} />
+            <Stops pickup={shortAddress(pickup.address)} dropoff={shortAddress(dropoff.address)} />
             {job.data.note ? (
               <Text variant="caption" tone="muted" style={{ marginTop: theme.space[2] }}>
                 {job.data.note}
@@ -200,6 +201,7 @@ export function JobScreen() {
             </View>
             <Divider />
             <Timeline job={job.data} />
+            <View style={{ height: theme.space[6] }} />
             {canDriverCancel(job.data) === 'with_reason' ? (
               <View style={styles.cancel}>
                 <ChoiceField
@@ -281,7 +283,10 @@ export function Summary({ request }: { request: TowRequest }) {
           <Text variant="title">{t.summaryHeading}</Text>
           <Num size="display" value={request.agreedFare ?? request.proposedFare} unit="TND" />
           <Divider />
-          <Stops pickup={request.pickup.address} dropoff={request.dropoff.address} />
+          <Stops
+            pickup={shortAddress(request.pickup.address)}
+            dropoff={shortAddress(request.dropoff.address)}
+          />
           {request.payment ? (
             <>
               <Divider />

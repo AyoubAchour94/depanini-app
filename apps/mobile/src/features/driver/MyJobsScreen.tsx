@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
 
 import { useDriverJobs } from '@/api/driver';
+import { shortAddress } from '@/features/places/address';
 import { requestStrings } from '@/features/request/strings';
 import { tripStrings } from '@/features/trip/strings';
 import { useTheme } from '@/theme/theme';
@@ -98,7 +99,9 @@ function JobRow({ job }: { job: TowRequest }) {
           label={requestStrings.statusLabels[job.status]}
         />
       </View>
-      <Text variant="bodyStrong">{t.route(job.pickup.address, job.dropoff.address)}</Text>
+      <Text variant="bodyStrong">
+        {t.route(shortAddress(job.pickup.address), shortAddress(job.dropoff.address))}
+      </Text>
       <View style={styles.between}>
         <Num size="small" value={fare} unit="TND" />
         {job.payment ? (
