@@ -151,7 +151,7 @@ describe('sending an offer', () => {
     await flush();
     const jobBefore = api.calls('GET /driver/job').length;
 
-    await press('Accept for 60 TND');
+    await press('Accept 60 TND');
 
     const sent = api.calls(`POST /tow-requests/${REQUEST_ID}/offers`);
     expect(sent).toHaveLength(1);
@@ -178,8 +178,30 @@ describe('sending an offer', () => {
       disabled: true,
     });
 
-    await press('Send offer');
+    await press('Offer 70');
     expect(api.calls(`POST /tow-requests/${REQUEST_ID}/offers`)[0]?.body).toEqual({ fare: 70 });
+  });
+
+  it('offers chips a few dinars above the fare, within the range, and sends the picked one', async () => {
+    const api = mockApi();
+    await renderApp('/job-offer/' + REQUEST_ID);
+    await flush();
+
+    // 60 + 5, 10, 15 is 65, 70, 75; the range ends at 70.
+    expect(screen.getByRole('radio', { name: 'Counter-offer 65 TND' })).toBeOnTheScreen();
+    expect(screen.getByRole('radio', { name: 'Counter-offer 70 TND' })).toBeOnTheScreen();
+    expect(screen.queryByRole('radio', { name: 'Counter-offer 75 TND' })).toBeNull();
+
+    await act(async () =>
+      fireEvent.press(screen.getByRole('radio', { name: 'Counter-offer 65 TND' })),
+    );
+    expect(
+      screen.getByRole('radio', { name: 'Counter-offer 65 TND' }).props.accessibilityState,
+    ).toMatchObject({ checked: true });
+    expect(await screen.findByText('65 TND')).toBeOnTheScreen();
+
+    await press('Offer 65');
+    expect(api.calls(`POST /tow-requests/${REQUEST_ID}/offers`)[0]?.body).toEqual({ fare: 65 });
   });
 
   it('says the request is gone on 409', async () => {
@@ -187,7 +209,7 @@ describe('sending an offer', () => {
     mockApi();
     await renderApp('/job-offer/' + REQUEST_ID);
     await flush();
-    await press('Accept for 60 TND');
+    await press('Accept 60 TND');
     expect(await screen.findByText('This request is no longer available.')).toBeOnTheScreen();
   });
 
@@ -196,7 +218,7 @@ describe('sending an offer', () => {
     mockApi();
     await renderApp('/job-offer/' + REQUEST_ID);
     await flush();
-    await press('Send offer');
+    await press('Offer 60');
     expect(await screen.findByText(/fare is not allowed/)).toBeOnTheScreen();
   });
 });
@@ -215,7 +237,7 @@ describe('a sent offer', () => {
     expect(screen.getByText('Offer sent')).toBeOnTheScreen();
     expect(await screen.findByText('Your offer: 65 TND')).toBeOnTheScreen();
     expect(screen.getByText('Expires in 3:00')).toBeOnTheScreen();
-    expect(screen.queryByRole('button', { name: /Accept for/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Accept / })).toBeNull();
 
     const polls = api.calls('GET /driver/offers/active').length;
     await act(async () => jest.advanceTimersByTime(5_000));
@@ -226,7 +248,7 @@ describe('a sent offer', () => {
     expect(api.calls(`POST /offers/${OFFER_ID}/withdraw`)).toHaveLength(1);
     expect(await screen.findByText('You withdrew your offer')).toBeOnTheScreen();
     // The request is still open, so the driver can offer again.
-    expect(screen.getByRole('button', { name: 'Accept for 60 TND' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Accept 60 TND' })).toBeOnTheScreen();
   });
 
   it('goes to the job screen when the offer is accepted', async () => {

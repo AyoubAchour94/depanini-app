@@ -1,18 +1,14 @@
 import type { NearbyRequest, VerificationStatus } from '@depanini/shared';
 import { router, useIsFocused, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-} from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Switch, View } from 'react-native';
 
 import { useDriverJob, useNearbyRequests } from '@/api/driver';
 import { useVerification } from '@/api/verification';
+import { MenuButton } from '@/features/map/controls';
+import type { MapMarker } from '@/features/map/map-props';
+import { MapScreen } from '@/features/map/MapScreen';
+import { shortAddress } from '@/features/places/address';
 import { consumeDriverOnboardingDone } from '@/features/profile/onboarding';
 import { formatRemaining, useCountdown } from '@/features/request/countdown';
 import { requestStrings } from '@/features/request/strings';
@@ -21,14 +17,22 @@ import { verificationStrings as v } from '@/features/verification/strings';
 import { REQUEST_CANCELLED_NOTICE } from '@/push/routing';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
+import { Num } from '@/ui/Num';
+import { Pill } from '@/ui/Pill';
+import { RoundButton } from '@/ui/RoundButton';
+import { Text } from '@/ui/Text';
 
 import { driverStrings as t } from './strings';
 import { isTestLocationEnabled, setTestLocation, useTestLocation } from './testLocation';
 import { useDriverPresence } from './usePresence';
 
+/** Snap points of the home sheet: the title and the first request or two fit at the lowest. */
+const HOME_SNAPS = [340, 'full'] as const;
+
 /**
- * The driver app's home: the Online/Offline switch and, while online, the
- * open requests around the driver.
+ * The driver app's home: a map with the Online/Offline switch and, while
+ * online, the open requests around the driver as pins and as a list in the
+ * sheet.
  */
 export function DriverHome() {
   const theme = useTheme();
@@ -59,99 +63,161 @@ export function DriverHome() {
     if (consumeDriverOnboardingDone()) setTimeout(() => router.push('/verification'), 0);
   }, []);
 
+  const requests = !job.data && online ? nearby.data : undefined;
+  const markers = useMemo<MapMarker[]>(
+    () =>
+      (requests ?? []).map((request) => ({
+        id: request.id,
+        kind: 'pickup',
+        coordinate: request.pickup,
+      })),
+    [requests],
+  );
+
   return (
-    <View style={[styles.fill, { backgroundColor: theme.background }]}>
-      <View style={[styles.switchRow, { backgroundColor: theme.surface }]}>
-        <Text style={[styles.switchLabel, { color: theme.text }]}>
-          {online ? t.online : t.offline}
-        </Text>
-        <Switch
-          accessibilityLabel={t.onlineSwitch}
-          value={online && !gated}
-          disabled={gated}
-          accessibilityState={{ disabled: gated }}
-          onValueChange={(next) => (next ? void goOnline() : goOffline())}
-          trackColor={{ true: theme.success }}
-        />
-      </View>
-      {gated ? (
-        <View style={[styles.verifyCard, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.distance, { color: theme.text }]}>{v.homeCardTitle}</Text>
-          <Text style={{ color: status === 'rejected' ? theme.danger : theme.textMuted }}>
-            {status === 'rejected'
-              ? v.homeCardStatus.rejected(verification.data?.rejectionReason)
-              : v.homeCardStatus[status]}
-          </Text>
-          <Button title={v.homeCardOpen} kind="link" onPress={() => router.push('/verification')} />
-        </View>
-      ) : approvedNotice.visible ? (
-        <View style={[styles.verifyCard, { backgroundColor: theme.surface }]}>
-          <Text style={{ color: theme.success, fontWeight: '600' }}>{v.homeApprovedNotice}</Text>
-          <Button title={v.homeApprovedDismiss} kind="link" onPress={approvedNotice.dismiss} />
-        </View>
-      ) : null}
-      <View style={styles.links}>
-        <Button title={t.myJobs} kind="link" onPress={() => router.push('/jobs')} />
-        <Button title={t.earnings} kind="link" onPress={() => router.push('/earnings')} />
-      </View>
-      {notice === REQUEST_CANCELLED_NOTICE ? (
-        <View style={[styles.testRow, { backgroundColor: theme.surface }]}>
-          <Text style={{ color: theme.text }}>{t.requestCancelledNotice}</Text>
-          <Button
-            title={t.dismissNotice}
-            kind="link"
-            onPress={() => router.setParams({ notice: undefined })}
+    <MapScreen
+      centerPin={false}
+      markers={markers}
+      fitToMarkers
+      fitInsetBottom={HOME_SNAPS[0]}
+      topStart={<MenuButton onPress={() => router.push('/account')} />}
+      pill={
+        <View
+          style={[
+            styles.onlinePill,
+            {
+              backgroundColor: theme.color.surface,
+              borderRadius: theme.radius.full,
+              boxShadow: theme.shadow.float,
+              borderWidth: theme.scheme === 'dark' ? 1 : 0,
+              borderColor: theme.color.line,
+            },
+          ]}
+        >
+          <Text variant="bodyStrong">{online ? t.online : t.offline}</Text>
+          <Switch
+            accessibilityLabel={t.onlineSwitch}
+            value={online && !gated}
+            disabled={gated}
+            accessibilityState={{ disabled: gated }}
+            onValueChange={(next) => (next ? void goOnline() : goOffline())}
+            trackColor={{ true: theme.color.success }}
           />
         </View>
-      ) : null}
-      {isTestLocationEnabled() ? <TestLocationRow /> : null}
-      {problem ? (
-        <Text style={[styles.note, { color: theme.danger }]}>
-          {problem === 'denied' ? t.locationDenied : t.locationUnavailable}
-        </Text>
-      ) : null}
-      {job.data ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t.jobCardAction}
-          onPress={() => router.push('/job')}
-          style={[styles.card, styles.jobCard, { backgroundColor: theme.surface }]}
-        >
-          <Text style={{ color: theme.textMuted }}>{t.jobCard}</Text>
-          <Text style={[styles.distance, { color: theme.text }]}>{job.data.customer.fullName}</Text>
-          <Text style={{ color: theme.text }}>
-            {t.route(job.data.pickup.address, job.data.dropoff.address)}
-          </Text>
-          <Text style={[styles.fare, { color: theme.text }]}>
-            {requestStrings.fareAmount(job.data.agreedFare)}
-          </Text>
-        </Pressable>
-      ) : !online ? (
-        <Text style={[styles.state, { color: theme.textMuted }]}>{t.offlineState}</Text>
-      ) : nearby.data ? (
-        <FlatList
-          data={nearby.data}
-          keyExtractor={(request) => request.id}
-          contentContainerStyle={styles.list}
-          ListHeaderComponent={
-            nearby.isError ? (
-              <Text style={[styles.note, { color: theme.warning }]}>{t.loadFailed}</Text>
-            ) : undefined
-          }
-          ListEmptyComponent={
-            <Text style={[styles.state, { color: theme.textMuted }]}>{t.empty}</Text>
-          }
-          renderItem={({ item }) => <RequestRow request={item} />}
-        />
-      ) : nearby.isError ? (
-        <Text style={[styles.state, { color: theme.warning }]}>{t.loadFailed}</Text>
-      ) : (
-        <View style={styles.loading}>
-          <ActivityIndicator color={theme.brand} />
-          <Text style={{ color: theme.textMuted }}>{t.loading}</Text>
-        </View>
-      )}
-    </View>
+      }
+      topEnd={
+        <RoundButton accessibilityLabel={t.earnings} onPress={() => router.push('/earnings')}>
+          <Text variant="micro">TND</Text>
+        </RoundButton>
+      }
+      sheet={{
+        snapPoints: HOME_SNAPS,
+        children: (
+          <View style={{ gap: theme.space[3] }}>
+            <View style={styles.titleRow}>
+              <Text variant="title" style={styles.title}>
+                {job.data
+                  ? ''
+                  : !online
+                    ? t.offlineTitle
+                    : nearby.data
+                      ? t.requestsNearby(nearby.data.length)
+                      : ''}
+              </Text>
+              <Button title={t.myJobs} kind="link" onPress={() => router.push('/jobs')} />
+            </View>
+            {gated ? (
+              <View style={[styles.card, { backgroundColor: theme.color.surface2 }]}>
+                <Text variant="heading">{v.homeCardTitle}</Text>
+                <Text tone={status === 'rejected' ? 'danger' : 'muted'}>
+                  {status === 'rejected'
+                    ? v.homeCardStatus.rejected(verification.data?.rejectionReason)
+                    : v.homeCardStatus[status]}
+                </Text>
+                <Button
+                  title={v.homeCardOpen}
+                  kind="link"
+                  onPress={() => router.push('/verification')}
+                />
+              </View>
+            ) : approvedNotice.visible ? (
+              <View style={[styles.card, { backgroundColor: theme.color.surface2 }]}>
+                <Text variant="bodyStrong" tone="success">
+                  {v.homeApprovedNotice}
+                </Text>
+                <Button
+                  title={v.homeApprovedDismiss}
+                  kind="link"
+                  onPress={approvedNotice.dismiss}
+                />
+              </View>
+            ) : null}
+            {notice === REQUEST_CANCELLED_NOTICE ? (
+              <View style={[styles.card, { backgroundColor: theme.color.surface2 }]}>
+                <Text>{t.requestCancelledNotice}</Text>
+                <Button
+                  title={t.dismissNotice}
+                  kind="link"
+                  onPress={() => router.setParams({ notice: undefined })}
+                />
+              </View>
+            ) : null}
+            {isTestLocationEnabled() ? <TestLocationRow /> : null}
+            {problem ? (
+              <Text variant="caption" tone="danger">
+                {problem === 'denied' ? t.locationDenied : t.locationUnavailable}
+              </Text>
+            ) : null}
+            {job.data ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t.jobCardAction}
+                onPress={() => router.push('/job')}
+                style={[styles.card, { backgroundColor: theme.color.surface2 }]}
+              >
+                <Text tone="muted">{t.jobCard}</Text>
+                <Text variant="heading">{job.data.customer.fullName}</Text>
+                <Text>
+                  {t.route(
+                    shortAddress(job.data.pickup.address),
+                    shortAddress(job.data.dropoff.address),
+                  )}
+                </Text>
+                <Text variant="figureSmall">{requestStrings.fareAmount(job.data.agreedFare)}</Text>
+              </Pressable>
+            ) : !online ? (
+              <>
+                <Text tone="muted">{t.offlineState}</Text>
+              </>
+            ) : nearby.data ? (
+              <>
+                {nearby.isError ? (
+                  <Text variant="caption" tone="warning">
+                    {t.loadFailed}
+                  </Text>
+                ) : null}
+                {nearby.data.length === 0 ? (
+                  <Text tone="muted">{t.empty}</Text>
+                ) : (
+                  <View>
+                    {nearby.data.map((request, i) => (
+                      <RequestRow key={request.id} request={request} first={i === 0} />
+                    ))}
+                  </View>
+                )}
+              </>
+            ) : nearby.isError ? (
+              <Text tone="warning">{t.loadFailed}</Text>
+            ) : (
+              <View style={styles.loading}>
+                <ActivityIndicator color={theme.color.brandAccent} />
+                <Text tone="muted">{t.loading}</Text>
+              </View>
+            )}
+          </View>
+        ),
+      }}
+    />
   );
 }
 
@@ -176,10 +242,8 @@ function TestLocationRow() {
   const theme = useTheme();
   const test = useTestLocation();
   return (
-    <View style={[styles.testRow, { backgroundColor: theme.surface }]}>
-      <Text style={{ color: theme.textMuted }}>
-        {test ? t.testLocationUsing(test.address) : t.testLocationUsingGps}
-      </Text>
+    <View style={[styles.card, { backgroundColor: theme.color.surface2 }]}>
+      <Text tone="muted">{test ? t.testLocationUsing(test.address) : t.testLocationUsingGps}</Text>
       <View style={styles.testActions}>
         <Button title={t.setOnMap} kind="link" onPress={() => router.push('/test-location')} />
         {test ? (
@@ -190,65 +254,61 @@ function TestLocationRow() {
   );
 }
 
-function RequestRow({ request }: { request: NearbyRequest }) {
+function RequestRow({ request, first }: { request: NearbyRequest; first: boolean }) {
   const theme = useTheme();
   // The list refetches and drops expired requests, so there is nothing to do at zero.
   const remaining = useCountdown(request.expiresAt, () => {});
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${t.viewRequest}: ${request.pickup.address}`}
+      accessibilityLabel={`${t.viewRequest}: ${shortAddress(request.pickup.address)}`}
       onPress={() => router.push({ pathname: '/job-offer/[id]', params: { id: request.id } })}
-      style={[styles.card, { backgroundColor: theme.surface }]}
+      style={[
+        styles.row,
+        { borderTopColor: theme.color.line, borderTopWidth: first ? 0 : 1, gap: theme.space[3] },
+      ]}
     >
-      <View style={styles.cardHeader}>
-        <Text style={[styles.distance, { color: theme.text }]}>
+      <View style={styles.rowBody}>
+        <Text variant="bodyStrong" numberOfLines={2}>
+          {t.route(shortAddress(request.pickup.address), shortAddress(request.dropoff.address))}
+        </Text>
+        <Text variant="caption" tone="muted">
           {t.distanceToPickup(request.distanceToPickupM)}
         </Text>
-        <Text style={[styles.fare, { color: theme.text }]}>
-          {requestStrings.fareAmount(request.proposedFare)}
+        <Text variant="caption" tone="muted">
+          {requestStrings.vehicleOptions[request.vehicleType]} ·{' '}
+          {requestStrings.problemOptions[request.problemType]}
         </Text>
+        <View style={styles.meta}>
+          <RatingBadge rating={request.customer?.rating} />
+          <Text variant="caption" tone="muted">
+            {remaining === null ? '' : t.timeLeft(formatRemaining(remaining))}
+          </Text>
+          {request.myOffer ? <Pill tone="success" label={t.offerSent} /> : null}
+        </View>
       </View>
-      <Text style={{ color: theme.text }}>
-        {t.route(request.pickup.address, request.dropoff.address)}
-      </Text>
-      <RatingBadge rating={request.customer?.rating} />
-      <Text style={{ color: theme.textMuted }}>
-        {requestStrings.vehicleOptions[request.vehicleType]} ·{' '}
-        {requestStrings.problemOptions[request.problemType]}
-      </Text>
-      <View style={styles.cardHeader}>
-        <Text style={{ color: theme.textMuted }}>
-          {remaining === null ? '' : t.timeLeft(formatRemaining(remaining))}
-        </Text>
-        {request.myOffer ? (
-          <Text style={{ color: theme.success, fontWeight: '600' }}>{t.offerSent}</Text>
-        ) : null}
-      </View>
+      <Num size="small" value={request.proposedFare} unit="TND" />
+      <Text tone="muted">›</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  fill: { flex: 1 },
-  switchRow: {
+  onlinePill: {
+    height: 44,
+    paddingStart: 16,
+    paddingEnd: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
+    gap: 8,
+    alignSelf: 'flex-start',
   },
-  switchLabel: { fontSize: 18, fontWeight: '600' },
-  links: { flexDirection: 'row', gap: 24, paddingHorizontal: 16, paddingVertical: 12 },
-  note: { fontSize: 14, padding: 16 },
-  testRow: { paddingHorizontal: 16, paddingBottom: 12, gap: 6 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  title: { flex: 1 },
+  card: { borderRadius: 14, padding: 16, gap: 6 },
   testActions: { flexDirection: 'row', gap: 20 },
-  state: { padding: 24, textAlign: 'center' },
   loading: { padding: 24, alignItems: 'center', gap: 12 },
-  list: { padding: 16, gap: 12 },
-  jobCard: { margin: 16 },
-  verifyCard: { borderRadius: 12, marginHorizontal: 16, marginBottom: 4, padding: 16, gap: 6 },
-  card: { borderRadius: 12, padding: 16, gap: 6 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  distance: { fontSize: 16, fontWeight: '600' },
-  fare: { fontSize: 18, fontWeight: '700' },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
+  rowBody: { flex: 1, gap: 2 },
+  meta: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
 });
