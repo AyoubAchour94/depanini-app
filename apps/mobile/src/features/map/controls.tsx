@@ -1,3 +1,6 @@
+import { View } from 'react-native';
+
+import { useTheme } from '@/theme/theme';
 import { RoundButton } from '@/ui/RoundButton';
 import { Text } from '@/ui/Text';
 
@@ -19,6 +22,29 @@ export function MenuButton({ onPress }: { onPress: () => void }) {
       <Text variant="heading" style={{ fontSize: 22, lineHeight: 26 }}>
         ≡
       </Text>
+    </RoundButton>
+  );
+}
+
+/** The floating wallet button of the driver home (opens Earnings), drawn from tokens (the app has no icon set yet). */
+export function WalletButton({ onPress, label }: { onPress: () => void; label: string }) {
+  const t = useTheme();
+  return (
+    <RoundButton accessibilityLabel={label} onPress={onPress}>
+      <View
+        style={{
+          width: 22,
+          height: 16,
+          borderRadius: 4,
+          borderWidth: 2,
+          borderColor: t.color.text,
+          alignItems: 'flex-end',
+          justifyContent: 'center',
+          paddingEnd: 2,
+        }}
+      >
+        <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: t.color.text }} />
+      </View>
     </RoundButton>
   );
 }

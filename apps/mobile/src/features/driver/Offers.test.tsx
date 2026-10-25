@@ -187,6 +187,9 @@ describe('sending an offer', () => {
     await renderApp('/job-offer/' + REQUEST_ID);
     await flush();
 
+    // Offer does the same as Accept until the fare changes, so it stays disabled.
+    expect(screen.getByRole('button', { name: 'Offer 60' })).toBeDisabled();
+
     // 60 + 5, 10, 15 is 65, 70, 75; the range ends at 70.
     expect(screen.getByRole('radio', { name: 'Counter-offer 65 TND' })).toBeOnTheScreen();
     expect(screen.getByRole('radio', { name: 'Counter-offer 70 TND' })).toBeOnTheScreen();
@@ -200,6 +203,7 @@ describe('sending an offer', () => {
     ).toMatchObject({ checked: true });
     expect(await screen.findByText('65 TND')).toBeOnTheScreen();
 
+    expect(screen.getByRole('button', { name: 'Offer 65' })).toBeEnabled();
     await press('Offer 65');
     expect(api.calls(`POST /tow-requests/${REQUEST_ID}/offers`)[0]?.body).toEqual({ fare: 65 });
   });
@@ -218,7 +222,11 @@ describe('sending an offer', () => {
     mockApi();
     await renderApp('/job-offer/' + REQUEST_ID);
     await flush();
-    await press('Offer 60');
+    // Offer is only enabled once the fare differs from the customer's.
+    await act(async () =>
+      fireEvent.press(screen.getByRole('radio', { name: 'Counter-offer 65 TND' })),
+    );
+    await press('Offer 65');
     expect(await screen.findByText(/fare is not allowed/)).toBeOnTheScreen();
   });
 });

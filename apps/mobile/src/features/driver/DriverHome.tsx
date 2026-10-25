@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Switch, View } from 'react-na
 
 import { useDriverJob, useNearbyRequests } from '@/api/driver';
 import { useVerification } from '@/api/verification';
-import { MenuButton } from '@/features/map/controls';
+import { MenuButton, WalletButton } from '@/features/map/controls';
 import type { MapMarker } from '@/features/map/map-props';
 import { MapScreen } from '@/features/map/MapScreen';
 import { shortAddress } from '@/features/places/address';
@@ -19,7 +19,6 @@ import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
 import { Num } from '@/ui/Num';
 import { Pill } from '@/ui/Pill';
-import { RoundButton } from '@/ui/RoundButton';
 import { Text } from '@/ui/Text';
 
 import { driverStrings as t } from './strings';
@@ -105,11 +104,7 @@ export function DriverHome() {
           />
         </View>
       }
-      topEnd={
-        <RoundButton accessibilityLabel={t.earnings} onPress={() => router.push('/earnings')}>
-          <Text variant="micro">TND</Text>
-        </RoundButton>
-      }
+      topEnd={<WalletButton label={t.earnings} onPress={() => router.push('/earnings')} />}
       sheet={{
         snapPoints: HOME_SNAPS,
         children: (
@@ -134,11 +129,13 @@ export function DriverHome() {
                     ? v.homeCardStatus.rejected(verification.data?.rejectionReason)
                     : v.homeCardStatus[status]}
                 </Text>
-                <Button
-                  title={v.homeCardOpen}
-                  kind="link"
-                  onPress={() => router.push('/verification')}
-                />
+                <View style={styles.linkStart}>
+                  <Button
+                    title={v.homeCardOpen}
+                    kind="link"
+                    onPress={() => router.push('/verification')}
+                  />
+                </View>
               </View>
             ) : approvedNotice.visible ? (
               <View style={[styles.card, { backgroundColor: theme.color.surface2 }]}>
@@ -186,9 +183,7 @@ export function DriverHome() {
                 <Text variant="figureSmall">{requestStrings.fareAmount(job.data.agreedFare)}</Text>
               </Pressable>
             ) : !online ? (
-              <>
-                <Text tone="muted">{t.offlineState}</Text>
-              </>
+              <Text tone="muted">{t.offlineState}</Text>
             ) : nearby.data ? (
               <>
                 {nearby.isError ? (
@@ -288,6 +283,7 @@ function RequestRow({ request, first }: { request: NearbyRequest; first: boolean
         </View>
       </View>
       <Num size="small" value={request.proposedFare} unit="TND" />
+      {/* Phase 9 (RTL): swap for a flipping chevron icon. */}
       <Text tone="muted">›</Text>
     </Pressable>
   );
@@ -306,6 +302,7 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   title: { flex: 1 },
   card: { borderRadius: 14, padding: 16, gap: 6 },
+  linkStart: { alignSelf: 'flex-start' },
   testActions: { flexDirection: 'row', gap: 20 },
   loading: { padding: 24, alignItems: 'center', gap: 12 },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },

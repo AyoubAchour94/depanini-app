@@ -100,6 +100,7 @@ export function OfferActions({
           size="big"
           title={t.offerFor(fare)}
           loading={send.isPending}
+          disabled={fare === request.proposedFare}
           onPress={() => send.mutate(fare)}
         />
       </View>
