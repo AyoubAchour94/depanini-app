@@ -39,6 +39,9 @@ function mockApi(onCreate: () => Response = () => Response.json(created, { statu
   });
 }
 
+/** The fare in the stepper (the suggested fare and the range ends show amounts too). */
+const fareAmount = () => screen.getByTestId('fare-amount');
+
 const createCalls = () =>
   jest
     .mocked(fetch)
@@ -74,53 +77,65 @@ beforeEach(() => jest.mocked(registerForPush).mockClear());
 afterEach(() => jest.restoreAllMocks());
 
 describe('FareStep', () => {
-  it('shows the distance and starts at the suggested fare', async () => {
+  it('shows the route, starts at the suggested fare and marks it on the range bar', async () => {
     mockApi();
     await renderStep();
 
-    expect(await screen.findByText('65 TND')).toBeOnTheScreen();
-    expect(screen.getByText('About 12.4 km')).toBeOnTheScreen();
+    expect(await screen.findByTestId('fare-amount')).toHaveTextContent('65 TND');
+    expect(screen.getByText('12.4 km · ~19 min')).toBeOnTheScreen();
+    expect(screen.getByText('Tunis')).toBeOnTheScreen();
+    expect(screen.getByText('La Marsa')).toBeOnTheScreen();
+    expect(screen.getByText(/^Suggested/)).toBeOnTheScreen();
+    expect(screen.getByText('52 TND')).toBeOnTheScreen();
+    expect(screen.getByText('195 TND')).toBeOnTheScreen();
+    expect(screen.getByRole('progressbar').props.accessibilityLabel).toBe(
+      '65 TND, between 52 TND and 195 TND',
+    );
+    expect(screen.getByTestId('range-suggested')).toBeOnTheScreen();
+    expect(screen.getByText('Car · Flat tire')).toBeOnTheScreen();
+    expect(screen.getByText('Cash')).toBeOnTheScreen();
     expect(screen.getByText(/Drivers can accept this fare or counter/)).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Send request · 65 TND' })).toBeOnTheScreen();
   });
 
   it('steps by 1 dinar, and by 5 on a long press', async () => {
     mockApi();
     await renderStep();
-    await screen.findByText('65 TND');
+    await screen.findByTestId('fare-amount');
 
     await fireEvent.press(screen.getByRole('button', { name: 'Increase fare' }));
-    expect(await screen.findByText('66 TND')).toBeOnTheScreen();
+    await waitFor(() => expect(fareAmount()).toHaveTextContent('66 TND'));
     await fireEvent(screen.getByRole('button', { name: 'Increase fare' }), 'longPress');
-    expect(await screen.findByText('71 TND')).toBeOnTheScreen();
+    await waitFor(() => expect(fareAmount()).toHaveTextContent('71 TND'));
     await fireEvent.press(screen.getByRole('button', { name: 'Decrease fare' }));
-    expect(await screen.findByText('70 TND')).toBeOnTheScreen();
+    await waitFor(() => expect(fareAmount()).toHaveTextContent('70 TND'));
   });
 
   it('clamps the fare to the allowed range', async () => {
     mockApi();
     await renderStep();
-    await screen.findByText('65 TND');
+    await screen.findByTestId('fare-amount');
 
     for (let i = 0; i < 4; i++) {
       await fireEvent(screen.getByRole('button', { name: 'Decrease fare' }), 'longPress');
     }
-    expect(await screen.findByText('52 TND')).toBeOnTheScreen();
+    await waitFor(() => expect(fareAmount()).toHaveTextContent('52 TND'));
     expect(screen.getByRole('button', { name: 'Decrease fare' })).toBeDisabled();
 
     for (let i = 0; i < 40; i++) {
       await fireEvent(screen.getByRole('button', { name: 'Increase fare' }), 'longPress');
     }
-    expect(await screen.findByText('195 TND')).toBeOnTheScreen();
+    await waitFor(() => expect(fareAmount()).toHaveTextContent('195 TND'));
     expect(screen.getByRole('button', { name: 'Increase fare' })).toBeDisabled();
   });
 
   it('sends the request with the chosen fare', async () => {
     mockApi();
     const { onCreated } = await renderStep();
-    await screen.findByText('65 TND');
+    await screen.findByTestId('fare-amount');
 
     await fireEvent.press(screen.getByRole('button', { name: 'Increase fare' }));
-    await fireEvent.press(screen.getByRole('button', { name: 'Send request' }));
+    await fireEvent.press(screen.getByRole('button', { name: /^Send request/ }));
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith(created));
     const [url, init] = createCalls()[0]!;
@@ -138,10 +153,10 @@ describe('FareStep', () => {
   it('asks for notifications once the request was created', async () => {
     mockApi();
     const { onCreated } = await renderStep();
-    await screen.findByText('65 TND');
+    await screen.findByTestId('fare-amount');
     expect(registerForPush).not.toHaveBeenCalled();
 
-    await fireEvent.press(screen.getByRole('button', { name: 'Send request' }));
+    await fireEvent.press(screen.getByRole('button', { name: /^Send request/ }));
 
     await waitFor(() => expect(onCreated).toHaveBeenCalled());
     expect(registerForPush).toHaveBeenCalledTimes(1);
@@ -150,9 +165,9 @@ describe('FareStep', () => {
   it('does not ask for notifications when the request is rejected', async () => {
     mockApi(() => new Response(null, { status: 409 }));
     const { onAlreadyOpen } = await renderStep();
-    await screen.findByText('65 TND');
+    await screen.findByTestId('fare-amount');
 
-    await fireEvent.press(screen.getByRole('button', { name: 'Send request' }));
+    await fireEvent.press(screen.getByRole('button', { name: /^Send request/ }));
 
     await waitFor(() => expect(onAlreadyOpen).toHaveBeenCalled());
     expect(registerForPush).not.toHaveBeenCalled();
@@ -161,9 +176,9 @@ describe('FareStep', () => {
   it('opens the existing request on 409', async () => {
     mockApi(() => new Response(null, { status: 409 }));
     const { onAlreadyOpen, onCreated } = await renderStep();
-    await screen.findByText('65 TND');
+    await screen.findByTestId('fare-amount');
 
-    await fireEvent.press(screen.getByRole('button', { name: 'Send request' }));
+    await fireEvent.press(screen.getByRole('button', { name: /^Send request/ }));
 
     await waitFor(() => expect(onAlreadyOpen).toHaveBeenCalled());
     expect(onCreated).not.toHaveBeenCalled();
@@ -172,9 +187,9 @@ describe('FareStep', () => {
   it('hands over to onboarding on 403', async () => {
     mockApi(() => new Response(null, { status: 403 }));
     const { onNoProfile } = await renderStep();
-    await screen.findByText('65 TND');
+    await screen.findByTestId('fare-amount');
 
-    await fireEvent.press(screen.getByRole('button', { name: 'Send request' }));
+    await fireEvent.press(screen.getByRole('button', { name: /^Send request/ }));
 
     await waitFor(() => expect(onNoProfile).toHaveBeenCalled());
   });
@@ -182,11 +197,11 @@ describe('FareStep', () => {
   it('reloads the range and says so when the fare is rejected', async () => {
     mockApi(() => Response.json({ issues: [{ path: ['proposedFare'] }] }, { status: 400 }));
     await renderStep();
-    await screen.findByText('65 TND');
+    await screen.findByTestId('fare-amount');
     const estimateCalls = () => jest.mocked(fetch).mock.calls.length - createCalls().length;
     expect(estimateCalls()).toBe(1);
 
-    await fireEvent.press(screen.getByRole('button', { name: 'Send request' }));
+    await fireEvent.press(screen.getByRole('button', { name: /^Send request/ }));
 
     expect(await screen.findByText(/no longer allowed/)).toBeOnTheScreen();
     await waitFor(() => expect(estimateCalls()).toBe(2));

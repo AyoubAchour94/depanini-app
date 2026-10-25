@@ -11,7 +11,7 @@ import { mapStyleUrl } from './map-style';
 import { markerColors } from './marker-colors';
 import {
   FIT_MAX_ZOOM,
-  FIT_PADDING,
+  fitPadding,
   markerIdsKey,
   ORNAMENT_TOP,
   type TunisMapProps,
@@ -30,6 +30,7 @@ export function TunisMap({
   onCenterChange,
   markers,
   fitToMarkers,
+  fitInsetBottom,
 }: TunisMapProps) {
   const theme = useTheme();
   const ornamentTop = (useContext(SafeAreaInsetsContext)?.top ?? 0) + ORNAMENT_TOP;
@@ -56,13 +57,16 @@ export function TunisMap({
       });
       return;
     }
+    const padding = fitPadding(fitInsetBottom);
     camera.current?.fitBounds(
       [Math.max(...lngs), Math.max(...lats)],
       [Math.min(...lngs), Math.min(...lats)],
-      FIT_PADDING,
+      typeof padding === 'number'
+        ? padding
+        : [padding.top, padding.right, padding.bottom, padding.left],
       0,
     );
-  }, [idsKey, fitToMarkers]);
+  }, [idsKey, fitToMarkers, fitInsetBottom]);
 
   return (
     <MapView

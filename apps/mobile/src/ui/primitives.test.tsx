@@ -150,6 +150,12 @@ describe('Chip', () => {
     expect(onPress).toHaveBeenCalled();
   });
 
+  it('has no role when it only states something', async () => {
+    await render(<Chip label="Cash" role="none" />);
+    expect(screen.queryByRole('button', { name: 'Cash' })).toBeNull();
+    expect(screen.getByText('Cash')).toBeOnTheScreen();
+  });
+
   it('can be a radio of an exclusive set', async () => {
     await render(<Chip label="Van" role="radio" selected />);
     expect(screen.getByRole('radio', { name: 'Van' })).toBeChecked();

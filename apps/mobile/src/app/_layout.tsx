@@ -82,6 +82,14 @@ function RootNavigator() {
     if (assetsReady && auth.status !== 'loading' && !accountLoading) void SplashScreen.hideAsync();
   }, [assetsReady, auth.status, accountLoading]);
 
+  // A header for screens without a map: the surface colour and plain text, no brand fill.
+  const plainHeader = {
+    headerStyle: { backgroundColor: theme.color.surface },
+    headerTintColor: theme.color.text,
+    headerTitleStyle: { fontFamily: theme.fontFamily.bold, color: theme.color.text },
+    headerShadowVisible: false,
+  } as const;
+
   return (
     <Stack
       screenOptions={{
@@ -97,10 +105,14 @@ function RootNavigator() {
         <Stack.Screen name="delete-account" options={{ title: 'Delete account' }} />
       </Stack.Protected>
       <Stack.Protected guard={onboarded && !variant.isDriverApp}>
-        <Stack.Screen name="request/pickup" options={{ title: requestStrings.pickupTitle }} />
-        <Stack.Screen name="request/dropoff" options={{ title: requestStrings.dropoffTitle }} />
-        <Stack.Screen name="request/details" options={{ title: requestStrings.detailsTitle }} />
-        <Stack.Screen name="request/fare" options={{ title: requestStrings.fareTitle }} />
+        {/* Map screens draw their own floating back button; details is a plain screen. */}
+        <Stack.Screen name="request/pickup" options={{ headerShown: false }} />
+        <Stack.Screen name="request/dropoff" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="request/details"
+          options={{ title: requestStrings.detailsTitle, ...plainHeader }}
+        />
+        <Stack.Screen name="request/fare" options={{ headerShown: false }} />
         <Stack.Screen
           name="request/active"
           options={{ title: requestStrings.activeTitle, headerBackVisible: false }}

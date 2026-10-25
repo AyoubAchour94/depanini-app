@@ -124,7 +124,8 @@ function renderApp() {
   });
 }
 
-const press = async (name: string) => fireEvent.press(await screen.findByRole('button', { name }));
+const press = async (name: string | RegExp) =>
+  fireEvent.press(await screen.findByRole('button', { name }));
 
 /** Signs in and walks to the fare step. */
 async function goToFare(router: Awaited<ReturnType<typeof renderApp>>) {
@@ -134,14 +135,14 @@ async function goToFare(router: Awaited<ReturnType<typeof renderApp>>) {
   await press('Confirm pickup');
 
   await fireEvent.changeText(await screen.findByLabelText('Where should it go?'), 'marsa');
-  await fireEvent.press(await screen.findByRole('button', { name: marsa }));
+  await fireEvent.press(await screen.findByRole('button', { name: 'La Marsa, Tunis' }));
 
   await fireEvent.press(await screen.findByRole('radio', { name: 'SUV / van' }));
   await fireEvent.press(screen.getByRole('radio', { name: 'Flat tire' }));
   await fireEvent.changeText(screen.getByLabelText('Note for the driver (optional)'), 'rear left');
   await press('Next');
 
-  expect(await screen.findByText('65 TND')).toBeOnTheScreen();
+  expect(await screen.findByTestId('fare-amount')).toBeOnTheScreen();
   expect(router.getPathname()).toBe('/request/fare');
 }
 
@@ -154,7 +155,7 @@ describe('request flow', () => {
     await goToFare(router);
 
     await fireEvent.press(screen.getByRole('button', { name: 'Increase fare' }));
-    await press('Send request');
+    await press(/^Send request/);
 
     expect(await screen.findByText('Waiting for drivers…')).toBeOnTheScreen();
     expect(router.getPathname()).toBe('/request/active');
@@ -179,7 +180,7 @@ describe('request flow', () => {
     mockApi();
     const router = await renderApp();
     await goToFare(router);
-    await press('Send request');
+    await press(/^Send request/);
     await screen.findByText('Waiting for drivers…');
 
     expect(navigator.canGoBack()).toBe(true);
@@ -203,7 +204,7 @@ describe('request flow', () => {
     const router = await renderApp();
     await goToFare(router);
 
-    await press('Send request');
+    await press(/^Send request/);
 
     expect(await screen.findByText('Waiting for drivers…')).toBeOnTheScreen();
     expect(router.getPathname()).toBe('/request/active');
@@ -221,7 +222,7 @@ describe('request flow', () => {
         : new Response(null, { status: 403 });
     });
 
-    await press('Send request');
+    await press(/^Send request/);
 
     await waitFor(() => expect(router.getPathname()).toBe('/onboarding'));
   });

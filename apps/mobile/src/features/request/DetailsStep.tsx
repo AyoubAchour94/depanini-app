@@ -6,12 +6,14 @@ import {
   type VehicleType,
   vehicleTypeSchema,
 } from '@depanini/shared';
-import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useContext, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
 import { ChoiceField } from '@/ui/ChoiceField';
+import { Text } from '@/ui/Text';
 import { TextField } from '@/ui/TextField';
 
 import { requestStrings as t } from './strings';
@@ -42,6 +44,7 @@ interface DetailsStepProps {
 /** Third step of a tow request: which vehicle, what went wrong, and an optional note. */
 export function DetailsStep({ initial, onConfirm }: DetailsStepProps) {
   const theme = useTheme();
+  const insets = useContext(SafeAreaInsetsContext);
   const [vehicleType, setVehicleType] = useState<VehicleType | undefined>(
     initial?.vehicleType ?? undefined,
   );
@@ -62,48 +65,58 @@ export function DetailsStep({ initial, onConfirm }: DetailsStepProps) {
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.form}
-      keyboardShouldPersistTaps="handled"
-      style={{ backgroundColor: theme.background }}
-    >
-      <ChoiceField
-        label={t.vehicleLabel}
-        options={VEHICLE_OPTIONS}
-        value={vehicleType}
-        onChange={setVehicleType}
-        error={submitted && !vehicle.success ? vehicle.error.issues[0]?.message : undefined}
-      />
-      <ChoiceField
-        wrap
-        label={t.problemLabel}
-        options={PROBLEM_OPTIONS}
-        value={problemType}
-        onChange={setProblemType}
-        error={submitted && !problem.success ? problem.error.issues[0]?.message : undefined}
-      />
-      <View style={styles.note}>
-        <TextField
-          label={t.noteLabel}
-          placeholder={t.notePlaceholder}
-          value={note}
-          onChangeText={setNote}
-          maxLength={NOTE_MAX_LENGTH}
-          multiline
-          style={styles.noteInput}
+    <View style={[styles.fill, { backgroundColor: theme.color.background }]}>
+      <ScrollView
+        contentContainerStyle={{ padding: theme.space[4], gap: theme.space[5] }}
+        keyboardShouldPersistTaps="handled"
+        style={styles.fill}
+      >
+        <ChoiceField
+          label={t.vehicleLabel}
+          options={VEHICLE_OPTIONS}
+          value={vehicleType}
+          onChange={setVehicleType}
+          error={submitted && !vehicle.success ? vehicle.error.issues[0]?.message : undefined}
         />
-        <Text style={[styles.counter, { color: theme.textMuted }]}>
-          {note.length}/{NOTE_MAX_LENGTH}
-        </Text>
+        <ChoiceField
+          wrap
+          label={t.problemLabel}
+          options={PROBLEM_OPTIONS}
+          value={problemType}
+          onChange={setProblemType}
+          error={submitted && !problem.success ? problem.error.issues[0]?.message : undefined}
+        />
+        <View style={styles.note}>
+          <TextField
+            label={t.noteLabel}
+            placeholder={t.notePlaceholder}
+            value={note}
+            onChangeText={setNote}
+            maxLength={NOTE_MAX_LENGTH}
+            multiline
+            style={styles.noteInput}
+          />
+          <Text variant="caption" tone="muted" style={styles.counter}>
+            {note.length}/{NOTE_MAX_LENGTH}
+          </Text>
+        </View>
+      </ScrollView>
+      <View
+        style={{
+          paddingHorizontal: theme.space[4],
+          paddingTop: theme.space[2],
+          paddingBottom: Math.max(insets?.bottom ?? 0, theme.space[4]),
+        }}
+      >
+        <Button size="big" title={t.next} onPress={submit} />
       </View>
-      <Button title={t.next} onPress={submit} />
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  form: { padding: 16, gap: 16 },
+  fill: { flex: 1 },
   note: { gap: 4 },
   noteInput: { minHeight: 90, textAlignVertical: 'top' },
-  counter: { fontSize: 13, textAlign: 'right' },
+  counter: { textAlign: 'right' },
 });
