@@ -3,7 +3,6 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useMe } from '@/api/me';
 import { useSignOut } from '@/auth/useSignOut';
-import { formatPhone } from './phone';
 import { profileFor } from '@/features/profile/onboarding';
 import { describeTruck } from '@/features/profile/truck-types';
 import { requestStrings } from '@/features/request/strings';
@@ -13,6 +12,8 @@ import { Button } from '@/ui/Button';
 import { ChoiceField } from '@/ui/ChoiceField';
 import { Text } from '@/ui/Text';
 import { variant } from '@/variant/variant';
+
+import { formatPhone } from './phone';
 
 const APPEARANCE_OPTIONS: readonly { value: ThemePreference; label: string }[] = [
   { value: 'system', label: 'System' },
