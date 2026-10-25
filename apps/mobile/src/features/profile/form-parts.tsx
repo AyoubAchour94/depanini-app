@@ -1,7 +1,6 @@
 import type { z } from 'zod';
-import { Text } from 'react-native';
 
-import { useTheme } from '@/theme/theme';
+import { Text } from '@/ui/Text';
 import { TextField } from '@/ui/TextField';
 
 /** Validation messages by field name. */
@@ -59,9 +58,8 @@ export function PersonalFields({
 
 /** Shown when the API didn't accept a save. */
 export function SaveError() {
-  const theme = useTheme();
   return (
-    <Text accessibilityRole="alert" style={{ color: theme.danger }}>
+    <Text accessibilityRole="alert" tone="danger" variant="bodyStrong">
       Could not save your details. Check your connection and try again.
     </Text>
   );
