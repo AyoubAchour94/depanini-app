@@ -1,11 +1,10 @@
 import { useSignOut } from '@/auth/useSignOut';
-import { AuthLayout } from '@/features/auth/AuthLayout';
 import { Button } from '@/ui/Button';
 import { variant } from '@/variant/variant';
 
 import { CustomerProfileForm } from './CustomerProfileForm';
-import { markDriverOnboardingDone } from './onboarding';
 import { DriverProfileForm } from './DriverProfileForm';
+import { markDriverOnboardingDone } from './onboarding';
 
 /**
  * Shown to a signed-in account without this app's profile. Once it is saved,
@@ -13,21 +12,27 @@ import { DriverProfileForm } from './DriverProfileForm';
  */
 export function OnboardingScreen() {
   const signOut = useSignOut();
+  const signOutLink = <Button kind="link" title="Sign out" onPress={() => signOut.mutate()} />;
   return variant.isDriverApp ? (
-    <AuthLayout
-      title="Set up your driver profile"
-      subtitle="Customers see your name, phone and truck when you take their tow."
-    >
-      <DriverProfileForm mode="onboarding" onSaved={markDriverOnboardingDone} />
-      <Button kind="link" title="Sign out" onPress={() => signOut.mutate()} />
-    </AuthLayout>
+    <DriverProfileForm
+      mode="onboarding"
+      onSaved={markDriverOnboardingDone}
+      layout={{
+        bare: true,
+        title: 'Set up your driver profile',
+        subtitle: 'Customers see your name, phone and truck when you take their tow.',
+      }}
+      footer={signOutLink}
+    />
   ) : (
-    <AuthLayout
-      title="Tell us about you"
-      subtitle="Drivers use your name and phone to reach you during a tow."
-    >
-      <CustomerProfileForm submitTitle="Continue" />
-      <Button kind="link" title="Sign out" onPress={() => signOut.mutate()} />
-    </AuthLayout>
+    <CustomerProfileForm
+      submitTitle="Continue"
+      layout={{
+        bare: true,
+        title: 'Tell us about you',
+        subtitle: 'Drivers use your name and phone to reach you during a tow.',
+      }}
+      footer={signOutLink}
+    />
   );
 }

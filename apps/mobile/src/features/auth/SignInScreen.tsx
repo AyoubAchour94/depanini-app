@@ -18,9 +18,26 @@ export function SignInScreen() {
 
   return (
     <AuthLayout
+      bare
       title={`Welcome to ${variant.appName}`}
       subtitle="Sign in to continue."
       error={submit.isError ? authErrorMessage(submit.error) : undefined}
+      action={
+        <>
+          <Button
+            size="big"
+            title="Sign in"
+            onPress={() => submit.mutate()}
+            loading={submit.isPending}
+            disabled={!email.trim() || !password}
+          />
+          <Button
+            kind="link"
+            title="New here? Create an account"
+            onPress={() => router.push('/sign-up')}
+          />
+        </>
+      }
     >
       <TextField
         label="Email"
@@ -41,20 +58,9 @@ export function SignInScreen() {
         onSubmitEditing={() => submit.mutate()}
       />
       <Button
-        title="Sign in"
-        onPress={() => submit.mutate()}
-        loading={submit.isPending}
-        disabled={!email.trim() || !password}
-      />
-      <Button
         kind="link"
         title="Forgot password?"
         onPress={() => router.push('/forgot-password')}
-      />
-      <Button
-        kind="link"
-        title="New here? Create an account"
-        onPress={() => router.push('/sign-up')}
       />
     </AuthLayout>
   );

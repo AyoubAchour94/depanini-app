@@ -100,9 +100,9 @@ function RootNavigator() {
     >
       <Stack.Protected guard={onboarded}>
         <Stack.Screen name="index" />
-        <Stack.Screen name="account" options={{ title: 'Account' }} />
-        <Stack.Screen name="profile" options={{ title: 'Profile' }} />
-        <Stack.Screen name="delete-account" options={{ title: 'Delete account' }} />
+        <Stack.Screen name="account" options={{ title: 'Account', ...plainHeader }} />
+        <Stack.Screen name="profile" options={{ title: 'Profile', ...plainHeader }} />
+        <Stack.Screen name="delete-account" options={{ title: 'Delete account', ...plainHeader }} />
       </Stack.Protected>
       <Stack.Protected guard={onboarded && !variant.isDriverApp}>
         {/* Map screens draw their own floating back button; details is a plain screen. */}
@@ -129,7 +129,10 @@ function RootNavigator() {
         <Stack.Screen name="jobs/index" options={{ title: driverStrings.myJobsTitle }} />
         <Stack.Screen name="jobs/[id]" options={{ title: driverStrings.jobDetailTitle }} />
         <Stack.Screen name="earnings" options={{ title: driverStrings.earningsTitle }} />
-        <Stack.Screen name="verification" options={{ title: verificationStrings.title }} />
+        <Stack.Screen
+          name="verification"
+          options={{ title: verificationStrings.title, ...plainHeader }}
+        />
       </Stack.Protected>
       <Stack.Protected guard={onboarded && variant.isDriverApp && env.enableTestLocation}>
         <Stack.Screen name="test-location" options={{ title: driverStrings.testLocationTitle }} />
@@ -142,8 +145,11 @@ function RootNavigator() {
       </Stack.Protected>
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="sign-in" options={{ headerShown: false }} />
-        <Stack.Screen name="sign-up" options={{ title: 'Create account' }} />
-        <Stack.Screen name="forgot-password" options={{ title: 'Reset password' }} />
+        <Stack.Screen name="sign-up" options={{ title: 'Create account', ...plainHeader }} />
+        <Stack.Screen
+          name="forgot-password"
+          options={{ title: 'Reset password', ...plainHeader }}
+        />
       </Stack.Protected>
       <Stack.Protected guard={__DEV__}>
         <Stack.Screen name="dev/[kit]" options={{ title: 'UI kit' }} />

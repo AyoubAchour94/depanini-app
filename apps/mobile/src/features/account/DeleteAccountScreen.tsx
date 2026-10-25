@@ -40,6 +40,19 @@ export function DeleteAccountScreen() {
       title="Delete your account?"
       subtitle="This permanently deletes your account and your customer and driver details, in both Depanini apps. It can't be undone."
       error={remove.isError ? deleteErrorMessage(remove.error) : undefined}
+      action={
+        <>
+          <Button
+            size="big"
+            kind="danger"
+            title="Delete my account"
+            onPress={() => remove.mutate()}
+            loading={remove.isPending}
+            disabled={!password}
+          />
+          <Button kind="link" title="Keep my account" onPress={() => router.back()} />
+        </>
+      }
     >
       <TextField
         label="Password"
@@ -50,14 +63,6 @@ export function DeleteAccountScreen() {
         textContentType="password"
         placeholder="Enter your password to confirm"
       />
-      <Button
-        kind="danger"
-        title="Delete my account"
-        onPress={() => remove.mutate()}
-        loading={remove.isPending}
-        disabled={!password}
-      />
-      <Button kind="link" title="Keep my account" onPress={() => router.back()} />
     </AuthLayout>
   );
 }

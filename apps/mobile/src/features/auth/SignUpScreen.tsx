@@ -20,6 +20,22 @@ export function SignUpScreen() {
   return (
     <AuthLayout
       title="Create your account"
+      action={
+        <>
+          <Button
+            size="big"
+            title="Create account"
+            onPress={() => submit.mutate()}
+            loading={submit.isPending}
+            disabled={!email.trim() || !password || confirmation !== password}
+          />
+          <Button
+            kind="link"
+            title="Already have an account? Sign in"
+            onPress={() => router.back()}
+          />
+        </>
+      }
       error={
         mismatch
           ? 'Passwords do not match.'
@@ -53,13 +69,6 @@ export function SignUpScreen() {
         autoComplete="new-password"
         textContentType="newPassword"
       />
-      <Button
-        title="Create account"
-        onPress={() => submit.mutate()}
-        loading={submit.isPending}
-        disabled={!email.trim() || !password || confirmation !== password}
-      />
-      <Button kind="link" title="Already have an account? Sign in" onPress={() => router.back()} />
     </AuthLayout>
   );
 }

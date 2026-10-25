@@ -4,13 +4,13 @@ import {
   driverProfileInputSchema,
   type TruckType,
 } from '@depanini/shared';
-import { useState } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { type ReactNode, useState } from 'react';
 
 import { useSaveDriverProfile } from '@/api/me';
-import { useTheme } from '@/theme/theme';
+import { AuthLayout, type AuthLayoutProps } from '@/features/auth/AuthLayout';
 import { Button } from '@/ui/Button';
 import { ChoiceField } from '@/ui/ChoiceField';
+import { Text } from '@/ui/Text';
 import { TextField } from '@/ui/TextField';
 
 import { type FieldErrors, fieldErrorsOf, PersonalFields, SaveError } from './form-parts';
@@ -27,11 +27,20 @@ interface DriverProfileFormProps {
    */
   mode: 'onboarding' | 'edit';
   onSaved?: () => void;
+  /** The screen frame: title, subtitle and so on. */
+  layout: Omit<AuthLayoutProps, 'children' | 'action' | 'error'>;
+  /** Shown under the pinned action (a sign-out link in onboarding). */
+  footer?: ReactNode;
 }
 
 /** Name, phone, truck type and plate, checked with the same schema the API uses. */
-export function DriverProfileForm({ initial, mode, onSaved }: DriverProfileFormProps) {
-  const theme = useTheme();
+export function DriverProfileForm({
+  initial,
+  mode,
+  onSaved,
+  layout,
+  footer,
+}: DriverProfileFormProps) {
   const [fullName, setFullName] = useState(initial?.fullName ?? '');
   const [phone, setPhone] = useState(initial?.phone ?? '');
   const [truckType, setTruckType] = useState<TruckType | undefined>(initial?.truckType);
@@ -59,10 +68,30 @@ export function DriverProfileForm({ initial, mode, onSaved }: DriverProfileFormP
   const showPersonal = mode === 'edit' || step === 'personal';
   const showTruck = mode === 'edit' || step === 'truck';
 
-  return (
+  const action = (
     <>
+      {save.isError ? <SaveError /> : null}
+      {showTruck ? (
+        <Button
+          size="big"
+          title={mode === 'onboarding' ? 'Finish' : 'Save'}
+          onPress={submit}
+          loading={save.isPending}
+        />
+      ) : (
+        <Button size="big" title="Next" onPress={next} />
+      )}
+      {mode === 'onboarding' && step === 'truck' ? (
+        <Button kind="link" title="Back" onPress={() => setStep('personal')} />
+      ) : null}
+      {footer}
+    </>
+  );
+
+  return (
+    <AuthLayout {...layout} action={action}>
       {mode === 'onboarding' ? (
-        <Text style={[styles.step, { color: theme.textMuted }]}>
+        <Text variant="label" tone="muted">
           {step === 'personal' ? 'Step 1 of 2: your details' : 'Step 2 of 2: your truck'}
         </Text>
       ) : null}
@@ -97,23 +126,6 @@ export function DriverProfileForm({ initial, mode, onSaved }: DriverProfileFormP
           />
         </>
       ) : null}
-      {save.isError ? <SaveError /> : null}
-      {showTruck ? (
-        <Button
-          title={mode === 'onboarding' ? 'Finish' : 'Save'}
-          onPress={submit}
-          loading={save.isPending}
-        />
-      ) : (
-        <Button title="Next" onPress={next} />
-      )}
-      {mode === 'onboarding' && step === 'truck' ? (
-        <Button kind="link" title="Back" onPress={() => setStep('personal')} />
-      ) : null}
-    </>
+    </AuthLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  step: { fontSize: 14, fontWeight: '600' },
-});

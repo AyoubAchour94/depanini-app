@@ -1,64 +1,99 @@
-import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { type ReactNode, useContext } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { useTheme } from '@/theme/theme';
+import { Text } from '@/ui/Text';
 
-interface AuthLayoutProps {
+export interface AuthLayoutProps {
   title: string;
   subtitle?: string;
   /** Error from the last submit, shown above the form. */
   error?: string;
-  children: ReactNode;
+  /** The screen has no navigation header, so it keeps clear of the status bar itself. */
+  bare?: boolean;
+  /** The one next action, pinned at the bottom with any secondary links under it. */
+  action?: ReactNode;
+  /** The fields. */
+  children?: ReactNode;
 }
 
 /** Shared frame for the sign-in, sign-up, password reset and profile form screens. */
-export function AuthLayout({ title, subtitle, error, children }: AuthLayoutProps) {
-  const theme = useTheme();
+export function AuthLayout({ title, subtitle, error, bare, action, children }: AuthLayoutProps) {
+  const t = useTheme();
   const auth = useAuth();
+  const insets = useContext(SafeAreaInsetsContext);
   const unavailable = auth.status === 'signed-out' ? auth.unavailableReason : undefined;
 
   return (
     <KeyboardAvoidingView
-      style={[styles.fill, { backgroundColor: theme.background }]}
+      style={[styles.fill, { backgroundColor: t.color.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
-        {subtitle ? (
-          <Text style={[styles.subtitle, { color: theme.textMuted }]}>{subtitle}</Text>
-        ) : null}
+      <ScrollView
+        style={styles.fill}
+        contentContainerStyle={[
+          styles.content,
+          {
+            padding: t.space[6],
+            paddingTop: t.space[6] + (bare ? (insets?.top ?? 0) + t.space[6] : 0),
+            gap: t.space[4],
+          },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={{ gap: t.space[2] }}>
+          <Text variant="title" accessibilityRole="header">
+            {title}
+          </Text>
+          {subtitle ? <Text tone="muted">{subtitle}</Text> : null}
+        </View>
         {unavailable ? (
-          <Notice color={theme.warning} text={`Sign-in is unavailable: ${unavailable}`} />
+          <Notice tone="warning" text={`Sign-in is unavailable: ${unavailable}`} />
         ) : null}
-        {error ? <Notice color={theme.danger} text={error} /> : null}
-        <View style={styles.form}>{children}</View>
+        {error ? <Notice tone="danger" text={error} /> : null}
+        {children ? <View style={{ gap: t.space[4] }}>{children}</View> : null}
       </ScrollView>
+      {action ? (
+        <View
+          style={[
+            styles.action,
+            {
+              paddingHorizontal: t.space[6],
+              paddingTop: t.space[2],
+              paddingBottom: Math.max(insets?.bottom ?? 0, t.space[4]),
+              gap: t.space[4],
+            },
+          ]}
+        >
+          {action}
+        </View>
+      ) : null}
     </KeyboardAvoidingView>
   );
 }
 
-function Notice({ color, text }: { color: string; text: string }) {
+function Notice({ tone, text }: { tone: 'danger' | 'warning'; text: string }) {
+  const t = useTheme();
   return (
-    <View style={[styles.notice, { borderColor: color }]} accessibilityRole="alert">
-      <Text style={{ color }}>{text}</Text>
+    <View
+      style={{
+        backgroundColor: tone === 'danger' ? t.color.dangerTint : t.color.warningTint,
+        borderRadius: t.radius.md,
+        padding: t.space[3],
+      }}
+      accessibilityRole="alert"
+    >
+      <Text variant="bodyStrong" tone={tone}>
+        {text}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  content: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 24,
-    gap: 12,
-    width: '100%',
-    maxWidth: 440,
-    alignSelf: 'center',
-  },
-  title: { fontSize: 28, fontWeight: '700' },
-  subtitle: { fontSize: 15 },
-  notice: { borderWidth: 1, borderRadius: 10, padding: 12 },
-  form: { gap: 16, marginTop: 8 },
+  content: { flexGrow: 1, width: '100%', maxWidth: 440, alignSelf: 'center' },
+  action: { width: '100%', maxWidth: 440, alignSelf: 'center' },
 });
