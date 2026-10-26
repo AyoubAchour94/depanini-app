@@ -73,9 +73,9 @@ export async function apiRequest<T>(
   return schema.parse(response.status === 204 ? undefined : await response.json());
 }
 
-/** The failing fields of a 400 and the `code` of a 400 or 403, when the body has them. */
+/** The failing fields of a 400 and the `code` of a 400, 403 or 429, when the body has them. */
 async function readErrorBody(response: Response): Promise<{ issues: ApiIssue[]; code?: string }> {
-  if (response.status !== 400 && response.status !== 403) return { issues: [] };
+  if (![400, 403, 429].includes(response.status)) return { issues: [] };
   try {
     const body = (await response.json()) as { issues?: unknown; code?: unknown } | null;
     return {

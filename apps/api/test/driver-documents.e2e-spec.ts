@@ -5,6 +5,7 @@ import {
   driverDocumentSchema,
   estimateRoadDistanceM,
   suggestFare,
+  UPLOAD_LIMIT_REACHED,
   UPLOAD_MAX_BYTES,
   verificationSchema,
 } from '@depanini/shared';
@@ -202,6 +203,58 @@ describe('driver documents, verification and the online gate (e2e)', () => {
       await approveDriverByToken(database.db, dan);
       await upload(dan, 'licence', PNG, { contentType: 'image/png' }).expect(409);
       expect(await database.db.select().from(files)).toHaveLength(DOCUMENT_KINDS.length);
+    });
+  });
+
+  describe('the per-driver upload limit', () => {
+    /** Files the driver uploaded `hoursAgo`, written straight to the database. */
+    const uploadedEarlier = async (token: string, count: number, hoursAgo: number) => {
+      const ownerUserId = await userId(/^token-([^:]+)/.exec(token)![1]!);
+      const createdAt = new Date(Date.now() - hoursAgo * 3_600_000);
+      await database.db.insert(files).values(
+        Array.from({ length: count }, () => ({
+          ownerUserId,
+          contentType: 'image/png' as const,
+          sizeBytes: PNG.length,
+          sha256: 'x',
+          data: PNG,
+          createdAt,
+        })),
+      );
+    };
+    const expectLimited = async (token: string) => {
+      const res = await upload(token, 'insurance', PNG, { contentType: 'image/png' }).expect(429);
+      expect(res.body).toMatchObject({ code: UPLOAD_LIMIT_REACHED });
+    };
+
+    it('refuses the 21st upload within an hour with 429, for that driver only', async () => {
+      await makeDriver(dan);
+      await makeDriver(eve);
+      for (let page = 1; page <= 10; page += 1) await uploadOk(dan, 'licence');
+      for (let page = 1; page <= 10; page += 1) await uploadOk(dan, 'registration');
+
+      await expectLimited(dan);
+      expect(await database.db.select().from(files)).toHaveLength(20);
+      await uploadOk(eve, 'insurance');
+    });
+
+    it('counts only the last hour against the hourly limit', async () => {
+      await makeDriver(dan);
+      await uploadedEarlier(dan, 30, 2);
+      await uploadOk(dan, 'insurance');
+    });
+
+    it('refuses the 61st upload within a day', async () => {
+      await makeDriver(dan);
+      await uploadedEarlier(dan, 59, 2);
+      await uploadOk(dan, 'insurance');
+      await expectLimited(dan);
+    });
+
+    it('forgets uploads older than a day', async () => {
+      await makeDriver(dan);
+      await uploadedEarlier(dan, 100, 25);
+      await uploadOk(dan, 'insurance');
     });
   });
 

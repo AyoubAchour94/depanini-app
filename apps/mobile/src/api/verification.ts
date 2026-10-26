@@ -76,7 +76,8 @@ async function uploadBody(kind: DocumentKind, file: UploadFile): Promise<FormDat
 
 /**
  * `POST /driver/documents`: adds one page. Fails with an `ApiError`: 413 for a file over
- * 5 MB, 415 for a type other than JPEG, PNG or PDF, 409 once the documents were submitted.
+ * 5 MB, 415 for a type other than JPEG, PNG or PDF, 409 once the documents were submitted,
+ * 429 with `code` `upload_limit_reached` past the per-driver upload limit.
  */
 export function useUploadDocument() {
   const queryClient = useQueryClient();

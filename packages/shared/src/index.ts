@@ -1,5 +1,6 @@
 export * from './account';
 export * from './admin';
+export * from './errors';
 export * from './fare';
 export * from './geo';
 export * from './health';

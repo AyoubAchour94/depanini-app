@@ -8,6 +8,7 @@ import { DatabaseModule } from './db/database.module.js';
 import { DriversModule } from './drivers/drivers.module.js';
 import { FilesModule } from './files/files.module.js';
 import { HealthModule } from './health/health.module.js';
+import { HttpHardeningModule } from './http/http-hardening.module.js';
 import { OffersModule } from './offers/offers.module.js';
 import { PaymentsModule } from './payments/payments.module.js';
 import { PushModule } from './push/push.module.js';
@@ -20,6 +21,7 @@ import { VerificationModule } from './verification/verification.module.js';
 @Module({
   imports: [
     EnvModule,
+    HttpHardeningModule,
     DatabaseModule,
     AuthModule,
     HealthModule,

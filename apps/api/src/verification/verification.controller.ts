@@ -40,11 +40,13 @@ export class VerificationController {
    * Adds a page: `multipart/form-data` with a `kind` field and one `file` (JPEG, PNG or
    * PDF, up to 5 MiB). The type comes from the file's magic bytes; the filename is ignored.
    * `415` for another type (or one that differs from the declared type), `413` for a
-   * file that is too large.
+   * file that is too large, `429 upload_limit_reached` past the per-driver upload limit.
    */
   @Post('documents')
   async upload(@Req() request: AuthenticatedRequest & FastifyRequest): Promise<DriverDocument> {
     const driverId = await this.driverId(request);
+    // Before reading the body, so a driver over the limit does not get to send 5 MB.
+    await this.verification.assertCanUpload(driverId);
     const { kind, bytes, declaredType } = await readUpload(request);
     const contentType = detectContentType(bytes);
     if (!contentType || (declaredType !== undefined && declaredType !== contentType)) {

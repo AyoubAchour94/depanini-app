@@ -7,6 +7,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { ENV } from '../src/config/env.module.js';
 import { DB } from '../src/db/database.module.js';
+import { testEnv } from './support/test-app.js';
 
 /**
  * Boots the real AppModule over Fastify with the database swapped for a fake,
@@ -16,13 +17,8 @@ import { DB } from '../src/db/database.module.js';
 async function createApp(dbIsUp: boolean) {
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(ENV)
-    .useValue({
-      NODE_ENV: 'test',
-      PORT: 0,
-      DATABASE_URL: 'postgres://unused@localhost/unused',
-      FIREBASE_PROJECT_ID: 'depanini-test',
-      CORS_ORIGINS: [],
-    })
+    // Limits as low as they go: /health must never be throttled.
+    .useValue(testEnv({ DATABASE_URL: 'postgres://unused@localhost/unused', THROTTLE_LIMIT: 1 }))
     .overrideProvider(DB)
     .useValue({
       execute: async () => {
@@ -48,6 +44,7 @@ describe('GET /health (e2e)', () => {
   it('returns 200 and status ok when the database is up', async () => {
     app = await createApp(true);
 
+    await request(app.getHttpServer()).get('/health').expect(200);
     const res = await request(app.getHttpServer()).get('/health').expect(200);
 
     const body = healthResponseSchema.parse(res.body);

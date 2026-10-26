@@ -37,6 +37,28 @@ const envSchema = z
           .map((origin) => origin.trim())
           .filter(Boolean),
       ),
+    /**
+     * How many proxies sit in front of the API and append to `X-Forwarded-For`. The
+     * client IP (used for rate limits and logs) is read that many hops from the end of
+     * the header. Cloud Run has one; set `0` when clients connect directly.
+     */
+    TRUST_PROXY_HOPS: z.coerce.number().int().nonnegative().default(1),
+    /** Window of the rate limits below, in milliseconds. */
+    THROTTLE_TTL_MS: z.coerce.number().int().positive().default(60_000),
+    /** Requests one user (or one IP when signed out) may make per window. */
+    THROTTLE_LIMIT: z.coerce.number().int().positive().default(300),
+    /** Of those, how many may be writes (anything but `GET`, `HEAD` and `OPTIONS`). */
+    THROTTLE_WRITE_LIMIT: z.coerce.number().int().positive().default(60),
+    /** Document uploads one driver may make per rolling hour, counted in Postgres. */
+    UPLOAD_LIMIT_PER_HOUR: z.coerce.number().int().positive().default(20),
+    /** Document uploads one driver may make per rolling day. */
+    UPLOAD_LIMIT_PER_DAY: z.coerce.number().int().positive().default(60),
+    /** A handler still running after this long answers `503`. Uploads are exempt. */
+    REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
+    /** Lowest level written to the log (JSON lines; pretty-printed in development). */
+    LOG_LEVEL: z
+      .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
+      .default('info'),
     /** Who delivers pushes: `log` writes them to the log (dev, CI); `fcm` sends them through Firebase. */
     PUSH_PROVIDER: z.enum(['log', 'fcm']).default('log'),
     /**
