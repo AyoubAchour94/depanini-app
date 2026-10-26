@@ -371,6 +371,31 @@ describe('tow requests (e2e)', () => {
     });
   });
 
+  describe('GET /tow-requests/:id', () => {
+    it('rejects a request without a token', async () => {
+      await api('get', '/tow-requests/00000000-0000-4000-8000-000000000000').expect(401);
+    });
+
+    it('returns the customer own request', async () => {
+      await makeCustomer(alice);
+      const created = await create(alice).expect(201);
+
+      const res = await api('get', `/tow-requests/${created.body.id}`, alice).expect(200);
+
+      expect(towRequestSchema.parse(res.body)).toEqual(created.body);
+    });
+
+    it('is a 404 for another customer, an unknown id and a malformed id', async () => {
+      await makeCustomer(alice);
+      const created = await create(alice).expect(201);
+      await makeCustomer(bob);
+
+      await api('get', `/tow-requests/${created.body.id}`, bob).expect(404);
+      await api('get', '/tow-requests/00000000-0000-4000-8000-000000000000', alice).expect(404);
+      await api('get', '/tow-requests/nope', alice).expect(404);
+    });
+  });
+
   describe('POST /tow-requests/:id/cancel', () => {
     it('rejects a request without a token', async () => {
       await api('post', '/tow-requests/00000000-0000-4000-8000-000000000000/cancel').expect(401);

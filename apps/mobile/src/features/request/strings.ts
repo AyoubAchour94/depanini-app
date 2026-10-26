@@ -181,6 +181,7 @@ export const requestStrings = {
   historyTitle: 'My requests',
   tripTitle: 'Trip',
   historyEmpty: 'You have not requested a tow yet.',
+  tripFailed: 'Could not load this trip. Check your connection and try again.',
   historyFailed: 'Could not load your requests. Check your connection and try again.',
   loadMore: 'Load more',
   paymentStatus: {

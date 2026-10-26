@@ -87,6 +87,17 @@ export class TowRequestsController {
     return this.towRequests.history(account.id, { cursor, limit });
   }
 
+  /** One of the customer's requests, for a link or a reload on its detail screen. */
+  @Get(':id')
+  async findOne(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+  ): Promise<TowRequest> {
+    if (!z.uuid().safeParse(id).success) throw new NotFoundException('Tow request not found');
+    const account = await this.accounts.getOrCreate(identityOf(request));
+    return this.towRequests.findOne(account.id, id);
+  }
+
   @Post(':id/cancel')
   @HttpCode(200)
   async cancel(
