@@ -122,7 +122,7 @@ function RootNavigator() {
         <Stack.Screen
           name="request/trip/[id]"
           options={{ title: requestStrings.tripTitle, ...plainHeader }}
-        />{' '}
+        />
       </Stack.Protected>
       <Stack.Protected guard={onboarded && variant.isDriverApp}>
         <Stack.Screen name="job-offer/[id]" options={{ title: driverStrings.detailsTitle }} />

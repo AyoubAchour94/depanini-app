@@ -139,6 +139,7 @@ export function ActiveRequestScreen() {
         }
         sheet={{
           snapPoints: SHEET_SNAPS,
+          scrollResetKey: open ? 'offers' : 'trip',
           children: (
             <View style={{ gap: theme.space[4] }}>
               {open ? (

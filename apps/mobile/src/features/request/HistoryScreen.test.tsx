@@ -69,6 +69,7 @@ describe('HistoryScreen', () => {
     await renderHistory();
 
     expect(await screen.findByText('Pickup 1')).toBeOnTheScreen();
+    expect(screen.getByText('Dropoff 1')).toBeOnTheScreen();
     expect(await screen.findByText('51 TND')).toBeOnTheScreen();
     expect(screen.getByText('Open')).toBeOnTheScreen();
     expect(screen.getByText('Cancelled')).toBeOnTheScreen();

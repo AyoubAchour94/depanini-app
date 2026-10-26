@@ -100,13 +100,13 @@ function HistoryRow({ request }: { request: TowRequest }) {
         <View style={styles.route}>
           <View style={styles.place}>
             <PlaceMarker kind="pickup" />
-            <Text variant="bodyStrong" numberOfLines={1} style={styles.address}>
+            <Text variant="bodyStrong" numberOfLines={2} style={styles.address}>
               {shortAddress(request.pickup.address)}
             </Text>
           </View>
           <View style={styles.place}>
             <PlaceMarker kind="dropoff" />
-            <Text variant="bodyStrong" numberOfLines={1} style={styles.address}>
+            <Text variant="bodyStrong" numberOfLines={2} style={styles.address}>
               {shortAddress(request.dropoff.address)}
             </Text>
           </View>

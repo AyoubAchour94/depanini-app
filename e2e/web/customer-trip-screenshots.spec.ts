@@ -247,20 +247,12 @@ for (const scheme of ['light', 'dark'] as const) {
     const state: ApiState = { active: openRequest(), offers: [], history: [] };
     await mockApi(page, state);
     const shot = (name: string) => page.screenshot({ path: `${SHOTS_DIR}/${scheme}-${name}.png` });
-    /** Scrolls every scrolled area back to its top (clicking a button low in the sheet scrolls it). */
-    const toTop = () =>
-      page.evaluate(() => {
-        for (const div of document.querySelectorAll('div')) {
-          if (div.scrollTop > 0 && div.clientHeight > 100) div.scrollTop = 0;
-        }
-      });
     /** Makes the open screen read the (changed) API state now, as when the app comes back to the front. */
     const refresh = async () => {
       await page.evaluate(() => {
         window.dispatchEvent(new Event('focus'));
         document.dispatchEvent(new Event('visibilitychange'));
       });
-      await toTop();
       await settle(page);
     };
     /** Scrolls the sheet's or screen's content to its end. */
@@ -294,7 +286,6 @@ for (const scheme of ['light', 'dark'] as const) {
       // 2. Accept one: the live trip, stage by stage.
       await button(page, 'Accept').nth(1).click();
       await expect(shown(page, 'Your driver accepted')).toBeVisible();
-      await toTop();
       await settle(page);
       await shot('2-trip-accepted');
 
