@@ -52,6 +52,59 @@ describe('scrubSentryEvent', () => {
     expect(event.breadcrumbs?.[0]?.message).toBe('GET /search?q=[email]&n=[phone]');
   });
 
+  describe('text masking', () => {
+    const scrubbed = (message: string) => scrubSentryEvent({ message }).message;
+
+    it('masks local Tunisian numbers written in groups or after a label', () => {
+      expect(scrubbed('call 20 123 456 now')).toBe('call [phone] now');
+      expect(scrubbed('tel: 98.765.432')).toBe('tel: [phone]');
+      expect(scrubbed('99-11-22-33')).toBe('[phone]');
+      expect(scrubbed('phone 2012-3456.')).toBe('phone [phone].');
+      expect(scrubbed('Tel 55123456')).toBe('Tel [phone]');
+    });
+
+    it('masks IPv4 and IPv6 addresses', () => {
+      expect(scrubbed('from 41.226.10.7 failed')).toBe('from [ip] failed');
+      expect(scrubbed('connect ECONNREFUSED 10.0.0.1:5432')).toBe('connect ECONNREFUSED [ip]:5432');
+      expect(scrubbed('client 2001:0db8:85a3:0000:0000:8a2e:0370:7334 up')).toBe('client [ip] up');
+      expect(scrubbed('client 2a01:e0a::1 and ::1 and fe80::1ff:fe23:4567:890a')).toBe(
+        'client [ip] and [ip] and [ip]',
+      );
+    });
+
+    it('masks token and key URL parameters but keeps the others', () => {
+      expect(scrubbed('GET /x?page=2&token=abc123&sort=asc')).toBe(
+        'GET /x?page=2&token=[token]&sort=asc',
+      );
+      expect(scrubbed('https://h/p?apiKey=k-1&idToken=zz')).toBe(
+        'https://h/p?apiKey=[token]&idToken=[token]',
+      );
+      expect(scrubbed('/search?q=tow&limit=20')).toBe('/search?q=tow&limit=20');
+    });
+
+    it('masks bare JWTs', () => {
+      const jwt = 'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxMjMifQ.c2ln-na_ture';
+      expect(scrubbed(`id token ${jwt} rejected`)).toBe('id token [token] rejected');
+    });
+
+    it('leaves prices, ids, receipt numbers, times and versions alone', () => {
+      for (const text of [
+        'fare 85 TND',
+        'fare 85.500 TND for 12 km',
+        'total 1 250 000 TND',
+        'request 6f1c2b8e-1234-4abc-9def-0123456789ab failed',
+        'receipt DPN-2026-000123',
+        'order 20240101 at 12:30:45',
+        'order 20240101',
+        'version 1.2.3 build 456',
+        'std::string and Foo::bar',
+        'plate 123 TUN 4567',
+      ]) {
+        expect(scrubbed(text)).toBe(text);
+      }
+    });
+  });
+
   it('drops sensitive keys anywhere in the event', () => {
     const event = scrubSentryEvent({
       extra: {
