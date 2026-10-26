@@ -137,6 +137,7 @@ export function VerificationScreen() {
                   {editable ? (
                     <Button
                       kind="link"
+                      linkTone="danger"
                       title={t.removePage(page.page)}
                       accessibilityLabel={t.forKind(t.removePage(page.page), label)}
                       disabled={busy}

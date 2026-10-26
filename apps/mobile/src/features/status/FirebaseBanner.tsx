@@ -1,7 +1,8 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { getFirebaseStatus } from '@/firebase/firebase';
 import { useTheme } from '@/theme/theme';
+import { Text } from '@/ui/Text';
 
 /** Debug-only notice when Firebase is not configured; renders nothing otherwise. */
 export function FirebaseBanner() {
@@ -9,13 +10,19 @@ export function FirebaseBanner() {
   if (!__DEV__ || getFirebaseStatus().configured) return null;
 
   return (
-    <View style={[styles.banner, { backgroundColor: theme.warning }]}>
-      <Text style={styles.text}>Firebase not configured</Text>
+    <View
+      style={[
+        styles.banner,
+        { backgroundColor: theme.color.warningTint, borderRadius: theme.radius.md },
+      ]}
+    >
+      <Text variant="bodyStrong" tone="warning">
+        Firebase not configured
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  banner: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-  text: { color: '#101828', fontWeight: '600' },
+  banner: { paddingHorizontal: 12, paddingVertical: 6 },
 });

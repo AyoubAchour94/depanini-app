@@ -18,6 +18,8 @@ interface ButtonProps {
   kind?: ButtonKind;
   /** `md` 56px, `sm` 44px, `big` 64px: the one next action pinned at the bottom of a screen. */
   size?: ButtonSize;
+  /** The colour of a `link` button's text: `danger` for a destructive inline action ("Remove page"). Default `brand`. */
+  linkTone?: 'brand' | 'danger';
   loading?: boolean;
   disabled?: boolean;
   /** Read by screen readers (and tests) instead of the title, to tell apart buttons with the same title. */
@@ -32,6 +34,7 @@ export function Button({
   onPress,
   kind = 'primary',
   size = 'md',
+  linkTone = 'brand',
   loading,
   disabled,
   accessibilityLabel,
@@ -48,7 +51,7 @@ export function Button({
         disabled={inactive}
         hitSlop={8}
       >
-        <Text variant="bodyStrong" tone="brand" style={styles.link}>
+        <Text variant="bodyStrong" tone={linkTone} style={styles.link}>
           {title}
         </Text>
       </Pressable>

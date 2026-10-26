@@ -9,7 +9,14 @@ import {
 } from '@depanini/shared';
 import { router, Stack, useIsFocused } from 'expo-router';
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Linking, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/client';
@@ -27,6 +34,7 @@ import { Divider } from '@/ui/Divider';
 import { Num } from '@/ui/Num';
 import { Pill } from '@/ui/Pill';
 import { RoundButton } from '@/ui/RoundButton';
+import { CONTROLS_CLEARANCE } from '@/ui/sheet-snap';
 import { StageBar } from '@/ui/StageBar';
 import { Text } from '@/ui/Text';
 
@@ -42,6 +50,16 @@ const isConflict = (error: unknown) => error instanceof ApiError && error.status
 /** The stages the stage bar walks through (the last segment, "Done", is the summary). */
 const STAGE_ORDER: readonly TripStage[] = ['accepted', 'en_route', 'arrived', 'towing'];
 
+/** First snap point of the job sheet, as a share of the screen: lower on a short screen, to keep the route on the map. */
+const JOB_SNAP = 0.74;
+const JOB_SNAP_SHORT = 0.6;
+/** Screens shorter than this (px) are short. */
+const SHORT_SCREEN = 700;
+/** How much taller (px) the navigation banner is than the 48px controls row, so the map ornaments move down by it. */
+const NAV_BANNER_EXTRA = 24;
+/** Screen width (px) from which the timeline in the sheet takes two columns. */
+const TWO_COLUMNS_FROM = 380;
+
 /**
  * The job the driver has taken, on the map: a navigation banner on top, and a
  * sheet with the stage bar, the customer, the stops, the cash to collect and
@@ -49,6 +67,8 @@ const STAGE_ORDER: readonly TripStage[] = ['accepted', 'en_route', 'arrived', 't
  */
 export function JobScreen() {
   const theme = useTheme();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  const jobSnap = windowHeight < SHORT_SCREEN ? JOB_SNAP_SHORT : JOB_SNAP;
   const focused = useIsFocused();
   const job = useDriverJob({ poll: focused });
   const cancel = useCancelJob();
@@ -130,6 +150,9 @@ export function JobScreen() {
       center={pickup}
       markers={markers}
       fitToMarkers
+      fitInsetBottom={(windowHeight - CONTROLS_CLEARANCE) * jobSnap}
+      // The banner is taller than a round button: the Mapbox logo and attribution sit under it.
+      ornamentOffset={NAV_BANNER_EXTRA}
       pill={
         <NavBanner
           title={stage === 'towing' ? t.dropoffLabel : t.pickupLabel}
@@ -139,7 +162,7 @@ export function JobScreen() {
         />
       }
       sheet={{
-        snapPoints: ['68%', 'full'],
+        snapPoints: [`${jobSnap * 100}%`, 'full'],
         footer: (
           <View style={{ gap: theme.space[2] }}>
             {conflict ? (
@@ -200,7 +223,7 @@ export function JobScreen() {
               <Num size="small" value={agreedFare} unit="TND" />
             </View>
             <Divider />
-            <Timeline job={job.data} />
+            <Timeline job={job.data} twoColumns={windowWidth >= TWO_COLUMNS_FROM} />
             <View style={{ height: theme.space[6] }} />
             {canDriverCancel(job.data) === 'with_reason' ? (
               <View style={styles.cancel}>
@@ -242,8 +265,11 @@ export function JobScreen() {
 /** The stages reached so far, with the time of each. */
 function Timeline({
   job,
+  twoColumns,
 }: {
   job: Pick<TowRequest, 'assignedAt' | 'enRouteAt' | 'arrivedAt' | 'towingAt' | 'completedAt'>;
+  /** Two steps to a row, so the list takes less of the sheet. */
+  twoColumns?: boolean;
 }) {
   const steps = [
     [t.timeline.assigned, job.assignedAt],
@@ -254,17 +280,23 @@ function Timeline({
   ] as const;
   return (
     <View style={styles.timeline}>
-      <Text variant="label" tone="muted">
+      <Text variant="label" tone="muted" style={styles.timelineTitle}>
         {t.timelineTitle}
       </Text>
-      {steps.map(([label, at]) => (
-        <View key={label} style={styles.between}>
-          <Text tone={at ? 'text' : 'muted'}>{label}</Text>
-          <Text tone="muted" style={styles.tabular}>
-            {at ? t.time(at) : '–'}
-          </Text>
-        </View>
-      ))}
+      {/* Only the steps reached: the stage bar above already shows what is still to come. */}
+      {steps.map(([label, at]) =>
+        at ? (
+          <View
+            key={label}
+            style={[styles.between, twoColumns ? styles.timelineHalf : styles.timelineFull]}
+          >
+            <Text>{label}</Text>
+            <Text tone="muted" style={styles.tabular}>
+              {t.time(at)}
+            </Text>
+          </View>
+        ) : null,
+      )}
     </View>
   );
 }
@@ -325,7 +357,7 @@ function Stops({ pickup, dropoff }: { pickup: string; dropoff: string }) {
   const theme = useTheme();
   return (
     <View style={styles.row}>
-      <View style={styles.rail}>
+      <View style={[styles.rail, { paddingTop: theme.space[5] }]}>
         <View
           style={[
             styles.dot,
@@ -363,9 +395,12 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cancel: { gap: 12, marginTop: 16 },
-  timeline: { gap: 8 },
+  timeline: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 20, rowGap: 8 },
+  timelineTitle: { width: '100%' },
+  timelineFull: { width: '100%' },
+  timelineHalf: { flexGrow: 1, flexBasis: '40%', gap: 8 },
   tabular: { fontVariant: ['tabular-nums'] },
-  rail: { alignSelf: 'stretch', alignItems: 'center', paddingTop: 20, paddingBottom: 6 },
+  rail: { alignSelf: 'stretch', alignItems: 'center', paddingBottom: 6 },
   railLine: { width: 2, flex: 1, marginVertical: 4 },
   dot: { width: 12, height: 12 },
   pinned: { paddingHorizontal: 20, paddingTop: 12, borderTopWidth: 1 },

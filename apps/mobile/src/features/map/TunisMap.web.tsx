@@ -44,6 +44,7 @@ export function TunisMap({
   markers,
   fitToMarkers,
   fitInsetBottom,
+  ornamentOffset = 0,
 }: TunisMapProps) {
   const theme = useTheme();
   const container = useRef<HTMLDivElement>(null);
@@ -158,7 +159,7 @@ export function TunisMap({
 
   return (
     <>
-      <style>{`.mapboxgl-ctrl-top-left,.mapboxgl-ctrl-top-right{top:${ORNAMENT_TOP}px}`}</style>
+      <style>{`.mapboxgl-ctrl-top-left,.mapboxgl-ctrl-top-right{top:${ORNAMENT_TOP + ornamentOffset}px}`}</style>
       <div ref={container} style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
     </>
   );
