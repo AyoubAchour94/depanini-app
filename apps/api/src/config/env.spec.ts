@@ -44,6 +44,24 @@ describe('parseEnv', () => {
     expect(() => parseEnv({ ...valid, PUSH_PROVIDER: 'sms' })).toThrow(/PUSH_PROVIDER/);
   });
 
+  it('defaults the hardening limits and coerces overrides', () => {
+    expect(parseEnv(valid)).toMatchObject({
+      TRUST_PROXY_HOPS: 1,
+      THROTTLE_TTL_MS: 60_000,
+      THROTTLE_LIMIT: 300,
+      THROTTLE_WRITE_LIMIT: 60,
+      UPLOAD_LIMIT_PER_HOUR: 20,
+      UPLOAD_LIMIT_PER_DAY: 60,
+      REQUEST_TIMEOUT_MS: 30_000,
+      LOG_LEVEL: 'info',
+    });
+    expect(parseEnv({ ...valid, TRUST_PROXY_HOPS: '0', THROTTLE_LIMIT: '10' })).toMatchObject({
+      TRUST_PROXY_HOPS: 0,
+      THROTTLE_LIMIT: 10,
+    });
+    expect(() => parseEnv({ ...valid, LOG_LEVEL: 'loud' })).toThrow(/LOG_LEVEL/);
+  });
+
   it('fails fast with the offending variable named', () => {
     expect(() => parseEnv({ FIREBASE_PROJECT_ID: 'depanini-dev' })).toThrow(/DATABASE_URL/);
   });

@@ -27,6 +27,12 @@ export type UploadContentType = z.infer<typeof uploadContentTypeSchema>;
 /** Error code of the `403` returned when an unapproved driver tries to go online or work. */
 export const DRIVER_NOT_APPROVED = 'driver_not_approved';
 
+/**
+ * Error code of the `429` answered when a driver has uploaded too many document pages in
+ * the last hour or day (the API's `UPLOAD_LIMIT_PER_HOUR` / `UPLOAD_LIMIT_PER_DAY`).
+ */
+export const UPLOAD_LIMIT_REACHED = 'upload_limit_reached';
+
 /** One uploaded page of a document, as the API returns it. Dates are ISO strings. */
 export const driverDocumentSchema = z.object({
   id: z.uuid(),
