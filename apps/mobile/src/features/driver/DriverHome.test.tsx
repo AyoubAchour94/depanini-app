@@ -317,14 +317,15 @@ describe('DriverHome presence', () => {
 
 describe('DriverHome presence ordering', () => {
   it('does not start another send while one is pending', async () => {
-    location.getCurrentPositionAsync.mockImplementation(() => new Promise(() => {}));
+    // The first send hangs on the wire; several ticks pass while it is pending.
+    holdOnline = new Promise<void>(() => {});
     const api = mockApi();
     await renderHome();
     await goOnline();
-    await act(async () => jest.advanceTimersByTime(LOCATION_TIMEOUT_MS - 1));
+    await act(async () => jest.advanceTimersByTime(4 * PRESENCE_INTERVAL_MS));
 
     expect(location.getCurrentPositionAsync).toHaveBeenCalledTimes(1);
-    expect(api.calls('PUT /driver/presence')).toHaveLength(0);
+    expect(api.calls('PUT /driver/presence')).toHaveLength(1);
   });
 
   it('drops a hung location read after its time limit and tries again on the next tick', async () => {
