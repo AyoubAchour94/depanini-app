@@ -19,6 +19,7 @@
     "admin:grant": "node scripts/admin-grant.mjs",
     "test:scripts": "node --test scripts/admin-grant.test.mjs scripts/share-plan.test.mjs",
     "e2e:web": "playwright test",
+    "design:boards": "node scripts/design/final-boards.mjs",
     "e2e:admin": "playwright test -c playwright.admin.config.ts",
     "share": "node scripts/share.mjs"
   },

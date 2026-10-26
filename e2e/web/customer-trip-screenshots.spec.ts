@@ -14,6 +14,9 @@ import { expect, type Page, type Route, test, type WebSocketRoute } from '@playw
 // app's API URL (EXPO_PUBLIC_WEB_API_URL) as E2E_SHOTS_API_URL, default
 // http://localhost:3000. The map shows live tiles only when the app has a
 // Mapbox token; without one the map area is empty.
+import { stubMap } from './mapStub';
+import { VIEWPORT } from './viewport';
+
 const CUSTOMER_URL = (process.env.E2E_CUSTOMER_URL ?? 'http://localhost:8081').replace(/\/$/, '');
 const API_ORIGIN = new URL(process.env.E2E_SHOTS_API_URL ?? 'http://localhost:3000').origin;
 const SHOTS_DIR = process.env.E2E_SHOTS_DIR;
@@ -26,7 +29,7 @@ const PAST_TRIP_ID = '3c1d9a7e-2b4f-4e8a-9d5c-6f7a8b9c0d1e';
 const CANCELLED_TRIP_ID = '5d2e8b6f-1a3c-4f7b-8e9d-0a1b2c3d4e5f';
 
 test.skip(!SHOTS_DIR, 'set E2E_SHOTS_DIR to take the screenshots');
-test.use({ viewport: { width: 390, height: 844 } });
+test.use({ viewport: VIEWPORT });
 
 const button = (page: Page, name: string | RegExp) =>
   page.getByRole('button', { name, exact: typeof name === 'string' });
@@ -267,9 +270,10 @@ for (const scheme of ['light', 'dark'] as const) {
     test.setTimeout(5 * 60_000);
     const context = await browser.newContext({
       colorScheme: scheme,
-      viewport: { width: 390, height: 844 },
+      viewport: VIEWPORT,
     });
     const page = await context.newPage();
+    await stubMap(page, scheme);
     // Every window.confirm in the app (accept offer) is answered with OK.
     page.on('dialog', (dialog) => void dialog.accept());
     const state: ApiState = { active: openRequest(), offers: [], history: [] };
@@ -286,7 +290,7 @@ for (const scheme of ['light', 'dark'] as const) {
     };
     /** Scrolls the sheet's or screen's content to its end. */
     const scrollDown = async () => {
-      await page.mouse.move(195, 600);
+      await page.mouse.move(VIEWPORT.width / 2, VIEWPORT.height * 0.7);
       await page.mouse.wheel(0, 2000);
       await page.waitForTimeout(500);
     };

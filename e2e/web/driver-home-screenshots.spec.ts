@@ -12,6 +12,9 @@ import { expect, type Page, type Route, test } from '@playwright/test';
 // The API is answered in the browser (see `mockApi`; E2E_SHOTS_API_URL is the
 // app's API URL, default http://localhost:3000), so no API or database is
 // needed. The map is empty without a Mapbox token in the app's environment.
+import { stubMap } from './mapStub';
+import { VIEWPORT } from './viewport';
+
 const DRIVER_URL = (process.env.E2E_DRIVER_URL ?? 'http://localhost:8082').replace(/\/$/, '');
 const API_ORIGIN = new URL(process.env.E2E_SHOTS_API_URL ?? 'http://localhost:3000').origin;
 const SHOTS_DIR = process.env.E2E_SHOTS_DIR;
@@ -22,7 +25,7 @@ const USER_ID = '0b5c1d2e-3f4a-4b6c-8d7e-9f0a1b2c3d4e';
 const TUNIS = { latitude: 36.8065, longitude: 10.1815 };
 
 test.skip(!SHOTS_DIR, 'set E2E_SHOTS_DIR to take the screenshots');
-test.use({ viewport: { width: 390, height: 844 } });
+test.use({ viewport: VIEWPORT });
 
 const button = (page: Page, name: string | RegExp) =>
   page.getByRole('button', { name, exact: typeof name === 'string' });
@@ -154,11 +157,12 @@ for (const scheme of ['light', 'dark'] as const) {
     test.setTimeout(5 * 60_000);
     const context = await browser.newContext({
       colorScheme: scheme,
-      viewport: { width: 390, height: 844 },
+      viewport: VIEWPORT,
       geolocation: TUNIS,
       permissions: ['geolocation'],
     });
     const page = await context.newPage();
+    await stubMap(page, scheme);
     const state: ApiState = { verification: 'unsubmitted', online: false };
     await mockApi(page, state);
     const shot = (name: string) => page.screenshot({ path: `${SHOTS_DIR}/${scheme}-${name}.png` });
