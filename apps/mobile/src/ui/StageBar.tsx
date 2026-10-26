@@ -11,10 +11,12 @@ interface StageBarProps {
   current: number;
   /** How far through the current stage, 0 to 1. Default: the stage is just reached (empty). */
   progress?: number;
+  /** A small line under each label, e.g. the time the stage was reached. */
+  captions?: readonly string[];
 }
 
 /** A segmented progress bar with a label under each segment. */
-export function StageBar({ stages, current, progress = 0 }: StageBarProps) {
+export function StageBar({ stages, current, progress = 0, captions }: StageBarProps) {
   const t = useTheme();
   return (
     <View
@@ -40,6 +42,11 @@ export function StageBar({ stages, current, progress = 0 }: StageBarProps) {
             >
               {stage}
             </Text>
+            {captions ? (
+              <Text variant="micro" tone="muted" style={styles.caption}>
+                {captions[i]}
+              </Text>
+            ) : null}
           </View>
         );
       })}
@@ -52,4 +59,5 @@ const styles = StyleSheet.create({
   stage: { flex: 1 },
   track: { height: 5, borderRadius: 3, overflow: 'hidden' },
   label: { marginTop: 6 },
+  caption: { marginTop: 2, fontVariant: ['tabular-nums'] },
 });

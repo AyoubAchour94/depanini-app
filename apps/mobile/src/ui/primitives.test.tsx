@@ -213,6 +213,14 @@ describe('StageBar', () => {
     expect(screen.getByText('Heading')).toBeOnTheScreen();
     expect(screen.getByText('Done')).toBeOnTheScreen();
   });
+
+  it('shows a caption under each label when given', async () => {
+    await render(
+      <StageBar stages={['Heading', 'Arrived']} current={0} captions={['10:04', '–']} />,
+    );
+    expect(screen.getByText('10:04')).toBeOnTheScreen();
+    expect(screen.getByText('–')).toBeOnTheScreen();
+  });
 });
 
 describe('Sheet and Divider', () => {

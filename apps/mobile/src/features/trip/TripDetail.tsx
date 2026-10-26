@@ -1,12 +1,16 @@
 import type { Receipt, TowRequest } from '@depanini/shared';
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
 import { useReceipt } from '@/api/receipt';
-import { StatusBadge } from '@/features/request/RequestSummary';
+import { PlaceRow, StatusBadge } from '@/features/request/RequestSummary';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
+import { Card } from '@/ui/Card';
+import { Divider } from '@/ui/Divider';
+import { Num } from '@/ui/Num';
+import { Text } from '@/ui/Text';
 
 import { formatTnd } from './money';
 import { RateTripCard, type RatingSide } from './RateTripCard';
@@ -33,30 +37,41 @@ export function TripDetail({ request, side }: { request: TowRequest; side: Ratin
   ] as const;
   return (
     <>
-      <View style={[styles.card, { backgroundColor: theme.surface }]}>
+      <Card>
         <View style={styles.row}>
-          <Text style={{ color: theme.textMuted }}>
+          <Text variant="caption" tone="muted">
             {t.dateTime(request.completedAt ?? request.createdAt)}
           </Text>
           <StatusBadge status={request.status} />
         </View>
-        <Field label={t.pickupLabel} value={request.pickup.address} />
-        <Field label={t.dropoffLabel} value={request.dropoff.address} />
-        <Text style={[styles.label, { color: theme.textMuted }]}>{t.fareLabel}</Text>
-        <Text style={[styles.fare, { color: theme.text }]}>{formatTnd(fare)}</Text>
-        {request.payment ? (
-          <Text style={{ color: theme.textMuted }}>{t.paymentStatus[request.payment.status]}</Text>
-        ) : null}
-      </View>
-      <View style={[styles.card, { backgroundColor: theme.surface }]}>
-        <Text style={[styles.label, { color: theme.textMuted }]}>{t.stagesTitle}</Text>
+        <PlaceRow kind="pickup" label={t.pickupLabel} address={request.pickup.address} />
+        <PlaceRow kind="dropoff" label={t.dropoffLabel} address={request.dropoff.address} />
+        <Divider />
+        <View style={styles.row}>
+          <View>
+            <Text variant="caption" tone="muted">
+              {t.fareLabel}
+            </Text>
+            {request.payment ? (
+              <Text variant="caption" tone="muted">
+                {t.paymentStatus[request.payment.status]}
+              </Text>
+            ) : null}
+          </View>
+          <Num size="figure" value={fare} unit="TND" />
+        </View>
+      </Card>
+      <Card style={{ gap: theme.space[2] }}>
+        <Text variant="heading">{t.stagesTitle}</Text>
         {stages.map(([label, at]) => (
           <View key={label} style={styles.row}>
-            <Text style={{ color: at ? theme.text : theme.textMuted }}>{label}</Text>
-            <Text style={{ color: theme.textMuted }}>{at ? t.time(at) : '–'}</Text>
+            <Text tone={at ? 'text' : 'muted'}>{label}</Text>
+            <Text tone="muted" style={styles.time}>
+              {at ? t.time(at) : '–'}
+            </Text>
           </View>
         ))}
-      </View>
+      </Card>
       {completed ? (
         <>
           <RateTripCard side={side} requestId={request.id} />
@@ -75,26 +90,25 @@ export function ReceiptCard({ requestId }: { requestId: string }) {
 
   if (receipt.isPending) {
     return (
-      <View style={[styles.card, styles.center, { backgroundColor: theme.surface }]}>
-        <ActivityIndicator color={theme.brand} />
-        <Text style={{ color: theme.textMuted }}>{t.receiptLoading}</Text>
-      </View>
+      <Card style={styles.center}>
+        <ActivityIndicator color={theme.color.brandAccent} />
+        <Text tone="muted">{t.receiptLoading}</Text>
+      </Card>
     );
   }
   if (!receipt.data) {
     const missing = receipt.error instanceof ApiError && receipt.error.status === 404;
     return (
-      <View style={[styles.card, styles.center, { backgroundColor: theme.surface }]}>
-        <Text style={{ color: theme.danger }}>{missing ? t.receiptNotFound : t.receiptFailed}</Text>
+      <Card style={styles.center}>
+        <Text tone="danger">{missing ? t.receiptNotFound : t.receiptFailed}</Text>
         {missing ? null : <Button title={t.retry} onPress={() => void receipt.refetch()} />}
-      </View>
+      </Card>
     );
   }
   return <ReceiptView receipt={receipt.data} />;
 }
 
 export function ReceiptView({ receipt }: { receipt: Receipt }) {
-  const theme = useTheme();
   const [note, setNote] = useState<'copied' | 'failed'>();
   const [sharing, setSharing] = useState(false);
 
@@ -111,8 +125,8 @@ export function ReceiptView({ receipt }: { receipt: Receipt }) {
   };
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.surface }]}>
-      <Text style={[styles.heading, { color: theme.text }]}>{t.receiptTitle}</Text>
+    <Card>
+      <Text variant="heading">{t.receiptTitle}</Text>
       <Field label={t.receiptNumber} value={receipt.receiptNo} />
       <Field label={t.receiptDate} value={t.dateTime(receipt.completedAt)} />
       <Field label={t.vehicleLabel} value={vehicleSummary(receipt)} />
@@ -122,32 +136,34 @@ export function ReceiptView({ receipt }: { receipt: Receipt }) {
         value={`${receipt.driver.fullName} (${truckLabel(receipt.driver.truckType)})`}
       />
       <Field label={t.customerLabel} value={receipt.customer.fullName} />
-      <Field label={t.paidInCash} value={formatTnd(receipt.agreedFare)} />
+      <Divider />
+      <Field label={t.paidInCash} value={formatTnd(receipt.agreedFare)} strong />
       {note ? (
-        <Text style={{ color: note === 'copied' ? theme.success : theme.danger }}>
+        <Text tone={note === 'copied' ? 'success' : 'danger'}>
           {note === 'copied' ? t.copied : t.shareFailed}
         </Text>
       ) : null}
-      <Button title={t.share} loading={sharing} onPress={() => void onShare()} />
-    </View>
+      <Button kind="secondary" title={t.share} loading={sharing} onPress={() => void onShare()} />
+    </Card>
   );
 }
 
-function Field({ label, value }: { label: string; value: string }) {
-  const theme = useTheme();
+/** A label and its value on one line; the label stays right before the value in the tree. */
+function Field({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
-    <View>
-      <Text style={[styles.label, { color: theme.textMuted }]}>{label}</Text>
-      <Text style={{ color: theme.text, fontSize: 16 }}>{value}</Text>
+    <View style={styles.field}>
+      <Text tone="muted">{label}</Text>
+      <Text variant={strong ? 'heading' : 'bodyStrong'} style={styles.value}>
+        {value}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 12, padding: 16, gap: 10 },
   center: { alignItems: 'center' },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  label: { fontSize: 13 },
-  heading: { fontSize: 18, fontWeight: '600' },
-  fare: { fontSize: 22, fontWeight: '700' },
+  time: { fontVariant: ['tabular-nums'] },
+  field: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 16 },
+  value: { flexShrink: 1 },
 });

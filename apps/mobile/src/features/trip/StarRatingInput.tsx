@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useTheme } from '@/theme/theme';
+import { Text } from '@/ui/Text';
 
 import { tripStrings as t } from './strings';
 
@@ -29,7 +30,9 @@ export function StarRatingInput({
           hitSlop={4}
           onPress={() => onChange(n)}
         >
-          <Text style={[styles.star, { color: n <= value ? theme.warning : theme.textMuted }]}>
+          <Text
+            style={[styles.star, { color: n <= value ? theme.color.warning : theme.color.muted }]}
+          >
             {n <= value ? '★' : '☆'}
           </Text>
         </Pressable>
