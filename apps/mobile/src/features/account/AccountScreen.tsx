@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useMe } from '@/api/me';
 import { useSignOut } from '@/auth/useSignOut';
+import { LegalSection } from '@/features/legal/LegalLinks';
 import { profileFor } from '@/features/profile/onboarding';
 import { describeTruck } from '@/features/profile/truck-types';
 import { requestStrings } from '@/features/request/strings';
@@ -69,6 +70,7 @@ export function AccountScreen() {
             onPress={() => router.push('/request/history')}
           />
         )}
+        <LegalSection />
         <Pressable
           accessibilityRole="button"
           onPress={() => router.push('/delete-account')}
