@@ -25,6 +25,8 @@ export interface TunisMapProps {
   fitToMarkers?: boolean;
   /** Height (px) of what covers the bottom of the map (the sheet); the fit keeps the markers above it. */
   fitInsetBottom?: number;
+  /** Extra px to move the Mapbox logo and attribution down, for a tall banner in the top row (the driver's navigation banner). */
+  ornamentOffset?: number;
 }
 
 /** Padding (px) around the markers when fitting the camera. */

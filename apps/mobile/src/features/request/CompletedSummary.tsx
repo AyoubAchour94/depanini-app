@@ -7,10 +7,10 @@ import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
 import { Divider } from '@/ui/Divider';
 import { Num } from '@/ui/Num';
+import { PlainScreen } from '@/ui/PlainScreen';
 import { Text } from '@/ui/Text';
 
 import { PaymentPrompt } from './PaymentPrompt';
-import { PlainScreen } from './PlainScreen';
 import { PlaceRow } from './RequestSummary';
 import { requestStrings as t } from './strings';
 import { Timeline } from './TripProgress';

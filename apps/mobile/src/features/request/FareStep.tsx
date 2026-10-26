@@ -41,6 +41,8 @@ interface FareStepProps {
 export function FareStep({ onCreated, onAlreadyOpen, onNoProfile, onBack }: FareStepProps) {
   const theme = useTheme();
   const { height: windowHeight } = useWindowDimensions();
+  // On a short screen the sheet is at most 60% high, so both pins stay on the map above it; the rest of the content is a drag away.
+  const firstSnap = Math.min(FARE_SNAPS[0], windowHeight * 0.6);
   const flow = useRequestFlow();
   const { pickup, dropoff, vehicleType, problemType, note, proposedFare, setProposedFare } = flow;
   const complete = pickup && dropoff && vehicleType && problemType;
@@ -112,12 +114,11 @@ export function FareStep({ onCreated, onAlreadyOpen, onNoProfile, onBack }: Fare
         { id: 'dropoff', kind: 'dropoff', coordinate: dropoff },
       ]}
       fitToMarkers
-      // Keep both pins above the sheet, which can be at most 60% of a short screen.
-      fitInsetBottom={Math.min(FARE_SNAPS[0], windowHeight * 0.6)}
+      fitInsetBottom={firstSnap}
       topStart={onBack ? <BackButton onPress={onBack} /> : undefined}
       pill={<Pill label={t.routeStats((distanceM / 1000).toFixed(1), towMinutes(distanceM))} />}
       sheet={{
-        snapPoints: FARE_SNAPS,
+        snapPoints: [firstSnap, 'full'],
         children: (
           <View style={{ gap: theme.space[3] }}>
             <View style={{ gap: theme.space[3] }}>

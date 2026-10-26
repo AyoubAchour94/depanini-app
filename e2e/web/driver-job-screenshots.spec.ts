@@ -12,11 +12,14 @@ import { expect, type Page, test } from '@playwright/test';
 // the screens with sample data, so no API or Auth emulator is needed. The map
 // needs the Mapbox token in apps/mobile/.env; without it the map area shows the
 // "Mapbox token missing" notice.
+import { stubMap } from './mapStub';
+import { VIEWPORT } from './viewport';
+
 const DRIVER_URL = (process.env.E2E_DRIVER_URL ?? 'http://localhost:8082').replace(/\/$/, '');
 const SHOTS_DIR = process.env.E2E_SHOTS_DIR;
 
 test.skip(!SHOTS_DIR, 'set E2E_SHOTS_DIR to take the screenshots');
-test.use({ viewport: { width: 390, height: 844 } });
+test.use({ viewport: VIEWPORT });
 
 const SCREENS = [
   ['1-job-accepted', 'screen=job&stage=accepted', 'Start driving'],
@@ -38,9 +41,10 @@ for (const scheme of ['light', 'dark'] as const) {
     test.setTimeout(5 * 60_000);
     const context = await browser.newContext({
       colorScheme: scheme,
-      viewport: { width: 390, height: 844 },
+      viewport: VIEWPORT,
     });
     const page = await context.newPage();
+    await stubMap(page, scheme);
     try {
       for (const [name, query, action] of SCREENS) {
         await page.goto(`${DRIVER_URL}/dev/driver?${query}&theme=${scheme}`);
@@ -52,7 +56,7 @@ for (const scheme of ['light', 'dark'] as const) {
           });
           await expect(next).toBeVisible({ timeout: 120_000 });
           const box = (await next.boundingBox())!;
-          expect(box.y + box.height).toBeLessThanOrEqual(844);
+          expect(box.y + box.height).toBeLessThanOrEqual(VIEWPORT.height);
         } else {
           await expect(page.getByText('TND').first()).toBeVisible({ timeout: 120_000 });
         }

@@ -31,9 +31,10 @@ export function TunisMap({
   markers,
   fitToMarkers,
   fitInsetBottom,
+  ornamentOffset = 0,
 }: TunisMapProps) {
   const theme = useTheme();
-  const ornamentTop = (useContext(SafeAreaInsetsContext)?.top ?? 0) + ORNAMENT_TOP;
+  const ornamentTop = (useContext(SafeAreaInsetsContext)?.top ?? 0) + ORNAMENT_TOP + ornamentOffset;
   const camera = useRef<ComponentRef<typeof Camera>>(null);
   // Idempotent; must run before the native MapView mounts.
   void Mapbox.setAccessToken(accessToken);

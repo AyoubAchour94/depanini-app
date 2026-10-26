@@ -1,6 +1,6 @@
 import { router, Stack, useIsFocused } from 'expo-router';
 import { useEffect, useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { useActiveOffers, useCachedNearbyRequest, useDriverJob } from '@/api/driver';
 import { BackButton } from '@/features/map/controls';
@@ -31,6 +31,9 @@ const DETAIL_SNAPS = [610, 'full'] as const;
  */
 export function RequestDetailsScreen({ id }: { id: string }) {
   const theme = useTheme();
+  // On a short screen the sheet leaves room for the pins; the rest of the offer is a drag away.
+  const { height: windowHeight } = useWindowDimensions();
+  const firstSnap = Math.min(DETAIL_SNAPS[0], windowHeight * 0.7);
   const focused = useIsFocused();
   const request = useCachedNearbyRequest(id);
   const offers = useActiveOffers({ poll: focused });
@@ -93,13 +96,13 @@ export function RequestDetailsScreen({ id }: { id: string }) {
         centerPin={false}
         markers={markers}
         fitToMarkers
-        fitInsetBottom={DETAIL_SNAPS[0]}
+        fitInsetBottom={firstSnap}
         topStart={<BackButton onPress={goBack} />}
         pill={
           remaining === null ? undefined : <Pill label={t.timeLeft(formatRemaining(remaining))} />
         }
         sheet={{
-          snapPoints: DETAIL_SNAPS,
+          snapPoints: [firstSnap, 'full'],
           children: (
             <View style={{ gap: theme.space[4] }}>
               <View style={styles.header}>

@@ -11,6 +11,9 @@ import { expect, type Page, type Route, test } from '@playwright/test';
 // (the apps' EXPO_PUBLIC_WEB_AUTH_EMULATOR_URL). The API is answered in the
 // browser (see `mockApi`), so no API, database or Mapbox token is needed, and
 // every state of /me and of the driver's documents can be shown on demand.
+import { stubMap } from './mapStub';
+import { VIEWPORT } from './viewport';
+
 const CUSTOMER_URL = (process.env.E2E_CUSTOMER_URL ?? 'http://localhost:8081').replace(/\/$/, '');
 const DRIVER_URL = (process.env.E2E_DRIVER_URL ?? 'http://localhost:8082').replace(/\/$/, '');
 const API_ORIGIN = new URL(process.env.E2E_SHOTS_API_URL ?? 'http://localhost:3000').origin;
@@ -23,7 +26,7 @@ const TRIP_ID = '7b0c8f2e-5d1a-4c3b-9e6f-2a1b3c4d5e6f';
 const REPORT_ID = '11111111-2222-4333-8444-555555555555';
 
 test.skip(!SHOTS_DIR, 'set E2E_SHOTS_DIR to take the screenshots');
-test.use({ viewport: { width: 390, height: 844 } });
+test.use({ viewport: VIEWPORT });
 
 const button = (page: Page, name: string | RegExp) =>
   page.getByRole('button', { name, exact: typeof name === 'string' });
@@ -191,9 +194,10 @@ for (const scheme of ['light', 'dark'] as const) {
     test.setTimeout(5 * 60_000);
     const context = await browser.newContext({
       colorScheme: scheme,
-      viewport: { width: 390, height: 844 },
+      viewport: VIEWPORT,
     });
     const page = await context.newPage();
+    await stubMap(page, scheme);
     const state: ApiState = {
       me: 'error',
       customerProfile: null,
@@ -257,7 +261,7 @@ for (const scheme of ['light', 'dark'] as const) {
       await button(page, 'Continue').click();
 
       // The map home, then its Account link (a reload would lose the in-app route).
-      await page.getByText('Account', { exact: true }).click();
+      await button(page, 'Account').click();
       await expect(button(page, 'Sign out')).toBeVisible({ timeout: 30_000 });
       await shot('11-account');
       await button(page, 'Edit details').click();
@@ -295,9 +299,10 @@ for (const scheme of ['light', 'dark'] as const) {
     test.setTimeout(5 * 60_000);
     const context = await browser.newContext({
       colorScheme: scheme,
-      viewport: { width: 390, height: 844 },
+      viewport: VIEWPORT,
     });
     const page = await context.newPage();
+    await stubMap(page, scheme);
     const state: ApiState = {
       me: 'ok',
       customerProfile: null,
@@ -332,7 +337,7 @@ for (const scheme of ['light', 'dark'] as const) {
       await expect(page.getByText("Driver's licence")).toBeVisible({ timeout: 30_000 });
       await shot('06-documents-start');
       await page.goBack();
-      await page.getByText('Account', { exact: true }).click();
+      await button(page, 'Account').click();
       await expect(button(page, 'Sign out')).toBeVisible({ timeout: 30_000 });
       await shot('04-account');
       await button(page, 'Edit details').click();
@@ -350,21 +355,23 @@ for (const scheme of ['light', 'dark'] as const) {
       };
 
       await openDocuments('rejected');
-      await expect(page.getByText(/The insurance certificate has expired/)).toBeVisible();
+      await expect(page.getByText(/The insurance certificate has expired/).last()).toBeVisible();
       await shot('07-documents-rejected');
 
       // A pending check is re-read every 15 seconds, so the decision shows up by itself.
       await openDocuments('pending');
-      await expect(page.getByText(/Under review/)).toBeVisible();
+      await expect(page.getByText(/Under review/).last()).toBeVisible();
       await shot('08-documents-pending');
       state.verification = 'approved';
-      await expect(page.getByText(/Approved. You can go online/)).toBeVisible({ timeout: 40_000 });
+      await expect(page.getByText(/Approved. You can go online/).last()).toBeVisible({
+        timeout: 40_000,
+      });
       await shot('09-documents-approved');
 
       // No answer for the documents: open the screen by URL while the home still retries.
       state.verification = 'error';
       await page.goto(DRIVER_URL);
-      await expect(page.getByText('Offline')).toBeVisible({ timeout: 60_000 });
+      await expect(page.getByText('Offline', { exact: true })).toBeVisible({ timeout: 60_000 });
       await page.evaluate(() => {
         window.history.pushState(null, '', '/verification');
         window.dispatchEvent(new PopStateEvent('popstate'));

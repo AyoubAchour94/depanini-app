@@ -10,6 +10,9 @@ import { expect, type Page, test } from '@playwright/test';
 // with a running API and Auth emulator, and the Mapbox token in apps/mobile/.env.
 // It leaves an open request per run behind, so use a fresh database before the
 // tow-flow spec.
+import { stubMap } from './mapStub';
+import { VIEWPORT } from './viewport';
+
 const CUSTOMER_URL = (process.env.E2E_CUSTOMER_URL ?? 'http://localhost:8081').replace(/\/$/, '');
 const SHOTS_DIR = process.env.E2E_SHOTS_DIR;
 
@@ -25,7 +28,7 @@ const SEARCH_RESULTS = [
 
 test.skip(!SHOTS_DIR, 'set E2E_SHOTS_DIR to take the screenshots');
 test.use({
-  viewport: { width: 390, height: 844 },
+  viewport: VIEWPORT,
   geolocation: TUNIS,
   permissions: ['geolocation'],
 });
@@ -61,17 +64,19 @@ for (const scheme of ['light', 'dark'] as const) {
     test.setTimeout(5 * 60_000);
     const context = await browser.newContext({
       colorScheme: scheme,
-      viewport: { width: 390, height: 844 },
+      viewport: VIEWPORT,
       geolocation: TUNIS,
       permissions: ['geolocation'],
     });
     const page = await context.newPage();
+    await stubMap(page, scheme);
     await stubSearch(page);
     const shot = (name: string) => page.screenshot({ path: `${SHOTS_DIR}/${scheme}-${name}.png` });
 
     try {
       await page.goto(CUSTOMER_URL);
       await button(page, 'New here? Create an account').click();
+      await expect(page.getByText('Create your account')).toBeVisible();
       await field(page, 'Email').fill(`e2e-shots-${scheme}-${run}@example.com`);
       await field(page, 'Password').fill(PASSWORD);
       await field(page, 'Confirm password').fill(PASSWORD);
@@ -115,7 +120,7 @@ for (const scheme of ['light', 'dark'] as const) {
       await page.setViewportSize({ width: 360, height: 640 });
       await settle(page);
       await shot('6b-fare-small-phone');
-      await page.setViewportSize({ width: 390, height: 844 });
+      await page.setViewportSize(VIEWPORT);
 
       await button(page, /^Send request/).click();
       await expect(page.getByText('Waiting for drivers…')).toBeVisible();

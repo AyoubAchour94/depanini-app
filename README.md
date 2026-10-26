@@ -265,7 +265,9 @@ npx playwright install chromium             # once
 E2E_CUSTOMER_URL=http://localhost:8081 E2E_DRIVER_URL=http://localhost:8082 pnpm e2e:web
 ```
 
-Both URLs default to the values above. The browsers report a position in
+Both URLs default to the values above. The apps need a **real** Mapbox public
+token: with a fake one the map's 403 error toast covers buttons and the clicks
+time out (the screenshot specs avoid this with `E2E_SHOTS_MAP_STUB=1`). The browsers report a position in
 Tunis, the driver uses the **Test location** row (dev builds), and the
 drop-off search is answered with a fixed La Marsa, Tunis (Mapbox can rank a
 namesake 400 km away first). A leftover request from an earlier run does not

@@ -17,6 +17,8 @@ const TUNIS = { latitude: 36.8065, longitude: 10.1815 };
 const PASSWORD = 'Passw0rd!e2e';
 const run = Date.now().toString(36);
 const DROPOFF_ADDRESS = `La Marsa ${run}, Tunis, Tunisie`;
+/** How the screens show it: street and area, without the country (`shortAddress`). */
+const DROPOFF_SHOWN = `La Marsa ${run}, Tunis`;
 const customer = {
   email: `e2e-customer-${run}@example.com`,
   name: `E2E Customer ${run}`,
@@ -278,7 +280,7 @@ test('customer requests a tow and a driver completes it', async ({ browser }, te
     // A new request reaches the driver as a `nearby.changed` push over the socket.
     // The drop-off is unique to this run, so requests left by other runs are ignored.
     await button(d, /^View request/)
-      .filter({ hasText: DROPOFF_ADDRESS })
+      .filter({ hasText: DROPOFF_SHOWN })
       .click({ timeout: 10_000 });
     const acceptFor = d.getByRole('button', { name: /^Accept \d+ TND$/ });
     const fare = Number(/\d+/.exec(await acceptFor.innerText())![0]);
@@ -364,7 +366,7 @@ test('customer requests a tow and a driver completes it', async ({ browser }, te
       await online.click();
       await expect(online).toBeChecked();
     }
-    const row = button(d, /^View request/).filter({ hasText: DROPOFF_ADDRESS });
+    const row = button(d, /^View request/).filter({ hasText: DROPOFF_SHOWN });
     await expect(row).toContainText('New', { timeout: 10_000 });
     await row.click();
     const acceptAgain = d.getByRole('button', { name: /^Accept \d+ TND$/ });
