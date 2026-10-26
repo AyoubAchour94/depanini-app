@@ -38,9 +38,13 @@ const IPV6 =
   /(?<![\w:])(?:(?:[\da-f]{1,4}:){7}[\da-f]{1,4}|(?:[\da-f]{1,4}:){1,7}:(?:[\da-f]{1,4}(?::[\da-f]{1,4}){0,6})?|::[\da-f]{1,4}(?::[\da-f]{1,4}){0,6})(?![\w:])/gi;
 
 const MAX_DEPTH = 12;
+// The regexes above backtrack quadratically on long numeric-ish text, so long strings are cut first.
+const MAX_TEXT_LENGTH = 2000;
 
 export function scrubText(text: string): string {
-  return text
+  const kept =
+    text.length > MAX_TEXT_LENGTH ? `${text.slice(0, MAX_TEXT_LENGTH)}…[truncated]` : text;
+  return kept
     .replace(BEARER, 'Bearer [token]')
     .replace(JWT, '[token]')
     .replace(URL_SECRET, '$1[token]')

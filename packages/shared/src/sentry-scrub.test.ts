@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { scrubSentryEvent } from './sentry-scrub';
+import { scrubSentryEvent, scrubText } from './sentry-scrub';
 
 describe('scrubSentryEvent', () => {
   it('drops the credentials and network identity from the request', () => {
@@ -102,6 +102,34 @@ describe('scrubSentryEvent', () => {
       ]) {
         expect(scrubbed(text)).toBe(text);
       }
+    });
+  });
+
+  describe('long strings', () => {
+    const fastestMs = (text: string) => {
+      scrubText(text);
+      let best = Number.POSITIVE_INFINITY;
+      for (let run = 0; run < 3; run++) {
+        const started = performance.now();
+        scrubText(text);
+        best = Math.min(best, performance.now() - started);
+      }
+      return best;
+    };
+
+    it('scrubs a 100k-character numeric string in under 50 ms', () => {
+      expect(fastestMs('1.'.repeat(50000))).toBeLessThan(50);
+    });
+
+    it('truncates text past 2000 characters with a marker and masks only what is kept', () => {
+      // The first 2000 characters are `a@b.tn ` and 1993 `x`; the email after them is cut off.
+      const text = `a@b.tn ${'x'.repeat(1993)} c@d.tn`;
+      expect(scrubText(text)).toBe(`[email] ${'x'.repeat(1993)}…[truncated]`);
+    });
+
+    it('leaves text of 2000 characters or less unchanged', () => {
+      const text = 'z'.repeat(2000);
+      expect(scrubText(text)).toBe(text);
     });
   });
 
