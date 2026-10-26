@@ -280,7 +280,7 @@ test('customer requests a tow and a driver completes it', async ({ browser }, te
     await button(d, /^View request/)
       .filter({ hasText: DROPOFF_ADDRESS })
       .click({ timeout: 10_000 });
-    const acceptFor = d.getByRole('button', { name: /^Accept for \d+ TND$/ });
+    const acceptFor = d.getByRole('button', { name: /^Accept \d+ TND$/ });
     const fare = Number(/\d+/.exec(await acceptFor.innerText())![0]);
     await acceptFor.click();
     await expect(shown(d, `Your offer: ${fare} TND`)).toBeVisible();
@@ -367,7 +367,7 @@ test('customer requests a tow and a driver completes it', async ({ browser }, te
     const row = button(d, /^View request/).filter({ hasText: DROPOFF_ADDRESS });
     await expect(row).toContainText('New', { timeout: 10_000 });
     await row.click();
-    const acceptAgain = d.getByRole('button', { name: /^Accept for \d+ TND$/ });
+    const acceptAgain = d.getByRole('button', { name: /^Accept \d+ TND$/ });
     await expect(shown(d, 'New')).toBeVisible();
     await acceptAgain.click();
     const offerCard = c.locator('div:visible', { hasText: driver.name }).filter({
