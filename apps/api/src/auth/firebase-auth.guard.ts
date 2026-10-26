@@ -31,16 +31,37 @@ export class FirebaseAuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const token = extractBearerToken(request.headers.authorization);
-    if (!token) throw new UnauthorizedException('Missing bearer token');
+    const verification = verifyBearerToken(request, this.verifier);
+    if (!verification) throw new UnauthorizedException('Missing bearer token');
 
     try {
-      request.user = await this.verifier.verifyIdToken(token);
+      request.user = await verification;
     } catch {
       throw new UnauthorizedException('Invalid or expired token');
     }
     return true;
   }
+}
+
+const verifications = new WeakMap<object, Promise<DecodedIdToken>>();
+
+/**
+ * Verifies the request's bearer token, once per request: the rate limiter (which runs
+ * first, to track signed-in users by uid) and {@link FirebaseAuthGuard} share the result.
+ * `undefined` when there is no bearer token; rejects when it is invalid or expired.
+ */
+export function verifyBearerToken(
+  request: FastifyRequest,
+  verifier: IdTokenVerifier,
+): Promise<DecodedIdToken> | undefined {
+  const token = extractBearerToken(request.headers.authorization);
+  if (!token) return undefined;
+  let verification = verifications.get(request);
+  if (!verification) {
+    verification = verifier.verifyIdToken(token);
+    verifications.set(request, verification);
+  }
+  return verification;
 }
 
 function extractBearerToken(header: string | undefined): string | undefined {

@@ -1,13 +1,12 @@
 import 'reflect-metadata';
 
 import { NestFactory } from '@nestjs/core';
-import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
-import { WsAdapter } from '@nestjs/platform-ws';
+import type { NestFastifyApplication } from '@nestjs/platform-fastify';
+import { Logger } from 'nestjs-pino';
 
 import { AppModule } from './app.module.js';
-import type { Env } from './config/env.js';
-import { ENV } from './config/env.module.js';
-import { registerMultipart } from './files/multipart.js';
+import { parseEnv } from './config/env.js';
+import { configureApp, createFastifyAdapter } from './http/configure-app.js';
 
 // Local dev convenience: load apps/api/.env when present. In production
 // (Cloud Run) variables are set on the service and no file exists.
@@ -18,20 +17,16 @@ try {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
+  // Parsed here too because the adapter is built before the app (and its ENV provider).
+  const env = parseEnv(process.env);
+  const app = await NestFactory.create<NestFastifyApplication>(
+    AppModule,
+    createFastifyAdapter(env),
+    { bufferLogs: true },
+  );
+  app.useLogger(app.get(Logger));
   app.enableShutdownHooks();
-  await registerMultipart(app);
-  // `/ws` (see src/realtime) shares the HTTP server and port.
-  app.useWebSocketAdapter(new WsAdapter(app));
-
-  const env = app.get<Env>(ENV);
-  // @fastify/cors only allows GET, HEAD and POST by default.
-  if (env.CORS_ORIGINS.length > 0) {
-    app.enableCors({
-      origin: env.CORS_ORIGINS,
-      methods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE'],
-    });
-  }
+  await configureApp(app, env);
   // 0.0.0.0 so the server is reachable inside a container and from devices on the LAN.
   await app.listen(env.PORT, '0.0.0.0');
 }
