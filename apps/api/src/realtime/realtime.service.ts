@@ -15,9 +15,8 @@ export const CLOSE_TOO_MANY_SOCKETS = 4000;
  * The authenticated `/ws` sockets of this API instance, by user id (one user may
  * have several, e.g. a phone and a browser).
  *
- * Single instance only: the registry is in memory, so an event reaches the sockets
- * connected to the instance that published it. Running more than one instance needs
- * a pub/sub between them (Phase 9, with the production deploy). See `docs/realtime.md`.
+ * The registry is in memory and only holds this instance's sockets: events reach the
+ * other instances' sockets through the `EventBus` (see `TripEvents`, `docs/realtime.md`).
  */
 @Injectable()
 export class RealtimeService {
@@ -44,6 +43,11 @@ export class RealtimeService {
   /** Whether the user has a socket here; lets publishers skip building payloads nobody gets. */
   isConnected(userId: string): boolean {
     return this.sockets.has(userId);
+  }
+
+  /** Whether anyone has a socket here; with none, an event needs no reading at all. */
+  hasSockets(): boolean {
+    return this.sockets.size > 0;
   }
 
   /** Sends to every open socket of the user; nothing if there is none. */

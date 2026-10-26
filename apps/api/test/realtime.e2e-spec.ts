@@ -8,6 +8,7 @@ import {
   suggestFare,
   towRequestSchema,
 } from '@depanini/shared';
+import { Logger } from '@nestjs/common';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 import request from 'supertest';
@@ -24,12 +25,13 @@ const sousse = { latitude: 35.8256, longitude: 10.6084, address: 'Sousse' };
 const laMarsa = { latitude: 36.878, longitude: 10.325 };
 const ariana = { latitude: 36.8625, longitude: 10.1956 };
 
+/**
+ * The timer tests run on their own app with these. The shared app keeps the real 10 s / 30 s:
+ * short timers there could close a socket that a loaded CI runner was slow to authenticate
+ * or to answer a ping for, and the test then waited for an `auth.ok` that never came (#128).
+ */
 const AUTH_TIMEOUT_MS = 300;
-const HEARTBEAT_MS = 150;
-/** Long enough for a frame that was going to arrive to have arrived. */
-const QUIET_MS = 150;
-
-const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const HEARTBEAT_MS = 500;
 
 describe('realtime /ws (e2e)', () => {
   const database = connectTestDatabase();
@@ -38,10 +40,7 @@ describe('realtime /ws (e2e)', () => {
   const sockets: TestSocket[] = [];
 
   beforeAll(async () => {
-    app = await createTestApp(database.db, {
-      now: () => now,
-      realtime: { authTimeoutMs: AUTH_TIMEOUT_MS, heartbeatMs: HEARTBEAT_MS },
-    });
+    app = await createTestApp(database.db, { now: () => now });
     await app.listen(0, '127.0.0.1');
   });
 
@@ -72,15 +71,29 @@ describe('realtime /ws (e2e)', () => {
     const req = request(app.getHttpServer())[method](path);
     return token ? req.set('Authorization', `Bearer ${token}`) : req;
   };
-  const connect = async (token: string) => {
-    const client = await connectAs(app, token);
+  const connect = async (token: string, on = app) => {
+    const client = await connectAs(on, token);
     sockets.push(client);
     return client;
   };
-  const open = async () => {
-    const client = await openSocket(app);
+  const open = async (on = app, options?: Parameters<typeof openSocket>[1]) => {
+    const client = await openSocket(on, options);
     sockets.push(client);
     return client;
+  };
+  /** Runs `test` on a second app built with `options` (timers, verifier), closed afterwards. */
+  const withApp = async (
+    options: Parameters<typeof createTestApp>[1],
+    test: (other: NestFastifyApplication) => Promise<void>,
+  ) => {
+    const other = await createTestApp(database.db, { now: () => now, ...options });
+    await other.listen(0, '127.0.0.1');
+    try {
+      await test(other);
+    } finally {
+      for (const client of sockets) client.close();
+      await other.close();
+    }
   };
   const goOnline = (token: string, location: { latitude: number; longitude: number } = laMarsa) =>
     api('put', '/driver/presence', token).send({ online: true, location }).expect(200);
@@ -140,17 +153,23 @@ describe('realtime /ws (e2e)', () => {
   };
   const stage = (to: string) =>
     api('post', '/driver/job/stage', dan).send({ stage: to }).expect(200);
-  /** Nothing arrived, bar `nearby.changed` hints: online drivers near a request get those on any open-list change. */
+  /**
+   * Nothing arrived, bar `nearby.changed` hints: online drivers near a request get those on
+   * any open-list change. Events go out before the REST call answers, so once the socket
+   * has settled, anything that was going to arrive has.
+   */
   const expectQuiet = async (...clients: TestSocket[]) => {
-    await pause(QUIET_MS);
     for (const client of clients) {
+      await client.settle();
       expect(client.inbox.filter((message) => message.type !== 'nearby.changed')).toEqual([]);
     }
   };
   /** Nothing at all arrived, hints included. */
   const expectSilent = async (...clients: TestSocket[]) => {
-    await pause(QUIET_MS);
-    for (const client of clients) expect(client.inbox).toEqual([]);
+    for (const client of clients) {
+      await client.settle();
+      expect(client.inbox).toEqual([]);
+    }
   };
 
   describe('authentication', () => {
@@ -168,16 +187,27 @@ describe('realtime /ws (e2e)', () => {
     });
 
     it('closes a socket that does not authenticate in time', async () => {
-      const client = await open();
-      const started = Date.now();
-      expect((await client.closed).code).toBe(4408);
-      expect(Date.now() - started).toBeGreaterThanOrEqual(AUTH_TIMEOUT_MS - 50);
+      await withApp({ realtime: { authTimeoutMs: AUTH_TIMEOUT_MS } }, async (other) => {
+        const client = await open(other);
+        const started = Date.now();
+        expect((await client.closed).code).toBe(4408);
+        expect(Date.now() - started).toBeGreaterThanOrEqual(AUTH_TIMEOUT_MS - 50);
+      });
     });
 
     it('closes a socket that sends a frame over 16 KiB', async () => {
-      const client = await open();
-      client.socket.send('x'.repeat(16 * 1024 + 1));
-      expect((await client.closed).code).toBe(1009);
+      // `ws` refuses the frame with a RangeError, which WsAdapter logs as an error: expected here.
+      const logged = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+      try {
+        const client = await open();
+        client.socket.send('x'.repeat(16 * 1024 + 1));
+        expect((await client.closed).code).toBe(1009);
+        expect(logged).toHaveBeenCalledWith(
+          expect.objectContaining({ message: 'Max payload size exceeded' }),
+        );
+      } finally {
+        logged.mockRestore();
+      }
     });
 
     it('ignores messages before auth, then still accepts auth', async () => {
@@ -199,30 +229,19 @@ describe('realtime /ws (e2e)', () => {
     });
 
     it('closes the socket when the token expires', async () => {
-      await app.close();
       const shortLived = {
         verifyIdToken: async (token: string) => ({
           ...(await fakeVerifier.verifyIdToken(token)),
           exp: Date.now() / 1000 + 0.3,
         }),
       };
-      app = await createTestApp(database.db, { now: () => now, verifier: shortLived });
-      await app.listen(0, '127.0.0.1');
-      try {
-        const client = await connect(alice);
+      await withApp({ verifier: shortLived }, async (other) => {
+        const client = await connect(alice, other);
         expect((await client.closed).code).toBe(4401);
-      } finally {
-        await app.close();
-        app = await createTestApp(database.db, {
-          now: () => now,
-          realtime: { authTimeoutMs: AUTH_TIMEOUT_MS, heartbeatMs: HEARTBEAT_MS },
-        });
-        await app.listen(0, '127.0.0.1');
-      }
+      });
     });
 
     it('rejects a token with no expiry', async () => {
-      await app.close();
       const noExpiry = {
         verifyIdToken: async (token: string) =>
           ({
@@ -230,39 +249,38 @@ describe('realtime /ws (e2e)', () => {
             exp: undefined,
           }) as unknown as DecodedIdToken,
       };
-      app = await createTestApp(database.db, { now: () => now, verifier: noExpiry });
-      await app.listen(0, '127.0.0.1');
-      try {
-        const client = await open();
+      await withApp({ verifier: noExpiry }, async (other) => {
+        const client = await open(other);
         client.send({ type: 'auth', token: alice });
         await client.next('auth.error');
         expect((await client.closed).code).toBe(4401);
-      } finally {
-        await app.close();
-        app = await createTestApp(database.db, {
-          now: () => now,
-          realtime: { authTimeoutMs: AUTH_TIMEOUT_MS, heartbeatMs: HEARTBEAT_MS },
-        });
-        await app.listen(0, '127.0.0.1');
-      }
+      });
     });
   });
 
   describe('heartbeat', () => {
+    const heartbeat = { realtime: { heartbeatMs: HEARTBEAT_MS } };
+
     it('keeps a socket that answers pings', async () => {
-      const client = await connect(alice);
-      await pause(HEARTBEAT_MS * 4);
-      expect(client.socket.readyState).toBe(client.socket.OPEN);
+      await withApp(heartbeat, async (other) => {
+        const client = await connect(alice, other);
+        // The server pings again only a socket that answered the previous ping.
+        await new Promise<void>((resolve) => {
+          let pings = 0;
+          client.socket.on('ping', () => ++pings === 2 && resolve());
+        });
+        expect(client.socket.readyState).toBe(client.socket.OPEN);
+      });
     });
 
     it('drops a socket that stops answering pings', async () => {
-      const client = await openSocket(app, { autoPong: false });
-      sockets.push(client);
-      client.send({ type: 'auth', token: alice });
-      await client.next('auth.ok');
-      const { code } = await client.closed;
-      // Terminated, not closed: there is no close frame.
-      expect(code).toBe(1006);
+      await withApp(heartbeat, async (other) => {
+        // Unauthenticated sockets are pinged too, and the 10 s auth timeout is far off.
+        const client = await open(other, { autoPong: false });
+        const { code } = await client.closed;
+        // Terminated, not closed: there is no close frame.
+        expect(code).toBe(1006);
+      });
     });
   });
 

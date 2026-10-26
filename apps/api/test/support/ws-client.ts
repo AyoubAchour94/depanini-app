@@ -14,8 +14,17 @@ export interface TestSocket {
   readonly invalid: unknown[];
   /** Resolves when the server closes the socket. */
   readonly closed: Promise<{ code: number; reason: string }>;
-  /** Takes the oldest message of `type`, waiting up to `timeoutMs` for one to arrive. */
-  next<T extends WsServerMessage['type']>(type: T, timeoutMs?: number): Promise<MessageOf<T>>;
+  /**
+   * Takes the oldest message of `type`, waiting for one to arrive. Fails as soon as the
+   * socket closes without one; otherwise the test's own timeout bounds the wait.
+   */
+  next<T extends WsServerMessage['type']>(type: T): Promise<MessageOf<T>>;
+  /**
+   * Resolves once every frame the server sent before it saw this call has arrived: a ping
+   * and its pong travel the same connection as the messages, in order. Use it, not a
+   * pause, before checking that something was *not* sent by this instance.
+   */
+  settle(): Promise<void>;
   send(message: unknown): void;
   close(): void;
 }
@@ -34,7 +43,9 @@ export async function openSocket(
   const socket = new WebSocket(wsUrl(app), options);
   const inbox: WsServerMessage[] = [];
   const invalid: unknown[] = [];
-  const waiters = new Set<() => void>();
+  /** Called on every message and on the close; each returns whether it is done. */
+  const waiters = new Set<() => boolean>();
+  let closeCode: number | undefined;
 
   socket.on('message', (data) => {
     let json: unknown;
@@ -51,10 +62,15 @@ export async function openSocket(
     }
     // Keep the frame as sent, not as parsed: zod would strip keys the schema does not know.
     inbox.push(json as WsServerMessage);
-    for (const wake of waiters) wake();
+    for (const wake of waiters) if (wake()) waiters.delete(wake);
   });
   const closed = new Promise<{ code: number; reason: string }>((resolve) =>
-    socket.on('close', (code, reason) => resolve({ code, reason: String(reason) })),
+    socket.on('close', (code, reason) => {
+      closeCode = code;
+      for (const wake of waiters) wake();
+      waiters.clear();
+      resolve({ code, reason: String(reason) });
+    }),
   );
   await new Promise<void>((resolve, reject) => {
     socket.once('open', resolve);
@@ -71,22 +87,25 @@ export async function openSocket(
     inbox,
     invalid,
     closed,
-    next: (type, timeoutMs = 2000) =>
-      new Promise((resolve, reject) => {
-        const found = take(type);
-        if (found) return resolve(found);
+    next: <T extends WsServerMessage['type']>(type: T) =>
+      new Promise<MessageOf<T>>((resolve, reject) => {
         const wake = () => {
           const message = take(type);
-          if (!message) return;
-          waiters.delete(wake);
-          clearTimeout(timer);
-          resolve(message);
+          if (message) resolve(message);
+          else if (closeCode !== undefined) {
+            reject(new Error(`Socket closed (${closeCode}) before ${type} arrived`));
+          } else return false;
+          return true;
         };
-        const timer = setTimeout(() => {
-          waiters.delete(wake);
-          reject(new Error(`No ${type} within ${timeoutMs} ms`));
-        }, timeoutMs);
-        waiters.add(wake);
+        if (!wake()) waiters.add(wake);
+      }),
+    settle: () =>
+      new Promise<void>((resolve, reject) => {
+        if (closeCode !== undefined) return resolve();
+        // A closed socket has nothing more to deliver either.
+        void closed.then(() => resolve());
+        socket.once('pong', () => resolve());
+        socket.ping((error?: Error) => error && reject(error));
       }),
     send: (message) => socket.send(JSON.stringify(message)),
     close: () => socket.close(),

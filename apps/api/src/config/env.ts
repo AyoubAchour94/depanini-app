@@ -13,6 +13,12 @@ const envSchema = z
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     PORT: z.coerce.number().int().positive().default(3000),
     DATABASE_URL: z.url(),
+    /**
+     * The same database without a transaction pooler, for the one connection per instance
+     * that LISTENs for the other instances' realtime events (a pooler such as PgBouncer or
+     * Neon's `-pooler` host cannot hold a LISTEN). Defaults to `DATABASE_URL`.
+     */
+    DATABASE_LISTEN_URL: z.url().optional(),
     /** Most Postgres connections the API opens. */
     DB_POOL_MAX: z.coerce.number().int().positive().default(10),
     /** How long a request waits for a free connection before failing with `503`. */
