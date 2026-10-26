@@ -134,6 +134,23 @@ export const driverDocuments = pgTable(
 );
 
 /**
+ * Append-only log of document uploads, one row per accepted upload. The upload limit counts
+ * these rows, not `files`, so deleting a page does not give the slot back. Rows go only
+ * with the driver's account.
+ */
+export const documentUploads = pgTable(
+  'document_uploads',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    driverUserId: uuid('driver_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('document_uploads_driver_created_idx').on(table.driverUserId, table.createdAt)],
+);
+
+/**
  * A PostGIS `geography(Point, 4326)` column. Written and read through SQL
  * (`ST_MakePoint`, `ST_X`/`ST_Y`), so the driver value is never used.
  */
