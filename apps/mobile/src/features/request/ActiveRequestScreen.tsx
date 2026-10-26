@@ -6,34 +6,47 @@ import {
 } from '@depanini/shared';
 import { router, useIsFocused } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
 import { useActiveTowRequest, useCancelTowRequest } from '@/api/towRequests';
-import { LiveIndicator } from '@/realtime/LiveIndicator';
+import { BackButton } from '@/features/map/controls';
+import { MapScreen } from '@/features/map/MapScreen';
+import { useRealtimeStatus } from '@/realtime/status';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
+import { Card } from '@/ui/Card';
 import { ChoiceField } from '@/ui/ChoiceField';
+import { Divider } from '@/ui/Divider';
+import { Pill } from '@/ui/Pill';
+import { Text } from '@/ui/Text';
 
 import { AssignedDriver } from './AssignedDriver';
 import { CompletedSummary } from './CompletedSummary';
 import { confirmCancel } from './confirm';
 import { formatRemaining, useCountdown } from './countdown';
 import { OffersList } from './OffersList';
+import { CenterState, PlainScreen } from './PlainScreen';
 import { useRequestFlow } from './RequestFlowContext';
 import { RequestSummary } from './RequestSummary';
 import { requestStrings as t } from './strings';
-import { Timeline, TripMap, TripStatus } from './TripProgress';
+import { TripStatus, tripMarkers } from './TripProgress';
+
+/** Snap points of the request sheet: the first fits the title, an offer or two and Cancel. */
+const SHEET_SNAPS = [440, 'full'] as const;
 
 /**
  * The customer's open request: waiting for drivers, with the time left and a
  * way to cancel. It always reads `GET /tow-requests/active`; when that says
  * there is none any more (expired, or cancelled elsewhere) it shows what was
- * last seen with a way to request again.
+ * last seen with a way to request again. While it is open or assigned it is a
+ * map with the offers, then the live trip, in the sheet.
  */
 export function ActiveRequestScreen() {
   const theme = useTheme();
   const focused = useIsFocused();
+  const live = useRealtimeStatus() === 'live';
+  const { height: windowHeight } = useWindowDimensions();
   const active = useActiveTowRequest({ poll: focused });
   const cancel = useCancelTowRequest();
   const { startFrom } = useRequestFlow();
@@ -60,18 +73,20 @@ export function ActiveRequestScreen() {
 
   if (active.isPending) {
     return (
-      <View style={[styles.center, { backgroundColor: theme.background }]}>
-        <ActivityIndicator color={theme.brand} />
-        <Text style={{ color: theme.textMuted }}>{t.loadingRequest}</Text>
-      </View>
+      <CenterState>
+        <ActivityIndicator color={theme.color.brandAccent} />
+        <Text tone="muted">{t.loadingRequest}</Text>
+      </CenterState>
     );
   }
   if (active.isError && !active.data && !lastSeen) {
     return (
-      <View style={[styles.center, { backgroundColor: theme.background }]}>
-        <Text style={[styles.message, { color: theme.danger }]}>{t.loadFailed}</Text>
+      <CenterState>
+        <Text tone="danger" style={styles.message}>
+          {t.loadFailed}
+        </Text>
         <Button title={t.retry} onPress={() => void active.refetch()} />
-      </View>
+      </CenterState>
     );
   }
 
@@ -97,103 +112,139 @@ export function ActiveRequestScreen() {
         },
       );
     };
+    const sheetTop = Math.min(SHEET_SNAPS[0], windowHeight * 0.6);
+    const pillLabel = open
+      ? `${live ? t.live : t.reconnecting} · ${
+          remaining === 0 ? t.expiring : t.timeLeft(formatRemaining(remaining ?? 0))
+        }`
+      : t.assignedTitle;
     return (
-      <ScrollView
-        style={{ backgroundColor: theme.background }}
-        contentContainerStyle={styles.content}
-      >
-        <LiveIndicator live={t.live} reconnecting={t.reconnecting} />
-        {open ? (
-          <>
-            <Text style={[styles.title, { color: theme.text }]}>{t.waitingForDrivers}</Text>
-            <Text accessibilityLiveRegion="polite" style={{ color: theme.textMuted }}>
-              {remaining === 0 ? t.expiring : `${t.expiresIn} ${formatRemaining(remaining ?? 0)}`}
-            </Text>
-            <RequestSummary request={open} />
-            <OffersList request={open} focused={focused} />
-          </>
-        ) : (
-          <>
-            <Text style={[styles.title, { color: theme.text }]}>{t.assignedTitle}</Text>
-            <TripMap request={current} />
-            <TripStatus request={current} />
-            <Timeline request={current} />
-            <AssignedDriver request={current} />
-            <RequestSummary request={current} />
-          </>
-        )}
-        {conflict ? <Text style={{ color: theme.warning }}>{t.cancelConflict}</Text> : null}
-        {cancel.isError && !conflict ? (
-          <Text style={{ color: theme.danger }}>{t.cancelFailed}</Text>
-        ) : null}
-        {rule === 'no' ? (
-          <Text style={{ color: theme.textMuted }}>{t.cancelUnavailable}</Text>
-        ) : (
-          <>
-            {rule === 'with_reason' ? (
-              <ChoiceField
-                label={t.cancelReasonLabel}
-                wrap
-                options={CUSTOMER_CANCEL_REASONS.map((value) => ({
-                  value,
-                  label: t.cancelReasons[value],
-                }))}
-                value={reason}
-                onChange={(value) => {
-                  setReason(value);
-                  setReasonMissing(false);
-                }}
-                error={reasonMissing ? t.cancelReasonRequired : undefined}
-              />
-            ) : null}
-            <Button
-              kind="danger"
-              title={t.cancelRequest}
-              loading={cancel.isPending}
-              disabled={open ? remaining === 0 : false}
-              onPress={() => void onCancel()}
-            />
-          </>
-        )}
-      </ScrollView>
+      <MapScreen
+        center={current.pickup}
+        markers={
+          open
+            ? [
+                { id: 'pickup', kind: 'pickup', coordinate: open.pickup },
+                { id: 'dropoff', kind: 'dropoff', coordinate: open.dropoff },
+              ]
+            : tripMarkers(current)
+        }
+        fitToMarkers
+        fitInsetBottom={sheetTop}
+        topStart={<BackButton onPress={goHome} />}
+        pill={
+          <View accessibilityLiveRegion="polite">
+            <Pill dot={live} label={pillLabel} />
+          </View>
+        }
+        sheet={{
+          snapPoints: SHEET_SNAPS,
+          scrollResetKey: open ? 'offers' : 'trip',
+          children: (
+            <View style={{ gap: theme.space[4] }}>
+              {open ? (
+                <OffersList request={open} focused={focused} />
+              ) : (
+                <>
+                  <TripStatus request={current} />
+                  <Divider />
+                  <AssignedDriver request={current} />
+                </>
+              )}
+              <Divider />
+              <RequestSummary request={current} showFare={false} />
+              {rule === 'with_reason' ? (
+                <ChoiceField
+                  label={t.cancelReasonLabel}
+                  wrap
+                  options={CUSTOMER_CANCEL_REASONS.map((value) => ({
+                    value,
+                    label: t.cancelReasons[value],
+                  }))}
+                  value={reason}
+                  onChange={(value) => {
+                    setReason(value);
+                    setReasonMissing(false);
+                  }}
+                  error={reasonMissing ? t.cancelReasonRequired : undefined}
+                />
+              ) : null}
+            </View>
+          ),
+          footer: (
+            <View style={{ gap: theme.space[2] }}>
+              {conflict ? <Text tone="warning">{t.cancelConflict}</Text> : null}
+              {cancel.isError && !conflict ? <Text tone="danger">{t.cancelFailed}</Text> : null}
+              {rule === 'no' ? (
+                <Text tone="muted">{t.cancelUnavailable}</Text>
+              ) : (
+                <CancelAction
+                  disabled={cancel.isPending || (open ? remaining === 0 : false)}
+                  onPress={() => void onCancel()}
+                />
+              )}
+            </View>
+          ),
+        }}
+      />
     );
   }
 
   if (!ended) {
     return (
-      <View style={[styles.center, { backgroundColor: theme.background }]}>
-        <Text style={[styles.title, { color: theme.text }]}>{t.noActiveTitle}</Text>
+      <CenterState>
+        <Text variant="title">{t.noActiveTitle}</Text>
         <Button title={t.backHome} onPress={goHome} />
-      </View>
+      </CenterState>
     );
   }
 
   const expired = ended.status === 'expired' || remaining === 0;
   return (
-    <ScrollView
-      style={{ backgroundColor: theme.background }}
-      contentContainerStyle={styles.content}
+    <PlainScreen
+      footer={
+        <>
+          <Button
+            size="big"
+            title={t.requestAgain}
+            onPress={() => {
+              startFrom(ended);
+              // Same places, vehicle and problem; the fare step is next, with a fresh estimate.
+              router.push('/request/fare');
+            }}
+          />
+          <Button kind="link" title={t.backHome} onPress={goHome} />
+        </>
+      }
     >
-      <Text style={[styles.title, { color: theme.text }]}>
-        {expired ? t.expiredTitle : t.cancelledTitle}
+      <Text variant="title">{expired ? t.expiredTitle : t.cancelledTitle}</Text>
+      <Card>
+        <RequestSummary request={ended} />
+      </Card>
+    </PlainScreen>
+  );
+}
+
+/** "Cancel request": plain danger text under the offers, so it never competes with Accept. */
+function CancelAction({ onPress, disabled }: { onPress: () => void; disabled: boolean }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={t.cancelRequest}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      hitSlop={8}
+      style={[styles.cancel, { opacity: disabled ? 0.5 : 1 }]}
+    >
+      <Text variant="bodyStrong" tone="danger">
+        {t.cancelRequest}
       </Text>
-      <RequestSummary request={ended} />
-      <Button
-        title={t.requestAgain}
-        onPress={() => {
-          startFrom(ended);
-          // Same places, vehicle and problem; the fare step is next, with a fresh estimate.
-          router.push('/request/fare');
-        }}
-      />
-      <Button kind="link" title={t.backHome} onPress={goHome} />
-    </ScrollView>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
-  content: { padding: 16, gap: 16 },
-  title: { fontSize: 20, fontWeight: '600' },
-  message: { fontSize: 14, textAlign: 'center' },
+  message: { textAlign: 'center' },
+  cancel: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
 });

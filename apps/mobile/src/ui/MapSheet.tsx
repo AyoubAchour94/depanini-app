@@ -50,6 +50,8 @@ interface MapSheetProps {
   index?: number;
   /** Called when the sheet settles on a snap point, after a drag or an accessibility action. */
   onIndexChange?: (index: number) => void;
+  /** When it changes the content scrolls back to the top, at any snap point (the content was replaced by something else). */
+  scrollResetKey?: string;
   testID?: string;
 }
 
@@ -76,6 +78,7 @@ export function MapSheet({
   defaultIndex = 0,
   index: controlledIndex,
   onIndexChange,
+  scrollResetKey,
   testID = 'map-sheet',
 }: MapSheetProps) {
   const t = useTheme();
@@ -234,6 +237,11 @@ export function MapSheet({
       scroller.current?.scrollTo({ y: 0, animated: false });
     }
   }, [index, last]);
+  // The content was replaced (offers, then the trip): start from its top whatever the snap point.
+  useEffect(() => {
+    scrollY.current = 0;
+    scroller.current?.scrollTo({ y: 0, animated: false });
+  }, [scrollResetKey]);
 
   const keyboardUp = overlap > 0;
   const footerPadding = keyboardUp ? t.space[3] : Math.max(insets.bottom, t.space[4]);

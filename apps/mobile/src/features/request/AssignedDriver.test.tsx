@@ -34,13 +34,14 @@ const withContact = {
 } as const;
 
 describe('AssignedDriver', () => {
-  it('shows the phone, a call link and the plate', async () => {
+  it('has a Call button with the formatted phone, and the plate', async () => {
     const open = jest.spyOn(Linking, 'openURL').mockResolvedValue();
     await render(<AssignedDriver request={request(withContact)} />);
 
-    expect(screen.getByText('+21620123456')).toBeTruthy();
     expect(screen.getByText(/123 TU 4567/)).toBeTruthy();
-    await fireEvent.press(screen.getByText('Call +21620123456'));
+    // The number is not on screen; the button carries it formatted.
+    expect(screen.queryByText(/216/)).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Call +216 20 123 456' }));
     expect(open).toHaveBeenCalledWith('tel:+21620123456');
     open.mockRestore();
   });

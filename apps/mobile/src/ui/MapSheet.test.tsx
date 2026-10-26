@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import type { ComponentProps } from 'react';
-import { Text } from 'react-native';
+import { ScrollView, Text } from 'react-native';
 
 import { MapSheet } from './MapSheet';
 
@@ -47,6 +47,28 @@ describe('MapSheet', () => {
     expect(content().props.scrollEnabled).toBe(false);
     await step('increment');
     expect(content().props.scrollEnabled).toBe(true);
+  });
+
+  it('scrolls back to the top when the scroll reset key changes, even at the top snap point', async () => {
+    const scrollTo = jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(() => {});
+    const tree = (key: string) => (
+      <MapSheet footer={<Text>Next</Text>} snapPoints={['peek', 'full']} scrollResetKey={key}>
+        <Text>Content</Text>
+      </MapSheet>
+    );
+    const { rerender } = await render(tree('offers'));
+    await act(async () => {
+      layout('map-sheet', 844);
+      layout('map-sheet-footer', 80);
+    });
+    await step('increment');
+    scrollTo.mockClear();
+
+    await rerender(tree('offers'));
+    expect(scrollTo).not.toHaveBeenCalled();
+    await rerender(tree('trip'));
+    expect(scrollTo).toHaveBeenCalledWith({ y: 0, animated: false });
+    scrollTo.mockRestore();
   });
 
   it('reports snap changes and stops at the ends', async () => {

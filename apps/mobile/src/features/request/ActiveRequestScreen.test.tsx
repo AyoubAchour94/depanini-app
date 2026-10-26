@@ -131,14 +131,14 @@ describe('ActiveRequestScreen', () => {
     await renderScreen();
 
     expect(await screen.findByText('Waiting for drivers…')).toBeOnTheScreen();
-    expect(screen.getByText('Expires in 10:00')).toBeOnTheScreen();
+    expect(screen.getByText(/10:00 left/)).toBeOnTheScreen();
     expect(screen.getByText('Avenue Habib Bourguiba, Tunis')).toBeOnTheScreen();
     expect(screen.getByText('La Marsa')).toBeOnTheScreen();
     expect(screen.getByText('SUV / van · Flat tire')).toBeOnTheScreen();
     expect(await screen.findByText('70 TND')).toBeOnTheScreen();
 
     await act(async () => jest.advanceTimersByTime(3000));
-    expect(screen.getByText('Expires in 9:57')).toBeOnTheScreen();
+    expect(screen.getByText(/9:57 left/)).toBeOnTheScreen();
   });
 
   it('cancels after a confirmation and goes back home', async () => {
@@ -223,11 +223,23 @@ describe('ActiveRequestScreen', () => {
     expect(await screen.findByText('Driver 1')).toBeOnTheScreen();
     const names = screen.getAllByText(/^Driver \d$/).map((n) => n.props.children);
     expect(names).toEqual(['Driver 1', 'Driver 2', 'Driver 3']);
-    expect(screen.getByText('Flatbed · 11 min away · 8.1 km')).toBeOnTheScreen();
+    expect(screen.getByText('11 min away')).toBeOnTheScreen();
     // Proposed fare is 70: only the 80 offer is above it.
     expect(screen.getAllByText('Above your fare')).toHaveLength(1);
     expect(await screen.findByText('80 TND')).toBeOnTheScreen();
     expect(screen.getAllByRole('button', { name: 'Accept' })).toHaveLength(3);
+  });
+
+  it('tags the offer that matches your fare, and counts the offers', async () => {
+    mockApi();
+    offers = [offer(1, 65), offer(2, 70), offer(3, 80)];
+    await renderScreen();
+
+    expect(await screen.findByText('3 offers')).toBeOnTheScreen();
+    // The header says "Your fare 70 TND" in one text; the tag is its own.
+    expect(screen.getAllByText('Your fare')).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Decline' })).toHaveLength(3);
+    expect(screen.getAllByText(/min away$/)).toHaveLength(3);
   });
 
   it("shows each driver's rating, or New below the threshold", async () => {
@@ -277,8 +289,9 @@ describe('ActiveRequestScreen', () => {
 
     expect(await screen.findByText('Driver assigned')).toBeOnTheScreen();
     expect(screen.getByText('Ali Ben Salah')).toBeOnTheScreen();
-    expect(screen.getByText('+21620123456')).toBeOnTheScreen();
-    expect(screen.getByText('Wheel-lift · 123 TU 4567')).toBeOnTheScreen();
+    expect(screen.getByText('Wheel-lift')).toBeOnTheScreen();
+    expect(screen.getByText('123 TU 4567')).toBeOnTheScreen();
+    expect(screen.queryByText(/216/)).toBeNull();
     expect(screen.getAllByText('75 TND').length).toBeGreaterThan(0);
     expect(screen.queryByText(/Expires in/)).toBeNull();
     expect(screen.queryByText('Waiting for drivers…')).toBeNull();
@@ -343,7 +356,7 @@ describe('ActiveRequestScreen', () => {
       false,
     );
 
-    await fireEvent.press(screen.getByRole('button', { name: 'Call +21620123456' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Call +216 20 123 456' }));
     expect(openUrl).toHaveBeenCalledWith('tel:+21620123456');
 
     await fireEvent.press(screen.getByRole('button', { name: 'Cancel request' }));

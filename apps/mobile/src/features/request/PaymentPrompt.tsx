@@ -1,11 +1,12 @@
 import { disputeInputSchema, type TowRequest } from '@depanini/shared';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { ApiError } from '@/api/client';
 import { useConfirmPayment, useDisputePayment } from '@/api/towRequests';
-import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
+import { Card } from '@/ui/Card';
+import { Text } from '@/ui/Text';
 import { TextField } from '@/ui/TextField';
 
 import { requestStrings as t } from './strings';
@@ -25,7 +26,6 @@ export function PaymentPrompt({
   request: TowRequest;
   driverName?: string;
 }) {
-  const theme = useTheme();
   const confirm = useConfirmPayment();
   const dispute = useDisputePayment();
   const [reporting, setReporting] = useState(false);
@@ -38,18 +38,16 @@ export function PaymentPrompt({
 
   if (payment.status !== 'driver_confirmed') {
     return (
-      <View style={[styles.card, { backgroundColor: theme.surface }]}>
+      <Card>
         <Text
           accessibilityLiveRegion="polite"
-          style={[
-            styles.result,
-            { color: payment.status === 'customer_confirmed' ? theme.success : theme.warning },
-          ]}
+          variant="heading"
+          tone={payment.status === 'customer_confirmed' ? 'success' : 'warning'}
         >
           {payment.status === 'customer_confirmed' ? t.paymentConfirmed : t.paymentDisputed}
         </Text>
-        {answered ? <Text style={{ color: theme.textMuted }}>{t.paymentAnswered}</Text> : null}
-      </View>
+        {answered ? <Text tone="muted">{t.paymentAnswered}</Text> : null}
+      </Card>
     );
   }
 
@@ -68,10 +66,8 @@ export function PaymentPrompt({
   };
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.surface }]}>
-      <Text style={[styles.question, { color: theme.text }]}>
-        {t.payQuestion(payment.amountTnd, driverName)}
-      </Text>
+    <Card>
+      <Text variant="heading">{t.payQuestion(payment.amountTnd, driverName)}</Text>
       {reporting ? (
         <>
           <TextField
@@ -86,7 +82,7 @@ export function PaymentPrompt({
             multiline
             error={noteError}
           />
-          <Text style={[styles.counter, { color: theme.textMuted }]}>
+          <Text variant="caption" tone="muted" style={styles.counter}>
             {t.disputeCounter(note.length, NOTE_MAX)}
           </Text>
           <Button title={t.sendReport} loading={dispute.isPending} onPress={onSend} />
@@ -114,17 +110,14 @@ export function PaymentPrompt({
         </>
       )}
       {failed ? (
-        <Text style={{ color: conflict ? theme.warning : theme.danger }}>
+        <Text tone={conflict ? 'warning' : 'danger'}>
           {conflict ? t.paymentAnswered : t.paymentFailed}
         </Text>
       ) : null}
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 12, padding: 16, gap: 12 },
-  question: { fontSize: 17, fontWeight: '600' },
-  result: { fontSize: 17, fontWeight: '600' },
-  counter: { fontSize: 13, textAlign: 'right' },
+  counter: { alignSelf: 'flex-end' },
 });

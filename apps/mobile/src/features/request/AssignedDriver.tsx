@@ -1,56 +1,79 @@
 import type { TowRequest } from '@depanini/shared';
-import { Linking, StyleSheet, Text, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 
+import { formatPhone } from '@/features/account/phone';
 import { useTheme } from '@/theme/theme';
-import { Button } from '@/ui/Button';
+import { Avatar } from '@/ui/Avatar';
+import { Divider } from '@/ui/Divider';
+import { Num } from '@/ui/Num';
+import { RoundButton } from '@/ui/RoundButton';
+import { Text } from '@/ui/Text';
 
 import { requestStrings as t } from './strings';
 import { truckTypeLabel } from './truck';
 
-/** Who is coming, how to reach them (no phone or plate once completed) and the fare agreed. */
+/**
+ * Who is coming: avatar, name, truck and plate, a round Call button (none
+ * once completed: the phone and plate are gone then) and the fare agreed,
+ * paid in cash to the driver.
+ */
 export function AssignedDriver({ request }: { request: TowRequest }) {
   const theme = useTheme();
   const { driver, agreedFare } = request;
   if (!driver) return null;
   return (
-    <View style={[styles.card, { backgroundColor: theme.surface }]}>
-      <Row label={t.driverLabel} value={driver.fullName} />
-      {driver.phone ? (
-        <>
-          <Row label={t.phoneLabel} value={driver.phone} />
-          <Button
-            kind="link"
-            title={`${t.callDriver} ${driver.phone}`}
+    <View style={{ gap: theme.space[3] }}>
+      <View style={styles.row}>
+        <Avatar name={driver.fullName} size={56} />
+        <View style={styles.who}>
+          <Text variant="bodyStrong" numberOfLines={1}>
+            {driver.fullName}
+          </Text>
+          <Text tone="muted">{truckTypeLabel(driver.truckType)}</Text>
+          {driver.plateNumber ? (
+            <View
+              style={[
+                styles.plate,
+                { borderColor: theme.color.plate, borderRadius: theme.radius.xs },
+              ]}
+            >
+              <Text variant="label" style={{ color: theme.color.plate }}>
+                {driver.plateNumber}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+        {driver.phone ? (
+          <RoundButton
+            tone="brand"
+            accessibilityLabel={`${t.callDriver} ${formatPhone(driver.phone)}`}
             onPress={() => void Linking.openURL(`tel:${driver.phone}`)}
-          />
+          >
+            <Text variant="label" tone="onBrand">
+              {t.callDriver}
+            </Text>
+          </RoundButton>
+        ) : null}
+      </View>
+      {agreedFare ? (
+        <>
+          <Divider />
+          <View style={styles.fareRow}>
+            <Text tone="muted" style={styles.fareLabel}>
+              {t.fareCashLabel}
+            </Text>
+            <Num size="small" value={agreedFare} unit="TND" />
+          </View>
         </>
       ) : null}
-      <Row
-        label={t.truckLabel}
-        value={[truckTypeLabel(driver.truckType), driver.plateNumber].filter(Boolean).join(' · ')}
-      />
-      {agreedFare ? (
-        <View>
-          <Text style={[styles.label, { color: theme.textMuted }]}>{t.agreedFareLabel}</Text>
-          <Text style={[styles.fare, { color: theme.text }]}>{t.fareAmount(agreedFare)}</Text>
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  const theme = useTheme();
-  return (
-    <View>
-      <Text style={[styles.label, { color: theme.textMuted }]}>{label}</Text>
-      <Text style={{ color: theme.text }}>{value}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 12, padding: 16, gap: 10 },
-  label: { fontSize: 13 },
-  fare: { fontSize: 20, fontWeight: '700' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  who: { flex: 1, gap: 2, alignItems: 'flex-start' },
+  plate: { borderWidth: 1.5, paddingHorizontal: 8, paddingVertical: 2, marginTop: 2 },
+  fareRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  fareLabel: { flex: 1 },
 });

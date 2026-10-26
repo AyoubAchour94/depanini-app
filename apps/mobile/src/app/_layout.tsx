@@ -113,12 +113,16 @@ function RootNavigator() {
           options={{ title: requestStrings.detailsTitle, ...plainHeader }}
         />
         <Stack.Screen name="request/fare" options={{ headerShown: false }} />
+        {/* The open request and the live trip are on the map; the screen draws its own controls. */}
+        <Stack.Screen name="request/active" options={{ headerShown: false }} />
         <Stack.Screen
-          name="request/active"
-          options={{ title: requestStrings.activeTitle, headerBackVisible: false }}
+          name="request/history"
+          options={{ title: requestStrings.historyTitle, ...plainHeader }}
         />
-        <Stack.Screen name="request/history" options={{ title: requestStrings.historyTitle }} />
-        <Stack.Screen name="request/trip/[id]" options={{ title: requestStrings.tripTitle }} />
+        <Stack.Screen
+          name="request/trip/[id]"
+          options={{ title: requestStrings.tripTitle, ...plainHeader }}
+        />
       </Stack.Protected>
       <Stack.Protected guard={onboarded && variant.isDriverApp}>
         <Stack.Screen name="job-offer/[id]" options={{ title: driverStrings.detailsTitle }} />

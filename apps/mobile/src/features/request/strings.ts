@@ -79,6 +79,7 @@ export const requestStrings = {
 
   activeTitle: 'Your request',
   waitingForDrivers: 'Waiting for drivers…',
+  waitingHint: 'Drivers nearby can accept your fare or counter with theirs.',
   expiresIn: 'Expires in',
   expiring: 'Expiring…',
   routeSummary: (from: string, to: string) => `${from} → ${to}`,
@@ -98,6 +99,10 @@ export const requestStrings = {
   activeCardTitle: 'Your tow request is open',
 
   offersTitle: 'Offers',
+  offersCount: (n: number) => (n === 1 ? '1 offer' : `${n} offers`),
+  offersHint: 'Pick the driver you want. The others are declined.',
+  yourFare: 'Your fare',
+  timeLeft: (time: string) => `${time} left`,
   offerFare: (fare: number) => `${fare} TND`,
   offerHigher: 'Above your fare',
   offerEta: (min: number) => `${min} min away`,
@@ -120,6 +125,7 @@ export const requestStrings = {
   phoneLabel: 'Phone',
   truckLabel: 'Truck',
   agreedFareLabel: 'Agreed fare',
+  fareCashLabel: 'Cash fare',
   callDriver: 'Call',
 
   etaToPickup: (min: number) => `Arriving in ~${min} min`,

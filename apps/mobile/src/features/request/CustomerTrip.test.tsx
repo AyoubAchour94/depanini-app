@@ -176,7 +176,7 @@ describe('assigned trip', () => {
     active = { ...assigned, tripStage: 'en_route', enRouteAt };
     await renderScreen();
 
-    await screen.findByText('Trip');
+    await screen.findByText('Your driver is on the way');
     for (const label of ['Accepted', 'On the way', 'Arrived', 'Towing']) {
       expect(screen.getByText(label)).toBeOnTheScreen();
     }

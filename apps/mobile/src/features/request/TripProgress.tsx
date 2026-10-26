@@ -1,10 +1,12 @@
 import type { TowRequest, TripStage } from '@depanini/shared';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { env } from '@/config/env';
-import { MissingTokenView } from '@/features/map/MapScreen';
-import { TunisMap } from '@/features/map/TunisMap';
+import type { MapMarker } from '@/features/map/map-props';
 import { useTheme } from '@/theme/theme';
+import { Card } from '@/ui/Card';
+import { Num } from '@/ui/Num';
+import { StageBar } from '@/ui/StageBar';
+import { Text } from '@/ui/Text';
 
 import { requestStrings as t } from './strings';
 
@@ -13,47 +15,55 @@ type Times = Pick<
   'assignedAt' | 'enRouteAt' | 'arrivedAt' | 'towingAt' | 'completedAt'
 >;
 
-/** The map of an assigned trip: the pickup, then the drop-off once towing, and the truck when its position is known. */
-export function TripMap({ request }: { request: TowRequest }) {
+/** The markers of an assigned trip: the pickup, then the drop-off once towing, and the truck when its position is known. */
+export function tripMarkers(request: TowRequest): MapMarker[] {
   const { pickup, dropoff, driverLocation } = request;
   const towing = request.tripStage === 'towing';
-  const markers = [
+  return [
     towing
-      ? { id: 'dropoff', kind: 'dropoff' as const, coordinate: dropoff }
-      : { id: 'pickup', kind: 'pickup' as const, coordinate: pickup },
+      ? { id: 'dropoff', kind: 'dropoff', coordinate: dropoff }
+      : { id: 'pickup', kind: 'pickup', coordinate: pickup },
     ...(driverLocation
       ? [{ id: 'truck', kind: 'truck' as const, coordinate: driverLocation }]
       : []),
   ];
-  return (
-    <View style={styles.map}>
-      {env.mapboxAccessToken ? (
-        <TunisMap
-          accessToken={env.mapboxAccessToken}
-          center={pickup}
-          markers={markers}
-          fitToMarkers
-        />
-      ) : (
-        <MissingTokenView />
-      )}
-    </View>
-  );
 }
 
-/** Where the trip is, and how long until the truck gets to the next place. */
+const STAGE_ORDER: readonly TripStage[] = ['accepted', 'en_route', 'arrived', 'towing'];
+/** How far through its stage the trip is: waiting stages are done, driving stages half way. */
+const STAGE_PROGRESS: Record<TripStage, number> = {
+  accepted: 1,
+  en_route: 0.5,
+  arrived: 1,
+  towing: 0.5,
+};
+
+/** Where the trip is, how long until the truck gets to the next place, and the four stages. */
 export function TripStatus({ request }: { request: TowRequest }) {
-  const theme = useTheme();
   const stage: TripStage = request.tripStage ?? 'accepted';
   const { etaMin } = request;
+  const showEta = Boolean(etaMin) && stage !== 'arrived';
   return (
     <View style={styles.status}>
-      <Text style={[styles.headline, { color: theme.text }]}>{t.stageHeadline[stage]}</Text>
-      {etaMin && stage !== 'arrived' ? (
-        <Text accessibilityLiveRegion="polite" style={{ color: theme.textMuted }}>
-          {stage === 'towing' ? t.etaToDropoff(etaMin) : t.etaToPickup(etaMin)}
-        </Text>
-      ) : null}
+      <View style={styles.head}>
+        <View style={styles.headText}>
+          <Text variant="title">{t.stageHeadline[stage]}</Text>
+          {showEta ? (
+            <Text accessibilityLiveRegion="polite" tone="muted">
+              {stage === 'towing' ? t.etaToDropoff(etaMin!) : t.etaToPickup(etaMin!)}
+            </Text>
+          ) : null}
+        </View>
+        {showEta ? <Num size="figure" value={etaMin!} unit="min" /> : null}
+      </View>
+      <StageBar
+        stages={[t.timeline.accepted, t.timeline.enRoute, t.timeline.arrived, t.timeline.towing]}
+        current={STAGE_ORDER.indexOf(stage)}
+        progress={STAGE_PROGRESS[stage]}
+        captions={[request.assignedAt, request.enRouteAt, request.arrivedAt, request.towingAt].map(
+          (at) => (at ? t.time(at) : '–'),
+        )}
+      />
     </View>
   );
 }
@@ -75,23 +85,24 @@ export function Timeline({
     ...(withCompleted ? [[t.timeline.completed, request.completedAt] as const] : []),
   ] as const;
   return (
-    <View style={[styles.card, { backgroundColor: theme.surface }]}>
-      <Text style={[styles.label, { color: theme.textMuted }]}>{t.timelineTitle}</Text>
+    <Card style={{ gap: theme.space[2] }}>
+      <Text variant="heading">{t.timelineTitle}</Text>
       {steps.map(([label, at]) => (
         <View key={label} style={styles.row}>
-          <Text style={{ color: at ? theme.text : theme.textMuted }}>{label}</Text>
-          <Text style={{ color: theme.textMuted }}>{at ? t.time(at) : '–'}</Text>
+          <Text tone={at ? 'text' : 'muted'}>{label}</Text>
+          <Text tone="muted" style={styles.time}>
+            {at ? t.time(at) : '–'}
+          </Text>
         </View>
       ))}
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  map: { height: 240, borderRadius: 12, overflow: 'hidden' },
-  status: { gap: 4 },
-  headline: { fontSize: 20, fontWeight: '600' },
-  card: { borderRadius: 12, padding: 16, gap: 10 },
-  label: { fontSize: 13 },
+  status: { gap: 16 },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  headText: { flex: 1, gap: 2 },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
+  time: { fontVariant: ['tabular-nums'] },
 });

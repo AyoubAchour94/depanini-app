@@ -4,7 +4,7 @@ import {
   MAX_RATING_COMMENT_LENGTH,
 } from '@depanini/shared';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
 import { useMyRating, useSubmitRating } from '@/api/towRequests';
@@ -12,6 +12,8 @@ import { driverStrings } from '@/features/driver/strings';
 import { requestStrings } from '@/features/request/strings';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
+import { Card } from '@/ui/Card';
+import { Text } from '@/ui/Text';
 import { TextField } from '@/ui/TextField';
 
 import { StarRatingInput } from './StarRatingInput';
@@ -53,10 +55,10 @@ export function RateTripCard({ side, requestId }: { side: RatingSide; requestId:
 
   if (mine) {
     return (
-      <View style={[styles.card, { backgroundColor: theme.surface }]}>
-        <Text style={[styles.title, { color: theme.text }]}>{t.thanksForRating}</Text>
-        <Text style={{ color: theme.textMuted }}>{t.youRated(mine.stars)}</Text>
-      </View>
+      <Card style={{ gap: theme.space[1] }}>
+        <Text variant="heading">{t.thanksForRating}</Text>
+        <Text tone="muted">{t.youRated(mine.stars)}</Text>
+      </Card>
     );
   }
   if (!canRate) return null;
@@ -95,8 +97,8 @@ export function RateTripCard({ side, requestId }: { side: RatingSide; requestId:
 
   const conflict = submit.error instanceof ApiError && submit.error.status === 409;
   return (
-    <View style={[styles.card, { backgroundColor: theme.surface }]}>
-      <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
+    <Card>
+      <Text variant="heading">{title}</Text>
       <StarRatingInput
         value={stars}
         onChange={(n) => {
@@ -105,7 +107,7 @@ export function RateTripCard({ side, requestId }: { side: RatingSide; requestId:
         }}
         disabled={submit.isPending}
       />
-      <Text style={{ color: theme.textMuted }}>{t.tagsLabel}</Text>
+      <Text tone="muted">{t.tagsLabel}</Text>
       <View style={styles.chips}>
         {Object.entries(labels).map(([tag, label]) => {
           const selected = tags.includes(tag);
@@ -116,9 +118,18 @@ export function RateTripCard({ side, requestId }: { side: RatingSide; requestId:
               accessibilityState={{ checked: selected }}
               disabled={submit.isPending}
               onPress={() => toggle(tag)}
-              style={[styles.chip, { backgroundColor: selected ? theme.brand : theme.background }]}
+              style={[
+                styles.chip,
+                {
+                  borderRadius: theme.radius.full,
+                  borderColor: selected ? theme.color.brandAccent : theme.color.line,
+                  backgroundColor: selected ? theme.color.brandTint : 'transparent',
+                },
+              ]}
             >
-              <Text style={{ color: selected ? theme.onBrand : theme.text }}>{label}</Text>
+              <Text variant={selected ? 'label' : 'caption'} style={styles.chipLabel}>
+                {label}
+              </Text>
             </Pressable>
           );
         })}
@@ -131,22 +142,19 @@ export function RateTripCard({ side, requestId }: { side: RatingSide; requestId:
         multiline
         editable={!submit.isPending}
       />
-      <Text style={[styles.counter, { color: theme.textMuted }]}>
+      <Text variant="caption" tone="muted" style={styles.counter}>
         {t.commentCounter(comment.length, MAX_RATING_COMMENT_LENGTH)}
       </Text>
-      {hint ? <Text style={{ color: theme.danger }}>{hint}</Text> : null}
-      {submit.isError && !hint && !conflict ? (
-        <Text style={{ color: theme.danger }}>{t.ratingFailed}</Text>
-      ) : null}
+      {hint ? <Text tone="danger">{hint}</Text> : null}
+      {submit.isError && !hint && !conflict ? <Text tone="danger">{t.ratingFailed}</Text> : null}
       <Button title={t.sendRating} loading={submit.isPending} onPress={onSend} />
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 12, padding: 16, gap: 10 },
-  title: { fontSize: 18, fontWeight: '600' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
-  counter: { fontSize: 12, textAlign: 'right' },
+  chip: { minHeight: 36, paddingHorizontal: 14, justifyContent: 'center', borderWidth: 1 },
+  chipLabel: { fontSize: 14 },
+  counter: { alignSelf: 'flex-end' },
 });

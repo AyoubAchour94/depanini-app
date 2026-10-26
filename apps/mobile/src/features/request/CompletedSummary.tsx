@@ -1,11 +1,17 @@
 import type { TowRequest } from '@depanini/shared';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { RateTripCard } from '@/features/trip/RateTripCard';
-import { useTheme } from '@/theme/theme';
+import { Avatar } from '@/ui/Avatar';
 import { Button } from '@/ui/Button';
+import { Card } from '@/ui/Card';
+import { Divider } from '@/ui/Divider';
+import { Num } from '@/ui/Num';
+import { Text } from '@/ui/Text';
 
 import { PaymentPrompt } from './PaymentPrompt';
+import { PlainScreen } from './PlainScreen';
+import { PlaceRow } from './RequestSummary';
 import { requestStrings as t } from './strings';
 import { Timeline } from './TripProgress';
 
@@ -24,46 +30,39 @@ export function CompletedSummary({
   driverName?: string;
   onDone: () => void;
 }) {
-  const theme = useTheme();
   return (
-    <ScrollView
-      style={{ backgroundColor: theme.background }}
-      contentContainerStyle={styles.content}
-    >
-      <Text style={[styles.title, { color: theme.text }]}>{t.completedTitle}</Text>
-      <View style={[styles.card, { backgroundColor: theme.surface }]}>
-        <Field label={t.pickupLabel} value={request.pickup.address} />
-        <Field label={t.dropoffPointLabel} value={request.dropoff.address} />
-        {driverName ? <Field label={t.driverLabel} value={driverName} /> : null}
-        <View>
-          <Text style={[styles.label, { color: theme.textMuted }]}>{t.completedFare}</Text>
-          <Text style={[styles.fare, { color: theme.text }]}>
-            {t.fareAmount(request.agreedFare ?? request.proposedFare)}
-          </Text>
-        </View>
+    <PlainScreen footer={<Button size="big" title={t.done} onPress={onDone} />}>
+      <View style={styles.head}>
+        <Text variant="title">{t.completedTitle}</Text>
+        <Text tone="muted">{t.completedFare}</Text>
+        <Num size="display" value={request.agreedFare ?? request.proposedFare} unit="TND" />
       </View>
+      <Card>
+        <PlaceRow kind="pickup" label={t.pickupLabel} address={request.pickup.address} />
+        <PlaceRow kind="dropoff" label={t.dropoffPointLabel} address={request.dropoff.address} />
+        {driverName ? (
+          <>
+            <Divider />
+            <View style={styles.driver}>
+              <Avatar name={driverName} size={40} />
+              <View>
+                <Text variant="caption" tone="muted">
+                  {t.driverLabel}
+                </Text>
+                <Text variant="bodyStrong">{driverName}</Text>
+              </View>
+            </View>
+          </>
+        ) : null}
+      </Card>
       <PaymentPrompt request={request} driverName={driverName} />
       <RateTripCard side="customer" requestId={request.id} />
       <Timeline request={request} withCompleted />
-      <Button title={t.done} onPress={onDone} />
-    </ScrollView>
-  );
-}
-
-function Field({ label, value }: { label: string; value: string }) {
-  const theme = useTheme();
-  return (
-    <View>
-      <Text style={[styles.label, { color: theme.textMuted }]}>{label}</Text>
-      <Text style={{ color: theme.text }}>{value}</Text>
-    </View>
+    </PlainScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16, gap: 16 },
-  title: { fontSize: 20, fontWeight: '600' },
-  card: { borderRadius: 12, padding: 16, gap: 10 },
-  label: { fontSize: 13 },
-  fare: { fontSize: 22, fontWeight: '700' },
+  head: { gap: 2 },
+  driver: { flexDirection: 'row', alignItems: 'center', gap: 12 },
 });

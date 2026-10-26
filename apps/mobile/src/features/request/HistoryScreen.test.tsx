@@ -47,6 +47,20 @@ async function renderHistory() {
 afterEach(() => jest.restoreAllMocks());
 
 describe('HistoryScreen', () => {
+  it('shows the short address, without the postal code and the country', async () => {
+    const full = {
+      ...row(1, 'completed'),
+      pickup: place('Avenue Habib Bourguiba 42, 1001 Tunis, Tunisie'),
+      dropoff: place('Route de la Marsa, 2078 La Marsa, Tunisie'),
+    };
+    mockPages({ first: { items: [full], nextCursor: null } });
+    await renderHistory();
+
+    expect(await screen.findByText('Avenue Habib Bourguiba 42, Tunis')).toBeOnTheScreen();
+    expect(screen.getByText('Route de la Marsa, La Marsa')).toBeOnTheScreen();
+    expect(screen.queryByText(/Tunisie/)).toBeNull();
+  });
+
   it('lists requests with route, fare and status, and loads the next page', async () => {
     mockPages({
       first: { items: [row(1, 'open'), row(2, 'cancelled')], nextCursor: 'page-2' },
@@ -54,15 +68,16 @@ describe('HistoryScreen', () => {
     });
     await renderHistory();
 
-    expect(await screen.findByText('Pickup 1 → Dropoff 1')).toBeOnTheScreen();
+    expect(await screen.findByText('Pickup 1')).toBeOnTheScreen();
+    expect(screen.getByText('Dropoff 1')).toBeOnTheScreen();
     expect(await screen.findByText('51 TND')).toBeOnTheScreen();
     expect(screen.getByText('Open')).toBeOnTheScreen();
     expect(screen.getByText('Cancelled')).toBeOnTheScreen();
-    expect(screen.queryByText('Pickup 3 → Dropoff 3')).toBeNull();
+    expect(screen.queryByText('Pickup 3')).toBeNull();
 
     await fireEvent.press(screen.getByRole('button', { name: 'Load more' }));
 
-    expect(await screen.findByText('Pickup 3 → Dropoff 3')).toBeOnTheScreen();
+    expect(await screen.findByText('Pickup 3')).toBeOnTheScreen();
     expect(screen.getByText('Expired')).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Load more' })).toBeNull();
     const urls = jest.mocked(fetch).mock.calls.map(([url]) => new URL(url.toString()));
@@ -76,9 +91,9 @@ describe('HistoryScreen', () => {
     });
     await renderHistory();
 
-    expect(await screen.findByText('Pickup 1 → Dropoff 1')).toBeOnTheScreen();
-    expect(screen.getByText('Pickup 3 → Dropoff 3')).toBeOnTheScreen();
-    expect(screen.queryByText('Pickup 2 → Dropoff 2')).toBeNull();
+    expect(await screen.findByText('Pickup 1')).toBeOnTheScreen();
+    expect(screen.getByText('Pickup 3')).toBeOnTheScreen();
+    expect(screen.queryByText('Pickup 2')).toBeNull();
     expect(warn).toHaveBeenCalledTimes(1);
   });
 
@@ -139,6 +154,6 @@ describe('HistoryScreen', () => {
 
     expect(await screen.findByText(/Could not load your requests/)).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
-    expect(await screen.findByText('Pickup 1 → Dropoff 1')).toBeOnTheScreen();
+    expect(await screen.findByText('Pickup 1')).toBeOnTheScreen();
   });
 });
