@@ -49,3 +49,7 @@ jobs:
       - run: pnpm format:check
 
       - run: pnpm turbo run lint typecheck test
+
+      # Node test runner for the helper scripts in scripts/. They need no
+      # emulator or network in CI, so there is nothing to skip.
+      - run: pnpm test:scripts
