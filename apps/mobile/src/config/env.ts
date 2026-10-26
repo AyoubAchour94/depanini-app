@@ -12,6 +12,9 @@ import { z } from 'zod';
  * Missing values do not crash the app: the screens that need them show what
  * is missing instead (as the Phase 1 Flutter app did).
  */
+const DEFAULT_PRIVACY_URL = 'https://ayoubachour94.github.io/depanini-app/legal/privacy-en/';
+const DEFAULT_TERMS_URL = 'https://ayoubachour94.github.io/depanini-app/legal/terms-en/';
+
 const envSchema = z.object({
   mapboxAccessToken: z.string().startsWith('pk.').optional().catch(undefined),
   apiUrl: z.url().optional().catch(undefined),
@@ -20,6 +23,9 @@ const envSchema = z.object({
   authEmulatorUrl: z.url().optional().catch(undefined),
   /** Lets the driver app pretend to be at a chosen place in Tunisia; never on in store builds by default. */
   enableTestLocation: z.boolean(),
+  /** The published legal pages (docs/legal, see CI.md); the default is the GitHub Pages address. */
+  privacyUrl: z.url().catch(DEFAULT_PRIVACY_URL),
+  termsUrl: z.url().catch(DEFAULT_TERMS_URL),
 });
 
 export const env = envSchema.parse({
@@ -37,4 +43,6 @@ export const env = envSchema.parse({
       ? (process.env.EXPO_PUBLIC_WEB_AUTH_EMULATOR_URL ?? process.env.EXPO_PUBLIC_AUTH_EMULATOR_URL)
       : process.env.EXPO_PUBLIC_AUTH_EMULATOR_URL,
   enableTestLocation: __DEV__ || process.env.EXPO_PUBLIC_ENABLE_TEST_LOCATION === '1',
+  privacyUrl: process.env.EXPO_PUBLIC_PRIVACY_URL || undefined,
+  termsUrl: process.env.EXPO_PUBLIC_TERMS_URL || undefined,
 });

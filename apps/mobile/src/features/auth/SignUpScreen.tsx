@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import { authErrorMessage } from '@/auth/errors';
 import { signUp } from '@/auth/firebase-auth';
+import { TermsConsent } from '@/features/legal/LegalLinks';
 import { Button } from '@/ui/Button';
 import { TextField } from '@/ui/TextField';
 
@@ -22,6 +23,7 @@ export function SignUpScreen() {
       title="Create your account"
       action={
         <>
+          <TermsConsent />
           <Button
             size="big"
             title="Create account"

@@ -1,0 +1,10 @@
+# GitHub Pages (Jekyll) config. Only docs/legal/ is published: the rest of docs/ is internal.
+# See CI.md, "Publish the legal pages".
+title: Depanini legal
+theme: jekyll-theme-minimal
+exclude:
+  - adr
+  - agents
+  - design
+  - push.md
+  - realtime.md
