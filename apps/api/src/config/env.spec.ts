@@ -28,6 +28,15 @@ describe('parseEnv', () => {
     );
   });
 
+  it('takes an optional direct connection for LISTEN', () => {
+    expect(parseEnv(valid).DATABASE_LISTEN_URL).toBeUndefined();
+    const direct = 'postgres://depanini:depanini@direct.example:5432/depanini';
+    expect(parseEnv({ ...valid, DATABASE_LISTEN_URL: direct }).DATABASE_LISTEN_URL).toBe(direct);
+    expect(() => parseEnv({ ...valid, DATABASE_LISTEN_URL: 'not a url' })).toThrow(
+      /DATABASE_LISTEN_URL/,
+    );
+  });
+
   it('defaults pushes to the log sender, with the inbox off', () => {
     expect(parseEnv(valid)).toMatchObject({ PUSH_PROVIDER: 'log', PUSH_INBOX: false });
     expect(parseEnv({ ...valid, PUSH_INBOX: '1' }).PUSH_INBOX).toBe(true);

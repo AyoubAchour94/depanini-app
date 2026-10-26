@@ -70,11 +70,36 @@ polling picks it up. The exception is `nearby.changed`: `expireStaleRequests` re
 ids of the requests it actually flipped, and the calling service publishes the hint for
 those (best effort), so a request that expired is not published twice.
 
-## Single instance only
+## Several instances
 
-`RealtimeService` keeps the open sockets in memory, keyed by user id. An event reaches
-only the sockets connected to the API instance that handled the REST call, so this
-works while the API runs as **one instance**. Running several (Cloud Run scaling out)
-needs a pub/sub between instances, e.g. Redis or Postgres `LISTEN/NOTIFY`: each
-instance publishes there and delivers to its own sockets. That is planned for Phase 9,
-with the production deploy. Until then, keep the API service at one instance.
+`RealtimeService` keeps each instance's open sockets in memory, keyed by user id. So
+that an event reaches sockets held by any instance (Cloud Run scaling out), `TripEvents`
+does not send to sockets directly: it publishes a small event, just the ids it touched
+(`TripEvent` in `realtime/event-bus.ts`), on an `EventBus`. Every instance hands that
+event to its own `TripEvents`, which reads the rows back and sends to its own sockets
+(or skips the reads when it has no socket open).
+
+The bus is `PgEventBus`, over Postgres `LISTEN/NOTIFY` on the channel
+`depanini_trip_events`:
+
+- `publish` runs this instance's subscribers first, so with a single instance an event
+  reaches its sockets before the REST call answers, as before. Then it sends
+  `pg_notify` through the pool. Other instances' notifications are handled one at a
+  time, in the order they were sent; an instance skips its own by their `origin`.
+- Each instance holds one dedicated connection (not from the pool, `application_name`
+  `depanini-realtime`) that LISTENs. If it drops, the instance reconnects with
+  exponential backoff (0.5 s up to 30 s). Events sent while it was away are lost to its
+  sockets; the apps' polling covers that, as for a dropped socket.
+- NOTIFY payloads must stay under 8000 bytes, so `TripEvents` publishes at most 100 ids
+  per event. A larger event is delivered locally only, with a warning.
+- On shutdown the instance UNLISTENs and closes that connection before the rest.
+- A transaction pooler (PgBouncer, Neon's `-pooler` host) cannot hold a LISTEN: set
+  `DATABASE_LISTEN_URL` to the direct host then. It counts one connection per instance.
+
+Another transport (e.g. Redis pub/sub) can replace `PgEventBus` behind the `EventBus`
+interface (`EVENT_BUS` in `realtime.module.ts`).
+
+**Pushes** still decide "is this person connected?" on the instance that handled the
+REST call. Someone connected only to another instance may also get a push for an event
+they saw over `/ws`. That is a duplicate, not a miss; sharing presence between
+instances is not done yet.

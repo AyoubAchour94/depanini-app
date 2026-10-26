@@ -45,8 +45,10 @@ describe('RealtimeService', () => {
     expect(phone.sent).toEqual([]);
     expect(web.sent).toHaveLength(1);
     expect(realtime.isConnected('alice')).toBe(true);
+    expect(realtime.hasSockets()).toBe(true);
     realtime.remove('alice', web.socket);
     expect(realtime.isConnected('alice')).toBe(false);
+    expect(realtime.hasSockets()).toBe(false);
   });
 
   it('closes the oldest socket with 4000 when a sixth connects', () => {

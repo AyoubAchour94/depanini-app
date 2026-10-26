@@ -123,7 +123,10 @@ before anything is deployed, so the old revision keeps serving.
    Recommended free option: Neon (PostGIS is available; migration `0000` runs
    `CREATE EXTENSION postgis`). Copy the connection string with
    `?sslmode=require`. Prefer the provider's pooled host, and keep (Cloud Run
-   max instances x `DB_POOL_MAX`) under its connection limit. Cloud SQL works
+   max instances x `DB_POOL_MAX`) under its connection limit. A pooled host
+   cannot LISTEN, so also set `DATABASE_LISTEN_URL` to the direct host: each
+   instance keeps one connection there for realtime events between instances
+   (see `docs/realtime.md`). Cloud SQL works
    too (no free tier), but then the runner needs a way to reach it (public IP
    with authorized networks, or the Auth Proxy), which is why the workflow does
    not assume it.
