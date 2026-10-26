@@ -9,7 +9,7 @@ import { RateTripCard } from '@/features/trip/RateTripCard';
 import { ReceiptCard, TripDetail } from '@/features/trip/TripDetail';
 import { useTheme } from '@/theme/theme';
 
-import { driverStrings as t } from './strings';
+import { useDriverStrings } from './strings';
 
 /**
  * One finished or cancelled job. It is read from the jobs list already in the
@@ -17,6 +17,7 @@ import { driverStrings as t } from './strings';
  * receipt is fetched.
  */
 export function JobDetailScreen() {
+  const t = useDriverStrings();
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const queryClient = useQueryClient();

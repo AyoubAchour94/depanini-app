@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 
+import { useTranslation } from '@/i18n';
 import { Text } from '@/ui/Text';
 import { TextField } from '@/ui/TextField';
 
@@ -31,10 +32,11 @@ export function PersonalFields({
   errors,
   onSubmitEditing,
 }: PersonalFieldsProps) {
+  const { t } = useTranslation();
   return (
     <>
       <TextField
-        label="Full name"
+        label={t('profile:fullName')}
         value={fullName}
         onChangeText={onChangeFullName}
         error={errors.fullName}
@@ -42,11 +44,11 @@ export function PersonalFields({
         textContentType="name"
       />
       <TextField
-        label="Phone"
+        label={t('profile:phone')}
         value={phone}
         onChangeText={onChangePhone}
         error={errors.phone}
-        placeholder="+216 98 123 456"
+        placeholder={t('profile:phonePlaceholder')}
         keyboardType="phone-pad"
         autoComplete="tel"
         textContentType="telephoneNumber"
@@ -58,9 +60,10 @@ export function PersonalFields({
 
 /** Shown when the API didn't accept a save. */
 export function SaveError() {
+  const { t } = useTranslation();
   return (
     <Text accessibilityRole="alert" tone="danger" variant="bodyStrong">
-      Could not save your details. Check your connection and try again.
+      {t('profile:saveFailed')}
     </Text>
   );
 }

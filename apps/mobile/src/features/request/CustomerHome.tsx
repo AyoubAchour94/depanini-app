@@ -11,7 +11,7 @@ import { Pill } from '@/ui/Pill';
 import { Text } from '@/ui/Text';
 
 import { useRequestFlow } from './RequestFlowContext';
-import { requestStrings as t } from './strings';
+import { useRequestStrings } from './strings';
 
 /**
  * Snap points of the home sheet: the title, the address field and the pinned
@@ -24,6 +24,7 @@ const HOME_SNAPS = [280] as const;
  * the open request when there already is one (a customer has one at a time).
  */
 export function CustomerHome() {
+  const t = useRequestStrings();
   const theme = useTheme();
   const { reset } = useRequestFlow();
   const active = useActiveTowRequest({ poll: useIsFocused() });
@@ -62,7 +63,7 @@ export function CustomerHome() {
             <Text variant="title">{t.homeTitle}</Text>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`${t.homePickupLabel}: ${t.currentLocation}. ${t.edit}`}
+              accessibilityLabel={t.pickupFieldLabel(t.currentLocation)}
               onPress={startRequest}
               style={[
                 styles.field,

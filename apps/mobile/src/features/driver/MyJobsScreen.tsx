@@ -4,18 +4,19 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-
 
 import { useDriverJobs } from '@/api/driver';
 import { shortAddress } from '@/features/places/address';
-import { requestStrings } from '@/features/request/strings';
-import { tripStrings } from '@/features/trip/strings';
+import { useRequestStrings } from '@/features/request/strings';
+import { useTripStrings } from '@/features/trip/strings';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
 import { Num } from '@/ui/Num';
 import { Pill, type PillTone } from '@/ui/Pill';
 import { Text } from '@/ui/Text';
 
-import { driverStrings as t } from './strings';
+import { useDriverStrings } from './strings';
 
 /** The jobs the driver has finished or cancelled, newest first. */
 export function MyJobsScreen() {
+  const t = useDriverStrings();
   const theme = useTheme();
   const jobs = useDriverJobs();
 
@@ -74,12 +75,15 @@ const STATUS_TONE: Partial<Record<TowRequest['status'], PillTone>> = {
 };
 
 function JobRow({ job }: { job: TowRequest }) {
+  const t = useDriverStrings();
+  const tripStrings = useTripStrings();
+  const requestStrings = useRequestStrings();
   const theme = useTheme();
   const fare = job.status === 'completed' ? (job.agreedFare ?? job.proposedFare) : job.proposedFare;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${t.viewJob}: ${job.pickup.address}`}
+      accessibilityLabel={t.viewJobAt(job.pickup.address)}
       onPress={() => router.push({ pathname: '/jobs/[id]', params: { id: job.id } })}
       style={({ pressed }) => [
         styles.row,

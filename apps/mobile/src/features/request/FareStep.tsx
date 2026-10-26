@@ -19,7 +19,7 @@ import { Text } from '@/ui/Text';
 
 import { clampFare, towMinutes } from './fare';
 import { useRequestFlow } from './RequestFlowContext';
-import { requestStrings as t } from './strings';
+import { useRequestStrings } from './strings';
 
 /** Snap points of the fare sheet: the route, the offer, the range bar, the chips and the pinned action fit at the first. */
 const FARE_SNAPS = [520, 'full'] as const;
@@ -39,6 +39,7 @@ interface FareStepProps {
  * adjust within the allowed range, and the submit.
  */
 export function FareStep({ onCreated, onAlreadyOpen, onNoProfile, onBack }: FareStepProps) {
+  const t = useRequestStrings();
   const theme = useTheme();
   const { height: windowHeight } = useWindowDimensions();
   // On a short screen the sheet is at most 60% high, so both pins stay on the map above it; the rest of the content is a drag away.
@@ -116,7 +117,7 @@ export function FareStep({ onCreated, onAlreadyOpen, onNoProfile, onBack }: Fare
       fitToMarkers
       fitInsetBottom={firstSnap}
       topStart={onBack ? <BackButton onPress={onBack} /> : undefined}
-      pill={<Pill label={t.routeStats((distanceM / 1000).toFixed(1), towMinutes(distanceM))} />}
+      pill={<Pill label={t.routeStats(distanceM, towMinutes(distanceM))} />}
       sheet={{
         snapPoints: [firstSnap, 'full'],
         children: (

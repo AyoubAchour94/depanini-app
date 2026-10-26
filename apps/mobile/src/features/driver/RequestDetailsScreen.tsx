@@ -8,7 +8,7 @@ import type { MapMarker } from '@/features/map/map-props';
 import { MapScreen } from '@/features/map/MapScreen';
 import { shortAddress } from '@/features/places/address';
 import { formatRemaining, useCountdown } from '@/features/request/countdown';
-import { requestStrings } from '@/features/request/strings';
+import { useRequestStrings } from '@/features/request/strings';
 import { RatingBadge } from '@/features/trip/RatingBadge';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
@@ -17,7 +17,7 @@ import { Pill } from '@/ui/Pill';
 import { Text } from '@/ui/Text';
 
 import { OfferActions, OfferPanel, useOfferDraft } from './OfferPanel';
-import { driverStrings as t } from './strings';
+import { useDriverStrings } from './strings';
 
 const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
 
@@ -30,6 +30,8 @@ const DETAIL_SNAPS = [610, 'full'] as const;
  * request comes from the nearby list's cache.
  */
 export function RequestDetailsScreen({ id }: { id: string }) {
+  const t = useDriverStrings();
+  const requestStrings = useRequestStrings();
   const theme = useTheme();
   // On a short screen the sheet leaves room for the pins; the rest of the offer is a drag away.
   const { height: windowHeight } = useWindowDimensions();

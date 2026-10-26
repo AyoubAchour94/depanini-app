@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import { authErrorMessage } from '@/auth/errors';
 import { signIn } from '@/auth/firebase-auth';
+import { useTranslation } from '@/i18n';
 import { Button } from '@/ui/Button';
 import { TextField } from '@/ui/TextField';
 import { variant } from '@/variant/variant';
@@ -11,6 +12,7 @@ import { variant } from '@/variant/variant';
 import { AuthLayout } from './AuthLayout';
 
 export function SignInScreen() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   // On success the auth listener flips the session and the router leaves this screen.
@@ -19,28 +21,28 @@ export function SignInScreen() {
   return (
     <AuthLayout
       bare
-      title={`Welcome to ${variant.appName}`}
-      subtitle="Sign in to continue."
+      title={t('auth:welcome', { appName: variant.appName })}
+      subtitle={t('auth:signInSubtitle')}
       error={submit.isError ? authErrorMessage(submit.error) : undefined}
       action={
         <>
           <Button
             size="big"
-            title="Sign in"
+            title={t('auth:signIn')}
             onPress={() => submit.mutate()}
             loading={submit.isPending}
             disabled={!email.trim() || !password}
           />
           <Button
             kind="link"
-            title="New here? Create an account"
+            title={t('auth:createAccountLink')}
             onPress={() => router.push('/sign-up')}
           />
         </>
       }
     >
       <TextField
-        label="Email"
+        label={t('auth:email')}
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
@@ -49,7 +51,7 @@ export function SignInScreen() {
         textContentType="emailAddress"
       />
       <TextField
-        label="Password"
+        label={t('auth:password')}
         value={password}
         onChangeText={setPassword}
         secureTextEntry
@@ -59,7 +61,7 @@ export function SignInScreen() {
       />
       <Button
         kind="link"
-        title="Forgot password?"
+        title={t('auth:forgotPassword')}
         onPress={() => router.push('/forgot-password')}
       />
     </AuthLayout>

@@ -5,7 +5,7 @@ import { shortAddress } from '@/features/places/address';
 import { useTheme } from '@/theme/theme';
 import { Text } from '@/ui/Text';
 
-import { requestStrings as t } from './strings';
+import { useRequestStrings } from './strings';
 
 interface PlaceReadoutProps {
   /** What the pin stands for ("Pickup point"). */
@@ -20,6 +20,7 @@ interface PlaceReadoutProps {
 
 /** The sheet content of a pin-on-the-map step: what the pin is, and the address under it. */
 export function PlaceReadout({ label, address, finding, children }: PlaceReadoutProps) {
+  const t = useRequestStrings();
   const theme = useTheme();
   return (
     <View style={{ gap: theme.space[1] }}>

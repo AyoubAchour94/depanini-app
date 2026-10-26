@@ -23,7 +23,7 @@ import { ApiError } from '@/api/client';
 import { useAdvanceJob, useCancelJob, useCompleteJob, useDriverJob } from '@/api/driver';
 import { MapScreen } from '@/features/map/MapScreen';
 import { shortAddress } from '@/features/places/address';
-import { requestStrings } from '@/features/request/strings';
+import { useRequestStrings } from '@/features/request/strings';
 import { RateTripCard } from '@/features/trip/RateTripCard';
 import { LiveIndicator } from '@/realtime/LiveIndicator';
 import { useTheme } from '@/theme/theme';
@@ -40,7 +40,7 @@ import { Text } from '@/ui/Text';
 
 import { confirmCancelJob, confirmDropoff } from './confirm';
 import { NavBanner } from './NavBanner';
-import { driverStrings as t } from './strings';
+import { useDriverStrings } from './strings';
 import { useTruckLocation } from './usePresence';
 
 const goHome = () => router.replace('/');
@@ -66,6 +66,8 @@ const TWO_COLUMNS_FROM = 380;
  * the one next action pinned at the bottom. After the drop-off it shows the summary.
  */
 export function JobScreen() {
+  const t = useDriverStrings();
+  const requestStrings = useRequestStrings();
   const theme = useTheme();
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const jobSnap = windowHeight < SHORT_SCREEN ? JOB_SNAP_SHORT : JOB_SNAP;
@@ -271,6 +273,7 @@ function Timeline({
   /** Two steps to a row, so the list takes less of the sheet. */
   twoColumns?: boolean;
 }) {
+  const t = useDriverStrings();
   const steps = [
     [t.timeline.assigned, job.assignedAt],
     [t.timeline.enRoute, job.enRouteAt],
@@ -303,6 +306,7 @@ function Timeline({
 
 /** What the driver sees after dropping off: the cash taken, the route, the receipt and when each step happened. */
 export function Summary({ request }: { request: TowRequest }) {
+  const t = useDriverStrings();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const card = { backgroundColor: theme.color.surface, borderRadius: theme.radius.xl };
@@ -354,6 +358,7 @@ export function Summary({ request }: { request: TowRequest }) {
 
 /** Pickup and drop-off as two stops joined by a line: a round dot, then a square. */
 function Stops({ pickup, dropoff }: { pickup: string; dropoff: string }) {
+  const t = useDriverStrings();
   const theme = useTheme();
   return (
     <View style={styles.row}>

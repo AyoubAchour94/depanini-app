@@ -1,5 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
+import { useTranslation } from '@/i18n';
 import { useTheme } from '@/theme/theme';
 import { Text } from '@/ui/Text';
 
@@ -15,6 +16,7 @@ interface NavBannerProps {
 
 /** The dark banner at the top of the job screen: how far the next stop is and where it is. */
 export function NavBanner({ title, target, address, distance }: NavBannerProps) {
+  const { t: tr } = useTranslation();
   const t = useTheme();
   const c = t.color;
   return (
@@ -41,7 +43,7 @@ export function NavBanner({ title, target, address, distance }: NavBannerProps) 
           {distance ?? title}
         </Text>
         <Text variant="caption" style={{ color: c.onBanner, opacity: 0.8 }} numberOfLines={1}>
-          {`${target} · ${address}`}
+          {tr('driver:navLine', { target, address })}
         </Text>
       </View>
     </View>

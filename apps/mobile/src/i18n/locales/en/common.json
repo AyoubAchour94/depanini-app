@@ -1,0 +1,18 @@
+{
+  "money": "{{amount}} TND",
+  "distance": {
+    "km": "{{value}} km",
+    "meters": "{{value}} m"
+  },
+  "duration": {
+    "minutes": "{{value}} min"
+  },
+  "back": "Back",
+  "truckTypes": {
+    "flatbed": "Flatbed",
+    "wheel_lift": "Wheel-lift"
+  },
+  "truckLine": "{{truck}} · {{plate}}",
+  "sheetSize": "Sheet size",
+  "rangeLabel": "{{value}}, between {{min}} and {{max}}"
+}

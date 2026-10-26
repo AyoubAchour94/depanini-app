@@ -9,7 +9,7 @@ import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
 import { Text } from '@/ui/Text';
 
-import { requestStrings as t } from './strings';
+import { useRequestStrings } from './strings';
 
 /**
  * One of the customer's past requests. It is read from the history already in
@@ -17,6 +17,7 @@ import { requestStrings as t } from './strings';
  * the request is loaded by its id.
  */
 export function TripDetailScreen() {
+  const t = useRequestStrings();
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const queryClient = useQueryClient();

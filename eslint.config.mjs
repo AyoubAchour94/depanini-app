@@ -7,6 +7,28 @@ import expoConfig from 'eslint-config-expo/flat.js';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
+// Props that carry text a user reads or a screen reader says. A string literal in
+// one of them must come from `t()` instead (see src/i18n).
+const TEXT_PROPS =
+  '/^(title|label|placeholder|accessibilityLabel|accessibilityHint|headerTitle|subtitle|text|message|description|alt)$/';
+const hardCodedTextSelectors = [
+  'JSXElement > JSXExpressionContainer > Literal[value=/[A-Za-z]/]',
+  `JSXAttribute[name.name=${TEXT_PROPS}] > Literal`,
+  `JSXAttribute[name.name=${TEXT_PROPS}] > JSXExpressionContainer > :matches(Literal, TemplateLiteral)`,
+  `JSXAttribute[name.name=${TEXT_PROPS}] > JSXExpressionContainer > :matches(ConditionalExpression, LogicalExpression) > Literal[value=/[A-Za-z]/]`,
+].map((selector) => ({
+  selector,
+  message: 'No hard-coded text in screens: add it to src/i18n/locales/en and use t().',
+}));
+
+const hexSelectors = [
+  'Literal[value=/^#[0-9a-fA-F]{3,8}$/]',
+  'TemplateElement[value.raw=/#[0-9a-fA-F]{3,8}\\b/]',
+].map((selector) => ({
+  selector,
+  message: 'No hex colours in screens: use a token from useTheme() (t.color.*).',
+}));
+
 const nodePackages = ['apps/api/**/*.ts', 'packages/shared/**/*.ts'];
 
 export default tseslint.config(
@@ -52,17 +74,18 @@ export default tseslint.config(
     files: ['apps/mobile/src/app/**/*.{ts,tsx}', 'apps/mobile/src/features/**/*.{ts,tsx}'],
     ignores: ['**/*.test.{ts,tsx}'],
     rules: {
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector: 'Literal[value=/^#[0-9a-fA-F]{3,8}$/]',
-          message: 'No hex colours in screens: use a token from useTheme() (t.color.*).',
-        },
-        {
-          selector: 'TemplateElement[value.raw=/#[0-9a-fA-F]{3,8}\\b/]',
-          message: 'No hex colours in screens: use a token from useTheme() (t.color.*).',
-        },
-      ],
+      'no-restricted-syntax': ['error', ...hexSelectors, ...hardCodedTextSelectors],
+      // Text on screen comes from the message files (src/i18n/locales). Only symbols
+      // such as "·" and "›" may stay in JSX.
+      'react/jsx-no-literals': ['error', { allowedStrings: ['·', '›', '‹', '≡', '🚚'] }],
+    },
+  },
+  // Developer-only kits (behind __DEV__): never shown to users, so not translated.
+  {
+    files: ['apps/mobile/src/app/dev/**', 'apps/mobile/src/features/dev/**'],
+    rules: {
+      'react/jsx-no-literals': 'off',
+      'no-restricted-syntax': ['error', ...hexSelectors],
     },
   },
   // Hex literals that exist today, each owned by the screen slice that restyles it.
@@ -71,7 +94,7 @@ export default tseslint.config(
     files: [
       'apps/mobile/src/features/status/FirebaseBanner.tsx', // TODO #141 (loading and error states)
     ],
-    rules: { 'no-restricted-syntax': 'off' },
+    rules: { 'no-restricted-syntax': ['error', ...hardCodedTextSelectors] },
   },
   {
     files: ['apps/mobile/**/*.test.{ts,tsx}', 'apps/mobile/jest.setup.ts'],

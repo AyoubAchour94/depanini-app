@@ -9,7 +9,7 @@ import { Num } from '@/ui/Num';
 import { RoundButton } from '@/ui/RoundButton';
 import { Text } from '@/ui/Text';
 
-import { requestStrings as t } from './strings';
+import { useRequestStrings } from './strings';
 import { truckTypeLabel } from './truck';
 
 /**
@@ -18,6 +18,7 @@ import { truckTypeLabel } from './truck';
  * paid in cash to the driver.
  */
 export function AssignedDriver({ request }: { request: TowRequest }) {
+  const t = useRequestStrings();
   const theme = useTheme();
   const { driver, agreedFare } = request;
   if (!driver) return null;
@@ -46,7 +47,7 @@ export function AssignedDriver({ request }: { request: TowRequest }) {
         {driver.phone ? (
           <RoundButton
             tone="brand"
-            accessibilityLabel={`${t.callDriver} ${formatPhone(driver.phone)}`}
+            accessibilityLabel={t.callPhone(formatPhone(driver.phone))}
             onPress={() => void Linking.openURL(`tel:${driver.phone}`)}
           >
             <Text variant="label" tone="onBrand">

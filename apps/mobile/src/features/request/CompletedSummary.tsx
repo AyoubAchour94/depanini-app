@@ -12,7 +12,7 @@ import { Text } from '@/ui/Text';
 
 import { PaymentPrompt } from './PaymentPrompt';
 import { PlaceRow } from './RequestSummary';
-import { requestStrings as t } from './strings';
+import { useRequestStrings } from './strings';
 import { Timeline } from './TripProgress';
 
 /**
@@ -30,6 +30,7 @@ export function CompletedSummary({
   driverName?: string;
   onDone: () => void;
 }) {
+  const t = useRequestStrings();
   return (
     <PlainScreen footer={<Button size="big" title={t.done} onPress={onDone} />}>
       <View style={styles.head}>

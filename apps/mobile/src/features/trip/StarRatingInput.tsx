@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { useTheme } from '@/theme/theme';
 import { Text } from '@/ui/Text';
 
-import { tripStrings as t } from './strings';
+import { useTripStrings } from './strings';
 
 const STARS = [1, 2, 3, 4, 5] as const;
 
@@ -17,6 +17,7 @@ export function StarRatingInput({
   onChange: (stars: number) => void;
   disabled?: boolean;
 }) {
+  const t = useTripStrings();
   const theme = useTheme();
   return (
     <View accessibilityLabel={t.starsGroup} style={styles.row}>

@@ -8,8 +8,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
 import { useMyRating, useSubmitRating } from '@/api/towRequests';
-import { driverStrings } from '@/features/driver/strings';
-import { requestStrings } from '@/features/request/strings';
+import { useDriverStrings } from '@/features/driver/strings';
+import { useRequestStrings } from '@/features/request/strings';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
@@ -17,22 +17,9 @@ import { Text } from '@/ui/Text';
 import { TextField } from '@/ui/TextField';
 
 import { StarRatingInput } from './StarRatingInput';
-import { tripStrings as t } from './strings';
+import { useTripStrings } from './strings';
 
 export type RatingSide = 'customer' | 'driver';
-
-const SIDES = {
-  customer: {
-    title: t.rateDriverTitle,
-    schema: customerRatingInputSchema,
-    labels: requestStrings.driverTagLabels as Record<string, string>,
-  },
-  driver: {
-    title: t.rateCustomerTitle,
-    schema: driverRatingInputSchema,
-    labels: driverStrings.customerTagLabels as Record<string, string>,
-  },
-};
 
 /**
  * Rate the other side of a completed trip: stars, tags for this side and an
@@ -41,6 +28,21 @@ const SIDES = {
  * caller's scroll view.
  */
 export function RateTripCard({ side, requestId }: { side: RatingSide; requestId: string }) {
+  const t = useTripStrings();
+  const requestStrings = useRequestStrings();
+  const driverStrings = useDriverStrings();
+  const SIDES = {
+    customer: {
+      title: t.rateDriverTitle,
+      schema: customerRatingInputSchema,
+      labels: requestStrings.driverTagLabels as Record<string, string>,
+    },
+    driver: {
+      title: t.rateCustomerTitle,
+      schema: driverRatingInputSchema,
+      labels: driverStrings.customerTagLabels as Record<string, string>,
+    },
+  };
   const theme = useTheme();
   const rating = useMyRating(requestId);
   const submit = useSubmitRating();

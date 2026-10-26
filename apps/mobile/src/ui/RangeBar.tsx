@@ -1,5 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
+import { useTranslation } from '@/i18n';
 import { useTheme } from '@/theme/theme';
 
 import { Text } from './Text';
@@ -32,6 +33,7 @@ const TICK = 14;
  * Display only; the stepper changes the value.
  */
 export function RangeBar({ value, min, max, suggested, format, hint }: RangeBarProps) {
+  const { t: tr } = useTranslation();
   const t = useTheme();
   const at = rangeFraction(value, min, max);
   return (
@@ -39,7 +41,11 @@ export function RangeBar({ value, min, max, suggested, format, hint }: RangeBarP
       <View
         accessible
         accessibilityRole="progressbar"
-        accessibilityLabel={`${format(value)}, between ${format(min)} and ${format(max)}`}
+        accessibilityLabel={tr('common:rangeLabel', {
+          value: format(value),
+          min: format(min),
+          max: format(max),
+        })}
         accessibilityValue={{ min, max, now: value }}
         style={styles.bar}
       >

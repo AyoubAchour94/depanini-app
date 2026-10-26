@@ -7,6 +7,7 @@ import { deleteAccount } from '@/api/me';
 import { authErrorCode, authErrorMessage } from '@/auth/errors';
 import { deleteCurrentUser, reauthenticate } from '@/auth/firebase-auth';
 import { AuthLayout } from '@/features/auth/AuthLayout';
+import { translate, useTranslation } from '@/i18n';
 import { Button } from '@/ui/Button';
 import { TextField } from '@/ui/TextField';
 
@@ -22,6 +23,7 @@ import { TextField } from '@/ui/TextField';
  * re-authentication here.
  */
 export function DeleteAccountScreen() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [password, setPassword] = useState('');
   const remove = useMutation({
@@ -37,31 +39,31 @@ export function DeleteAccountScreen() {
 
   return (
     <AuthLayout
-      title="Delete your account?"
-      subtitle="This permanently deletes your account and your customer and driver details, in both Depanini apps. It can't be undone."
+      title={t('account:delete.title')}
+      subtitle={t('account:delete.subtitle')}
       error={remove.isError ? deleteErrorMessage(remove.error) : undefined}
       action={
         <>
           <Button
             size="big"
             kind="danger"
-            title="Delete my account"
+            title={t('account:delete.confirm')}
             onPress={() => remove.mutate()}
             loading={remove.isPending}
             disabled={!password}
           />
-          <Button kind="link" title="Keep my account" onPress={() => router.back()} />
+          <Button kind="link" title={t('account:delete.keep')} onPress={() => router.back()} />
         </>
       }
     >
       <TextField
-        label="Password"
+        label={t('auth:password')}
         value={password}
         onChangeText={setPassword}
         secureTextEntry
         autoComplete="current-password"
         textContentType="password"
-        placeholder="Enter your password to confirm"
+        placeholder={t('account:delete.passwordPlaceholder')}
       />
     </AuthLayout>
   );
@@ -69,11 +71,11 @@ export function DeleteAccountScreen() {
 
 function deleteErrorMessage(error: Error): string {
   if (error instanceof ApiError) {
-    return 'Could not delete your account. Check your connection and try again.';
+    return translate('account:delete.failed');
   }
   // Only the password is asked for here, so don't mention the email.
   const code = authErrorCode(error);
   return code === 'auth/invalid-credential' || code === 'auth/wrong-password'
-    ? 'Password is incorrect.'
+    ? translate('account:delete.wrongPassword')
     : authErrorMessage(error);
 }

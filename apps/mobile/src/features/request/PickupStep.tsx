@@ -1,3 +1,4 @@
+import { formatDecimal } from '@/i18n/format';
 import { isInTunisia, type LatLng, type Place, TUNIS_CENTER } from '@depanini/shared';
 import * as Location from 'expo-location';
 import { useEffect, useState } from 'react';
@@ -12,7 +13,7 @@ import { Button } from '@/ui/Button';
 import { Text } from '@/ui/Text';
 
 import { PlaceReadout } from './PlaceReadout';
-import { requestStrings as t } from './strings';
+import { useRequestStrings } from './strings';
 
 /** Snap points of the pickup sheet: the address, a location notice and the pinned action fit at the first. */
 const PICKUP_SNAPS = [260] as const;
@@ -61,7 +62,7 @@ function useStartPosition(): StartPosition {
 }
 
 const formatCoordinates = ({ latitude, longitude }: LatLng) =>
-  `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+  `${formatDecimal(latitude, 5)}, ${formatDecimal(longitude, 5)}`;
 
 interface PickupStepProps {
   onConfirm: (pickup: Place) => void;
@@ -74,6 +75,7 @@ interface PickupStepProps {
  * vehicle is and confirms. `onConfirm` receives the {@link Place}.
  */
 export function PickupStep({ onConfirm, onBack }: PickupStepProps) {
+  const t = useRequestStrings();
   const theme = useTheme();
   const start = useStartPosition();
   // The coordinate under the pin; null until the map has settled for the first time.

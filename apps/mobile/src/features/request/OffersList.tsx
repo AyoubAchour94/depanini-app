@@ -13,7 +13,7 @@ import { Pill } from '@/ui/Pill';
 import { Text } from '@/ui/Text';
 
 import { confirmAccept } from './confirm';
-import { requestStrings as t } from './strings';
+import { useRequestStrings } from './strings';
 import { truckTypeLabel } from './truck';
 
 /**
@@ -23,6 +23,7 @@ import { truckTypeLabel } from './truck';
  * the fare, how far away.
  */
 export function OffersList({ request, focused }: { request: TowRequest; focused: boolean }) {
+  const t = useRequestStrings();
   const theme = useTheme();
   const offers = useOffers(request.id, { poll: focused });
   const accept = useAcceptOffer();

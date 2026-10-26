@@ -1,0 +1,21 @@
+{
+  "finish": "Finish",
+  "save": "Save",
+  "next": "Next",
+  "back": "Back",
+  "continue": "Continue",
+  "step1": "Step 1 of 2: your details",
+  "step2": "Step 2 of 2: your truck",
+  "truckType": "Truck type",
+  "plateNumber": "Plate number",
+  "platePlaceholder": "123 TU 4567",
+  "fullName": "Full name",
+  "phone": "Phone",
+  "phonePlaceholder": "+216 98 123 456",
+  "saveFailed": "Could not save your details. Check your connection and try again.",
+  "driverSetupTitle": "Set up your driver profile",
+  "driverSetupSubtitle": "Customers see your name, phone and truck when you take their tow.",
+  "customerSetupTitle": "Tell us about you",
+  "customerSetupSubtitle": "Drivers use your name and phone to reach you during a tow.",
+  "detailsTitle": "Your details"
+}

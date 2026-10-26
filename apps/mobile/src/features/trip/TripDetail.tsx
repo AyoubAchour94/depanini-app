@@ -1,3 +1,4 @@
+import { formatKilometres } from '@/i18n/format';
 import type { Receipt, TowRequest } from '@depanini/shared';
 import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
@@ -15,9 +16,9 @@ import { Text } from '@/ui/Text';
 import { formatTnd } from './money';
 import { RateTripCard, type RatingSide } from './RateTripCard';
 import { ReportProblemCard } from './ReportProblemCard';
-import { formatReceiptText, truckLabel, vehicleSummary } from './receiptText';
+import { driverWithTruck, formatReceiptText, vehicleSummary } from './receiptText';
 import { shareText } from './share';
-import { tripStrings as t } from './strings';
+import { useTripStrings } from './strings';
 
 /**
  * One trip as either party sees it: the route, the stage times, the fare and,
@@ -25,6 +26,7 @@ import { tripStrings as t } from './strings';
  * caller's scroll view.
  */
 export function TripDetail({ request, side }: { request: TowRequest; side: RatingSide }) {
+  const t = useTripStrings();
   const theme = useTheme();
   const completed = request.status === 'completed';
   const fare = completed ? (request.agreedFare ?? request.proposedFare) : request.proposedFare;
@@ -85,6 +87,7 @@ export function TripDetail({ request, side }: { request: TowRequest; side: Ratin
 
 /** The receipt of a completed request, fetched from the API, with the Share button. */
 export function ReceiptCard({ requestId }: { requestId: string }) {
+  const t = useTripStrings();
   const theme = useTheme();
   const receipt = useReceipt(requestId);
 
@@ -109,6 +112,7 @@ export function ReceiptCard({ requestId }: { requestId: string }) {
 }
 
 export function ReceiptView({ receipt }: { receipt: Receipt }) {
+  const t = useTripStrings();
   const [note, setNote] = useState<'copied' | 'failed'>();
   const [sharing, setSharing] = useState(false);
 
@@ -130,11 +134,8 @@ export function ReceiptView({ receipt }: { receipt: Receipt }) {
       <Field label={t.receiptNumber} value={receipt.receiptNo} />
       <Field label={t.receiptDate} value={t.dateTime(receipt.completedAt)} />
       <Field label={t.vehicleLabel} value={vehicleSummary(receipt)} />
-      <Field label={t.distanceLabel} value={`${(receipt.distanceM / 1000).toFixed(1)} km`} />
-      <Field
-        label={t.driverLabel}
-        value={`${receipt.driver.fullName} (${truckLabel(receipt.driver.truckType)})`}
-      />
+      <Field label={t.distanceLabel} value={formatKilometres(receipt.distanceM)} />
+      <Field label={t.driverLabel} value={driverWithTruck(receipt.driver)} />
       <Field label={t.customerLabel} value={receipt.customer.fullName} />
       <Divider />
       <Field label={t.paidInCash} value={formatTnd(receipt.agreedFare)} strong />

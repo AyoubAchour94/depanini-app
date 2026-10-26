@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 
 import { EARNINGS_KEY, JOB_KEY, JOBS_KEY } from '@/api/driver';
 import { EarningsScreen } from '@/features/driver/EarningsScreen';
-import { driverStrings } from '@/features/driver/strings';
+import { useDriverStrings } from '@/features/driver/strings';
 import { setLastSent } from '@/features/driver/usePresence';
 import { Summary, JobScreen } from '@/features/driver/JobScreen';
 import { MyJobsScreen } from '@/features/driver/MyJobsScreen';
@@ -96,6 +96,7 @@ function seededClient(stage: TripStage) {
  * `&stage=accepted|en_route|arrived|towing` and `&theme=light|dark|system`.
  */
 export function DriverKitScreen() {
+  const driverStrings = useDriverStrings();
   const params = useLocalSearchParams<{ screen?: string; stage?: string; theme?: string }>();
   const stage = TRIP_STAGES.find((s) => s === params.stage) ?? 'accepted';
   const [client] = useState(() => seededClient(stage));

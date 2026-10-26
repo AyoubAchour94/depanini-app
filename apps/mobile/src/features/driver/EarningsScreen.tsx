@@ -7,12 +7,13 @@ import { Button } from '@/ui/Button';
 import { Num } from '@/ui/Num';
 import { Text } from '@/ui/Text';
 
-import { driverStrings as t } from './strings';
+import { useDriverStrings } from './strings';
 
 const PERIODS = ['today', 'week', 'month'] as const;
 
 /** Trips and TND earned today, this week and this month. Read again whenever the screen is focused. */
 export function EarningsScreen() {
+  const t = useDriverStrings();
   const theme = useTheme();
   const focused = useIsFocused();
   const earnings = useEarnings({ enabled: focused });
