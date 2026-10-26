@@ -13,5 +13,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
+    // Full-app renders are slow on a loaded runner; keep the per-test limit above asyncUtilTimeout.
+    testTimeout: 20_000,
   },
 });
