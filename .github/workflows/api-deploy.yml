@@ -1,10 +1,16 @@
-# API deploy to Google Cloud Run (europe-west1). STUB: manual trigger only
-# until Cloud Run, Cloud SQL and Workload Identity Federation are provisioned.
-# The checklist for turning it on is in CI.md ("API deploy").
+# API deploy to Google Cloud Run (europe-west1). Manual trigger only until the
+# production infrastructure exists; the runbook for turning it on is in CI.md
+# ("API deploy"). Order: build image, run database migrations, deploy. A failed
+# migration stops the run before anything is deployed.
 name: API deploy
 
 on:
   workflow_dispatch:
+
+# One deploy at a time, so two runs never migrate the database concurrently.
+concurrency:
+  group: api-deploy
+  cancel-in-progress: false
 
 env:
   REGION: europe-west1
@@ -15,6 +21,9 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Holds the production DATABASE_URL secret; add required reviewers to this
+    # environment in the repo settings for an approval gate.
+    environment: production
     permissions:
       contents: read
       id-token: write # Workload Identity Federation, so no JSON key in secrets
@@ -32,9 +41,22 @@ jobs:
           docker build -f apps/api/Dockerfile -t "${IMAGE_REPO}/${SERVICE}:${GITHUB_SHA}" .
           docker push "${IMAGE_REPO}/${SERVICE}:${GITHUB_SHA}"
 
-      # Database migrations (`pnpm --filter @depanini/api db:migrate`) are not
-      # wired here yet: they need network access to Cloud SQL (e.g. a Cloud Run
-      # job or the Cloud SQL Auth Proxy). Decide when provisioning.
+      # Migrations run from the runner against the production database, before
+      # the new revision is deployed. Provider-agnostic: any Postgres with
+      # PostGIS reachable over the internet (Neon, Supabase, Cloud SQL, ...).
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile --filter @depanini/api...
+
+      - name: Run database migrations
+        run: scripts/api-migrate.sh
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - uses: google-github-actions/deploy-cloudrun@v3
         with:
