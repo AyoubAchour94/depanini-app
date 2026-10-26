@@ -1,4 +1,4 @@
-import { expect, type Page, type Route, test } from '@playwright/test';
+import { expect, type Page, type Route, test, type WebSocketRoute } from '@playwright/test';
 
 // Screenshots of the customer's open request with offers, the live trip, trip
 // complete (payment and rating), history and the trip detail with its receipt,
@@ -227,6 +227,34 @@ async function mockApi(page: Page, state: ApiState) {
     }
     return json(route, { message: 'not found' }, 404);
   });
+
+  // The live socket is answered here too, so the app is "Live" and gets its updates as pushes,
+  // whether or not a real API runs at the same address.
+  const sockets: WebSocketRoute[] = [];
+  const wsHost = new URL(API_ORIGIN).host;
+  await page.routeWebSocket(
+    (url) => url.host === wsHost && url.pathname === '/ws',
+    (ws) => {
+      sockets.push(ws);
+      ws.onMessage((message) => {
+        if (typeof message === 'string' && message.includes('"auth"')) {
+          ws.send(JSON.stringify({ type: 'auth.ok' }));
+        }
+      });
+    },
+  );
+  return {
+    /** Pushes what the API would push after a change: the request, and a hint to read the offers again. */
+    push() {
+      for (const ws of sockets) {
+        if (state.active)
+          ws.send(JSON.stringify({ type: 'request.updated', request: state.active }));
+        if (state.offers.length > 0) {
+          ws.send(JSON.stringify({ type: 'offer.updated', offer: state.offers[0] }));
+        }
+      }
+    },
+  };
 }
 
 /** The map tiles and the sheet have settled. */
@@ -245,10 +273,11 @@ for (const scheme of ['light', 'dark'] as const) {
     // Every window.confirm in the app (accept offer) is answered with OK.
     page.on('dialog', (dialog) => void dialog.accept());
     const state: ApiState = { active: openRequest(), offers: [], history: [] };
-    await mockApi(page, state);
+    const api = await mockApi(page, state);
     const shot = (name: string) => page.screenshot({ path: `${SHOTS_DIR}/${scheme}-${name}.png` });
-    /** Makes the open screen read the (changed) API state now, as when the app comes back to the front. */
+    /** Shows the (changed) API state: pushed on the socket, and read again as when the app comes to the front. */
     const refresh = async () => {
+      api.push();
       await page.evaluate(() => {
         window.dispatchEvent(new Event('focus'));
         document.dispatchEvent(new Event('visibilitychange'));
