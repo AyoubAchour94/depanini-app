@@ -19,7 +19,7 @@ import { and, asc, eq, gt, sql } from 'drizzle-orm';
 import type { Env } from '../config/env.js';
 import { ENV } from '../config/env.module.js';
 import { DB, type Database } from '../db/database.module.js';
-import { driverDocuments, driverProfiles, files } from '../db/schema.js';
+import { documentUploads, driverDocuments, driverProfiles, files } from '../db/schema.js';
 import { FILE_STORE, type FileStore } from '../files/file-store.js';
 import { CLOCK, type Clock } from '../tow-requests/clock.js';
 import { isUniqueViolation } from '../tow-requests/tow-requests.service.js';
@@ -65,18 +65,21 @@ export class VerificationService {
 
   /**
    * The per-driver upload limit: `429 { code: UPLOAD_LIMIT_REACHED }` once the driver has
-   * `UPLOAD_LIMIT_PER_HOUR` files from the last hour, or `UPLOAD_LIMIT_PER_DAY` from the
-   * last day. Counted from the `files` rows in Postgres, so it holds across API instances.
+   * `UPLOAD_LIMIT_PER_HOUR` uploads from the last hour, or `UPLOAD_LIMIT_PER_DAY` from the
+   * last day. Counted from the append-only `document_uploads` log in Postgres (deleting a page does not free a slot), so it holds across API instances.
    */
   async assertCanUpload(driverId: string, db: Pick<Database, 'select'> = this.db): Promise<void> {
     const [counts] = await db
       .select({
-        lastHour: sql<number>`(count(*) filter (where ${files.createdAt} > now() - interval '1 hour'))::int`,
+        lastHour: sql<number>`(count(*) filter (where ${documentUploads.createdAt} > now() - interval '1 hour'))::int`,
         lastDay: sql<number>`count(*)::int`,
       })
-      .from(files)
+      .from(documentUploads)
       .where(
-        and(eq(files.ownerUserId, driverId), gt(files.createdAt, sql`now() - interval '1 day'`)),
+        and(
+          eq(documentUploads.driverUserId, driverId),
+          gt(documentUploads.createdAt, sql`now() - interval '1 day'`),
+        ),
       );
     if (
       counts!.lastHour >= this.env.UPLOAD_LIMIT_PER_HOUR ||
@@ -131,6 +134,7 @@ export class VerificationService {
         await this.lockEditable(tx, driverId);
         // Again under the profile lock: concurrent uploads cannot both take the last slot.
         await this.assertCanUpload(driverId, tx);
+        await tx.insert(documentUploads).values({ driverUserId: driverId });
         const [last] = await tx
           .select({ page: sql<number>`coalesce(max(${driverDocuments.page}), 0)::int` })
           .from(driverDocuments)

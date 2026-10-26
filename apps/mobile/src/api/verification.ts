@@ -37,7 +37,8 @@ export function useVerification({
   const pollMs = usePollMs(VERIFICATION_POLL_MS);
   return useQuery({
     queryKey: VERIFICATION_KEY,
-    queryFn: (): Promise<Verification> => apiRequest('/driver/verification', verificationSchema),
+    queryFn: ({ signal }): Promise<Verification> =>
+      apiRequest('/driver/verification', verificationSchema, { signal }),
     enabled,
     // The admin decides while the app is open; keep looking only while a decision is pending.
     refetchInterval: (query) => (poll && query.state.data?.status === 'pending' ? pollMs : false),

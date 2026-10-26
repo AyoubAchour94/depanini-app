@@ -13,7 +13,8 @@ export const receiptKey = (requestId: string) => ['receipt', requestId] as const
 export function useReceipt(requestId: string, { enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: receiptKey(requestId),
-    queryFn: () => apiRequest(`/tow-requests/${requestId}/receipt`, receiptSchema),
+    queryFn: ({ signal }) =>
+      apiRequest(`/tow-requests/${requestId}/receipt`, receiptSchema, { signal }),
     enabled,
     // A receipt never changes once issued.
     staleTime: Infinity,

@@ -10,8 +10,8 @@ export const REPORTS_KEY = ['tow-requests', 'reports'] as const;
 export function useTripReports(requestId: string, { enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: [...REPORTS_KEY, requestId],
-    queryFn: (): Promise<Report[]> =>
-      apiRequest(`/tow-requests/${requestId}/reports`, z.array(reportSchema)),
+    queryFn: ({ signal }): Promise<Report[]> =>
+      apiRequest(`/tow-requests/${requestId}/reports`, z.array(reportSchema), { signal }),
     enabled,
   });
 }

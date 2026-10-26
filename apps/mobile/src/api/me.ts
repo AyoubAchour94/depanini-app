@@ -21,7 +21,7 @@ export function useMe() {
   const uid = useSignedInUid();
   return useQuery({
     queryKey: meQueryKey(uid),
-    queryFn: () => apiRequest('/me', meResponseSchema),
+    queryFn: ({ signal }) => apiRequest('/me', meResponseSchema, { signal }),
     enabled: Boolean(uid),
   });
 }

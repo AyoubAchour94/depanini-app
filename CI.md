@@ -138,8 +138,16 @@ before anything is deployed, so the old revision keeps serving.
    from [`apps/api/.env.production.example`](./apps/api/.env.production.example):
    `DATABASE_URL` (from Secret Manager), `FIREBASE_PROJECT_ID`, `CORS_ORIGINS`
    (the admin app origin) and `PUSH_PROVIDER` (see `docs/push.md`). `PORT` is
-   injected by Cloud Run. Health check path: `/health`. The hardening variables
-   (rate limits, log level, timeouts) are added by #152: see #152.
+   injected by Cloud Run. Health check path: `/health`. The hardening variables are
+   optional (defaults in the example file): `TRUST_PROXY_HOPS`,
+   `THROTTLE_TTL_MS`, `THROTTLE_LIMIT`, `THROTTLE_WRITE_LIMIT`,
+   `UPLOAD_LIMIT_PER_HOUR`, `UPLOAD_LIMIT_PER_DAY`, `REQUEST_TIMEOUT_MS` and
+   `LOG_LEVEL`. Cloud Run alone is one proxy hop (`TRUST_PROXY_HOPS=1`, the
+   default). **If Cloud Run is ever put behind a Google HTTPS load balancer, set
+   `TRUST_PROXY_HOPS=2`**; otherwise every signed-out caller lands in one IP
+   bucket for rate limiting. The upload limits are counted in Postgres (the
+   append-only `document_uploads` log), the request rate limits in memory per
+   instance.
 4. **Workload Identity Federation** for this GitHub repo and a deploy service
    account (roles: Cloud Run Admin, Artifact Registry Writer, Service Account
    User).

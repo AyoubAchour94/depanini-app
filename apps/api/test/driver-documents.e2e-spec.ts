@@ -13,7 +13,13 @@ import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { eq } from 'drizzle-orm';
 import request from 'supertest';
 
-import { driverDocuments, driverProfiles, files, users } from '../src/db/schema.js';
+import {
+  documentUploads,
+  driverDocuments,
+  driverProfiles,
+  files,
+  users,
+} from '../src/db/schema.js';
 import { driversNearRequests } from '../src/realtime/nearby-drivers.js';
 import { MAX_PAGES_PER_KIND } from '../src/verification/verification.service.js';
 import { approveDriver, approveDriverByToken } from './support/approve-driver.js';
@@ -210,20 +216,13 @@ describe('driver documents, verification and the online gate (e2e)', () => {
   });
 
   describe('the per-driver upload limit', () => {
-    /** Files the driver uploaded `hoursAgo`, written straight to the database. */
+    /** Uploads the driver made `hoursAgo`, written straight to the log. */
     const uploadedEarlier = async (token: string, count: number, hoursAgo: number) => {
-      const ownerUserId = await userId(/^token-([^:]+)/.exec(token)![1]!);
+      const driverUserId = await userId(/^token-([^:]+)/.exec(token)![1]!);
       const createdAt = new Date(Date.now() - hoursAgo * 3_600_000);
-      await database.db.insert(files).values(
-        Array.from({ length: count }, () => ({
-          ownerUserId,
-          contentType: 'image/png' as const,
-          sizeBytes: PNG.length,
-          sha256: 'x',
-          data: PNG,
-          createdAt,
-        })),
-      );
+      await database.db
+        .insert(documentUploads)
+        .values(Array.from({ length: count }, () => ({ driverUserId, createdAt })));
     };
     const expectLimited = async (token: string) => {
       const res = await upload(token, 'insurance', PNG, { contentType: 'image/png' }).expect(429);
@@ -239,6 +238,28 @@ describe('driver documents, verification and the online gate (e2e)', () => {
       await expectLimited(dan);
       expect(await database.db.select().from(files)).toHaveLength(20);
       await uploadOk(eve, 'insurance');
+    });
+
+    it('does not give a slot back when a page is deleted', async () => {
+      await makeDriver(dan);
+      await uploadedEarlier(dan, 19, 0.5);
+      const page = await uploadOk(dan, 'insurance');
+      await api('delete', `/driver/documents/${page.id}`, dan).expect(204);
+      expect(await database.db.select().from(files)).toHaveLength(0);
+      await expectLimited(dan);
+    });
+
+    it('lets only one of several parallel uploads take the last slot', async () => {
+      await makeDriver(dan);
+      await uploadedEarlier(dan, 19, 0.5);
+      const results = await Promise.all(
+        Array.from({ length: 5 }, () =>
+          upload(dan, 'insurance', PNG, { contentType: 'image/png' }),
+        ),
+      );
+      expect(results.map((res) => res.status).sort()).toEqual([201, 429, 429, 429, 429]);
+      expect(await database.db.select().from(files)).toHaveLength(1);
+      expect(await database.db.select().from(documentUploads)).toHaveLength(20);
     });
 
     it('counts only the last hour against the hourly limit', async () => {

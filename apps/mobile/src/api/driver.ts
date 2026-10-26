@@ -33,7 +33,8 @@ export const NEARBY_POLL_MS = 10_000;
 
 export const NEARBY_KEY = ['driver', 'requests', 'nearby'] as const;
 
-const fetchNearby = () => apiRequest('/driver/requests/nearby', z.array(nearbyRequestSchema));
+const fetchNearby = ({ signal }: { signal: AbortSignal }) =>
+  apiRequest('/driver/requests/nearby', z.array(nearbyRequestSchema), { signal });
 
 /**
  * `GET /driver/requests/nearby`: open requests around the driver, nearest
@@ -78,7 +79,7 @@ export function useActiveOffers({ poll }: { poll: boolean }) {
   const pollMs = usePollMs(OFFERS_POLL_MS);
   return useQuery({
     queryKey: OFFERS_KEY,
-    queryFn: () => apiRequest('/driver/offers/active', z.array(offerSchema)),
+    queryFn: ({ signal }) => apiRequest('/driver/offers/active', z.array(offerSchema), { signal }),
     refetchInterval: poll ? pollMs : false,
   });
 }
@@ -88,8 +89,8 @@ export function useDriverJob({ poll }: { poll: boolean }) {
   const pollMs = usePollMs(JOB_POLL_MS);
   return useQuery({
     queryKey: JOB_KEY,
-    queryFn: async (): Promise<DriverJob | null> =>
-      (await apiRequest('/driver/job', driverJobSchema.optional())) ?? null,
+    queryFn: async ({ signal }): Promise<DriverJob | null> =>
+      (await apiRequest('/driver/job', driverJobSchema.optional(), { signal })) ?? null,
     refetchInterval: poll ? pollMs : false,
   });
 }
@@ -105,10 +106,12 @@ export function useDriverJobs() {
   return useInfiniteQuery({
     queryKey: JOBS_KEY,
     initialPageParam: null as string | null,
-    queryFn: ({ pageParam }) => {
+    queryFn: ({ pageParam, signal }) => {
       const query = new URLSearchParams({ limit: String(JOBS_PAGE_SIZE) });
       if (pageParam) query.set('cursor', pageParam);
-      return apiRequest(`/driver/jobs?${query}`, z.unknown().transform(parseHistoryPage));
+      return apiRequest(`/driver/jobs?${query}`, z.unknown().transform(parseHistoryPage), {
+        signal,
+      });
     },
     getNextPageParam: (last) => last.nextCursor,
   });
@@ -118,7 +121,8 @@ export function useDriverJobs() {
 export function useEarnings({ enabled }: { enabled: boolean }) {
   return useQuery({
     queryKey: EARNINGS_KEY,
-    queryFn: (): Promise<Earnings> => apiRequest('/driver/earnings', earningsSchema),
+    queryFn: ({ signal }): Promise<Earnings> =>
+      apiRequest('/driver/earnings', earningsSchema, { signal }),
     enabled,
   });
 }
