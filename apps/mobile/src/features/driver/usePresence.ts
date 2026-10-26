@@ -7,10 +7,18 @@ import { registerForPush } from '@/push';
 
 import { getTestLocation } from './testLocation';
 
+/** A GPS read slower than this is dropped, so one hung read cannot stall the send loop. */
+export const LOCATION_TIMEOUT_MS = 10_000;
+
 async function currentPosition() {
-  const { coords } = await Location.getCurrentPositionAsync({
-    accuracy: Location.Accuracy.Balanced,
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('Location read timed out')), LOCATION_TIMEOUT_MS);
   });
+  const { coords } = await Promise.race([
+    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+    timeout,
+  ]).finally(() => clearTimeout(timer));
   return { latitude: coords.latitude, longitude: coords.longitude };
 }
 
