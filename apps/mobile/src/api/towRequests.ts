@@ -37,6 +37,7 @@ export function useFareEstimate(input: FareEstimateInput | null) {
 export const ACTIVE_KEY = ['tow-requests', 'active'] as const;
 export const HISTORY_KEY = ['tow-requests', 'history'] as const;
 
+export const TOW_REQUEST_KEY = ['tow-requests', 'detail'] as const;
 export const OFFERS_KEY = ['tow-requests', 'offers'] as const;
 
 /** Refetches the active request, its offers and the history, which every create, cancel and accept changes. */
@@ -183,6 +184,15 @@ export function useTowRequestHistory() {
       return apiRequest(`/tow-requests?${query}`, z.unknown().transform(parseHistoryPage));
     },
     getNextPageParam: (last) => last.nextCursor,
+  });
+}
+
+/** `GET /tow-requests/:id`: one of the customer's requests. 404 when it is not theirs. */
+export function useTowRequest(id: string, { enabled = true }: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: [...TOW_REQUEST_KEY, id],
+    queryFn: () => apiRequest(`/tow-requests/${id}`, towRequestSchema),
+    enabled,
   });
 }
 

@@ -178,6 +178,16 @@ export class TowRequestsService {
     return row ? toTowRequest(row, now) : null;
   }
 
+  /** One of the customer's requests, as the history lists it; `404` if it is not theirs. */
+  async findOne(customerId: string, id: string): Promise<TowRequest> {
+    await this.expireStale(customerId);
+    const [row] = await selectTowRequests(this.db)
+      .where(and(eq(towRequests.id, id), eq(towRequests.customerId, customerId)))
+      .limit(1);
+    if (!row) throw new NotFoundException('Tow request not found');
+    return toTowRequest(row);
+  }
+
   /** The customer's requests, newest first. */
   async history(
     customerId: string,

@@ -46,10 +46,11 @@ const receipt = {
   customer: { fullName: 'Ali Ben Salah' },
 };
 
-function mockApi(history: unknown[]) {
+function mockApi(history: unknown[], loaded: unknown = trip) {
   return jest.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const { pathname } = new URL(input.toString());
     if (pathname === `/tow-requests/${ID}/receipt`) return Response.json(receipt);
+    if (pathname === `/tow-requests/${ID}`) return Response.json(loaded);
     if (pathname === '/tow-requests') return Response.json({ items: history, nextCursor: null });
     return new Response(null, { status: 404 });
   });
@@ -90,12 +91,23 @@ describe('trip detail from history', () => {
     expect(share.mock.calls[0]![0].message).toContain('DPN-2026-000123');
   });
 
-  it('falls back to the receipt when the trip is not in the history cache', async () => {
-    mockApi([]);
+  it('loads the whole trip, report card included, when the history cache is cold', async () => {
+    const fetchMock = mockApi([], { ...trip, completedAt: new Date().toISOString() });
     await renderApp(`/request/trip/${ID}`);
 
     expect(await screen.findByText('DPN-2026-000123')).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Share receipt' })).toBeOnTheScreen();
-    expect(screen.queryByText('Trip times')).toBeNull();
+    expect(screen.getByText('Trip times')).toBeOnTheScreen();
+    expect(screen.getByText('Report a problem with this trip')).toBeOnTheScreen();
+    const paths = fetchMock.mock.calls.map(([input]) => new URL(input.toString()).pathname);
+    expect(paths).toContain(`/tow-requests/${ID}`);
+  });
+
+  it('offers a retry when the trip cannot be loaded', async () => {
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 500 }));
+    await renderApp(`/request/trip/${ID}`);
+
+    expect(await screen.findByText(/Could not load this trip/)).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeOnTheScreen();
   });
 });
