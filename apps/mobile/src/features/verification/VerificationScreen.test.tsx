@@ -1,3 +1,4 @@
+import { RATE_LIMITED, UPLOAD_LIMIT_REACHED } from '@depanini/shared';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
@@ -25,6 +26,8 @@ let nextId = 1;
 let failUpload: number | null = null;
 let failSubmit: number | null = null;
 let failDelete: number | null = null;
+/** The body of a failed upload. */
+let failBody: object = {};
 
 const uuid = (n: number) => `0b8e3f3e-6a52-4a39-9b1c-${String(n).padStart(12, '0')}`;
 
@@ -53,7 +56,7 @@ function mockApi() {
     calls.push({ call: `${method} ${path}`, body: init?.body });
     if (path === '/driver/verification') return Response.json(verificationBody());
     if (path === '/driver/documents') {
-      if (failUpload) return new Response('{}', { status: failUpload });
+      if (failUpload) return Response.json(failBody, { status: failUpload });
       const form = init?.body as FormData;
       const kind = String(form.get('kind'));
       const page = documents.filter((d) => d.kind === kind).length + 1;
@@ -105,6 +108,7 @@ beforeEach(() => {
   rejectionReason = null;
   nextId = 1;
   failUpload = failSubmit = failDelete = null;
+  failBody = {};
   jest.mocked(pickPhoto).mockResolvedValue(photo as never);
   jest.mocked(pickPdf).mockResolvedValue(pdf as never);
 });
@@ -240,6 +244,23 @@ describe('uploading', () => {
 
     expect(await screen.findByText(message)).toBeOnTheScreen();
     expect(screen.getAllByText('Missing')).toHaveLength(4);
+  });
+
+  it.each([
+    [
+      UPLOAD_LIMIT_REACHED,
+      'You have uploaded a lot of files in a short time. Wait a while, then try again.',
+    ],
+    [RATE_LIMITED, 'Too many attempts. Wait a moment, then try again.'],
+  ])('explains a 429 with code %s', async (code, message) => {
+    failUpload = 429;
+    failBody = { statusCode: 429, code, message: 'Too many' };
+    mockApi();
+    await renderScreen();
+
+    await press("Choose photo: Driver's licence");
+
+    expect(await screen.findByText(message)).toBeOnTheScreen();
   });
 });
 

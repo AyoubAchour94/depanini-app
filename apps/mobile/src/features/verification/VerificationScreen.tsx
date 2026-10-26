@@ -1,4 +1,9 @@
-import { DOCUMENT_KINDS, type DocumentKind, type Verification } from '@depanini/shared';
+import {
+  DOCUMENT_KINDS,
+  type DocumentKind,
+  UPLOAD_LIMIT_REACHED,
+  type Verification,
+} from '@depanini/shared';
 import { useContext, useState } from 'react';
 import { ActivityIndicator, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
@@ -226,6 +231,9 @@ function uploadProblem(error: unknown): Problem {
     if (error.status === 413) return 'tooLarge';
     if (error.status === 415) return 'wrongType';
     if (error.status === 409) return 'locked';
+    if (error.status === 429) {
+      return error.code === UPLOAD_LIMIT_REACHED ? 'uploadLimit' : 'tooManyRequests';
+    }
   }
   return 'uploadFailed';
 }

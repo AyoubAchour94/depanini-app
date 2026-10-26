@@ -51,6 +51,8 @@ export const verificationStrings = {
     uploadFailed: 'Could not upload that file. Try again.',
     removeFailed: 'Could not remove that page. Try again.',
     locked: 'Your documents are under review, so they cannot be changed.',
+    uploadLimit: 'You have uploaded a lot of files in a short time. Wait a while, then try again.',
+    tooManyRequests: 'Too many attempts. Wait a moment, then try again.',
   },
 
   /** The driver home card while the driver is not approved. */
