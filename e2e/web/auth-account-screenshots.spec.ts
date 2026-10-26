@@ -360,10 +360,12 @@ for (const scheme of ['light', 'dark'] as const) {
 
       // A pending check is re-read every 15 seconds, so the decision shows up by itself.
       await openDocuments('pending');
-      await expect(page.getByText(/Under review/)).toBeVisible();
+      await expect(page.getByText(/Under review/).last()).toBeVisible();
       await shot('08-documents-pending');
       state.verification = 'approved';
-      await expect(page.getByText(/Approved. You can go online/)).toBeVisible({ timeout: 40_000 });
+      await expect(page.getByText(/Approved. You can go online/).last()).toBeVisible({
+        timeout: 40_000,
+      });
       await shot('09-documents-approved');
 
       // No answer for the documents: open the screen by URL while the home still retries.

@@ -162,7 +162,7 @@ export function JobScreen() {
         />
       }
       sheet={{
-        snapPoints: [`${jobSnap * 100}%`, 'full'],
+        snapPoints: [`${Math.round(jobSnap * 100)}%`, 'full'],
         footer: (
           <View style={{ gap: theme.space[2] }}>
             {conflict ? (
