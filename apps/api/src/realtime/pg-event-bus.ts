@@ -105,6 +105,10 @@ export class PgEventBus implements EventBus, OnApplicationBootstrap, OnModuleDes
     const client = new pg.Client({
       connectionString: this.options.connectionString,
       application_name: LISTENER_APPLICATION_NAME,
+      // The connection sits idle for long stretches: keepalives notice when a proxy or NAT
+      // dropped it, and a bounded connect never holds up the boot.
+      keepAlive: true,
+      connectionTimeoutMillis: 10_000,
     });
     client.on('notification', ({ payload }) => this.receive(payload));
     // Unhandled, a connection error would crash the process.
