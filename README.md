@@ -400,6 +400,21 @@ from a physical device, in `EXPO_PUBLIC_API_URL`.
   | `UPLOAD_LIMIT_PER_DAY`  | `60`    | The same per rolling day.                                                                                      |
   | `REQUEST_TIMEOUT_MS`    | `30000` | A handler still running after this answers `503`. Uploads and WebSockets are exempt.                           |
   | `LOG_LEVEL`             | `info`  | JSON logs (`nestjs-pino`) with a request id (`x-request-id`, else Cloud Run's trace id, else a new one) on every line; tokens and cookies are redacted. Pretty-printed when `NODE_ENV=development`. |
+- Error reporting (Sentry) is **off unless a DSN is set**; with none, the SDK is not
+  initialised and nothing leaves the app. It reports errors only (no tracing, no
+  replay), tagged with the app version (`release`) and the environment. Events are
+  scrubbed before sending (`packages/shared/src/sentry-scrub.ts`): no authorization
+  headers or cookies, emails, phone numbers (`+216...`), request bodies (so no document
+  uploads) or IPs; only the user id stays. The API reports unexpected errors and 5xx
+  responses, never 4xx.
+
+  | Variable                 | Where  | What it does                                                                 |
+  | ------------------------ | ------ | ---------------------------------------------------------------------------- |
+  | `SENTRY_DSN`             | API    | Sentry project DSN (`apps/api/.env`, Cloud Run). `SENTRY_ENVIRONMENT` tags the environment (default `NODE_ENV`). |
+  | `EXPO_PUBLIC_SENTRY_DSN` | Mobile | DSN baked into the app (EAS environment variable; public by design). `EXPO_PUBLIC_ENVIRONMENT` is the environment tag. |
+  | `VITE_SENTRY_DSN`        | Admin  | DSN baked into the admin build. `VITE_SENTRY_ENVIRONMENT` overrides the environment tag (default: the Vite mode). |
+
+  Source maps are not uploaded yet; CI.md ("Error reporting: source maps") says how to add it.
 - `RNMAPBOX_MAPS_DOWNLOAD_TOKEN` (Mapbox **secret** `sk.` token with
   `DOWNLOADS:READ`) is only needed when building native code: export it in your
   shell for local native builds; it is an EAS secret for cloud builds.

@@ -112,6 +112,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         defaultChannel: 'default',
       },
     ],
+    // Error reporting (src/observability). Source maps are not uploaded yet (CI.md), so the
+    // build must not try to: it has no auth token.
+    ['@sentry/react-native/expo', { disableAutoUpload: true }],
     // Reads the secret RNMAPBOX_MAPS_DOWNLOAD_TOKEN from the environment at build time.
     '@rnmapbox/maps',
     ...(firebaseConfigured

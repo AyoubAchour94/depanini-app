@@ -18,3 +18,4 @@ export * from './report';
 export * from './tow-request';
 export * from './trip';
 export * from './verification';
+export * from './sentry-scrub';

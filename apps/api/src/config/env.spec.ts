@@ -6,6 +6,14 @@ const valid = {
 };
 
 describe('parseEnv', () => {
+  it('treats a missing or empty SENTRY_DSN as off', () => {
+    expect(parseEnv(valid).SENTRY_DSN).toBeUndefined();
+    expect(parseEnv({ ...valid, SENTRY_DSN: '' }).SENTRY_DSN).toBeUndefined();
+    expect(parseEnv({ ...valid, SENTRY_DSN: 'https://k@o1.ingest.sentry.io/1' }).SENTRY_DSN).toBe(
+      'https://k@o1.ingest.sentry.io/1',
+    );
+  });
+
   it('applies defaults and coerces PORT', () => {
     expect(parseEnv(valid)).toMatchObject({ NODE_ENV: 'development', PORT: 3000 });
     expect(parseEnv({ ...valid, PORT: '8080' }).PORT).toBe(8080);
