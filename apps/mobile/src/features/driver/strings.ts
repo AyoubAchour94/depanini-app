@@ -71,6 +71,7 @@ export const driverStrings = {
   noJob: 'You have no job right now.',
   backToHome: 'Back to requests',
   customerLabel: 'Customer',
+  call: 'Call',
   callCustomer: (name: string) => `Call ${name}`,
   agreedFare: 'Agreed fare',
   cancelJob: 'Cancel job',
@@ -97,7 +98,7 @@ export const driverStrings = {
     towing: 'Dropped off',
   } satisfies Record<TripStage, string>,
   /** The last step's button: the drop-off that also confirms the cash. */
-  droppedOffCash: (fare: number) => `Dropped off · cash received ${formatTnd(fare)}`,
+  droppedOffCash: (fare: number) => `Dropped off · cash ${formatTnd(fare)}`,
   stageConflict: 'The job has changed. We refreshed it, check the next step.',
   stageFailed: 'Could not update the job. Try again.',
   completeFailed: 'Could not finish the job. Try again.',
@@ -106,6 +107,20 @@ export const driverStrings = {
     `Confirm you received ${formatTnd(fare)} in cash from the customer. This ends the job.`,
   confirmDropoff: 'Yes, dropped off',
   notYet: 'Not yet',
+
+  collectInCash: 'Collect in cash',
+  /** The stage bar's labels, in order. */
+  stageBar: ['Accepted', 'On the way', 'Arrived', 'Towing', 'Done'],
+  /** The navigation banner: what the driver is heading for, by stage. */
+  navTarget: {
+    accepted: 'to pickup',
+    en_route: 'to pickup',
+    arrived: 'at pickup',
+    towing: 'to drop-off',
+  } satisfies Record<TripStage, string>,
+  navDistance: (m: number) =>
+    m < 995 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1)} km`,
+  cashReceived: 'Cash received',
 
   timelineTitle: 'Trip',
   timeline: {

@@ -27,7 +27,8 @@ const subscribe = (listener: () => void) => {
   return () => void listeners.delete(listener);
 };
 
-function setLastSent(location: LatLng | null) {
+/** Moves the truck marker. Also used by the dev preview (`/dev/driver`). */
+export function setLastSent(location: LatLng | null) {
   lastSent = location;
   for (const listener of listeners) listener();
 }

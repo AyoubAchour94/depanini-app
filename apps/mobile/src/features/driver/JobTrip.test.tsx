@@ -159,7 +159,7 @@ describe('trip steps', () => {
     await press('Vehicle loaded');
     expect(api.calls('POST /driver/job/stage')[2]?.body).toEqual({ stage: 'towing' });
     expect(
-      await screen.findByRole('button', { name: 'Dropped off · cash received 65 TND' }),
+      await screen.findByRole('button', { name: 'Dropped off · cash 65 TND' }),
     ).toBeOnTheScreen();
     expect(screen.getByText(t.time(STAGE_TIMES.towing.towingAt))).toBeOnTheScreen();
   });
@@ -237,7 +237,7 @@ describe('dropping off', () => {
     await renderApp();
     await flush();
 
-    await press('Dropped off · cash received 65 TND');
+    await press('Dropped off · cash 65 TND');
     expect(alert).toHaveBeenCalledWith(
       t.confirmDropoffTitle,
       t.confirmDropoffMessage(65),
@@ -246,9 +246,7 @@ describe('dropping off', () => {
     );
     expect(t.confirmDropoffMessage(65)).toContain('65 TND');
     expect(api.calls('POST /driver/job/complete')).toHaveLength(0);
-    expect(
-      screen.getByRole('button', { name: 'Dropped off · cash received 65 TND' }),
-    ).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Dropped off · cash 65 TND' })).toBeOnTheScreen();
   });
 
   it('completes after confirming, shows the summary, and goes home from it', async () => {
@@ -257,7 +255,7 @@ describe('dropping off', () => {
     await renderApp();
     await flush();
 
-    await press('Dropped off · cash received 65 TND');
+    await press('Dropped off · cash 65 TND');
     await flush();
 
     expect(api.calls('POST /driver/job/complete')).toHaveLength(1);
@@ -285,7 +283,7 @@ describe('dropping off', () => {
     await renderApp();
     await flush();
 
-    await press('Dropped off · cash received 65 TND');
+    await press('Dropped off · cash 65 TND');
     expect(await screen.findByText(t.completeFailed)).toBeOnTheScreen();
   });
 });
@@ -327,7 +325,7 @@ describe('cancelling', () => {
     await renderApp();
     await flush();
     expect(
-      await screen.findByRole('button', { name: 'Dropped off · cash received 65 TND' }),
+      await screen.findByRole('button', { name: 'Dropped off · cash 65 TND' }),
     ).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Cancel job' })).toBeNull();
     expect(screen.queryByRole('radio')).toBeNull();
