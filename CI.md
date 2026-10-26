@@ -213,3 +213,23 @@ Add `*-prod` profiles in `eas.json` (store distribution, `environment:
 (`track: "internal"` with a Google service-account key) and App Store. Then add
 a workflow triggered on `main`. EAS Update (OTA JS updates) can also be enabled
 then.
+
+## Publish the legal pages
+
+The privacy policy and terms (French, Arabic, English) are templates in
+`docs/legal/`, published as a static site by GitHub Pages (Jekyll, config in
+`docs/_config.yml`, which keeps the rest of `docs/` out of the site). Pages is
+**not enabled yet**; it is a repo setting, so do it once yourself:
+
+1. Review and complete the texts first: every `[PLACEHOLDER]` (legal entity,
+   address, contact email, retention, INPDP details) and the banner at the top
+   of each page ("TEMPLATE — needs the owner's review").
+2. GitHub, repo Settings, Pages: Source "Deploy from a branch", branch `main`,
+   folder `/docs`, Save.
+3. The pages appear at `https://ayoubachour94.github.io/depanini-app/legal/`
+   (for example `.../legal/privacy-en/` and `.../legal/terms-en/`).
+
+The apps link to those two English pages by default. To use another address
+(a custom domain, another language), set `EXPO_PUBLIC_PRIVACY_URL` and
+`EXPO_PUBLIC_TERMS_URL` in the EAS environment (mobile) and `VITE_PRIVACY_URL`
+and `VITE_TERMS_URL` where the admin is built.

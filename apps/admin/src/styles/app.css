@@ -85,6 +85,12 @@ a {
   word-break: break-all;
 }
 
+.sidebar__legal {
+  display: flex;
+  gap: var(--space-3);
+  font-size: 0.85rem;
+}
+
 .content {
   padding: var(--space-5) var(--space-6);
   max-width: 1100px;
