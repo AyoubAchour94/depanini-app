@@ -388,6 +388,18 @@ from a physical device, in `EXPO_PUBLIC_API_URL`.
   `pk.` token is public by design).
 - The API validates its environment with zod at boot (`src/config/env.ts`) and
   refuses to start with a readable error if something is missing.
+- API hardening variables (all optional; the defaults suit Cloud Run):
+
+  | Variable                | Default | What it does                                                                                                   |
+  | ----------------------- | ------- | -------------------------------------------------------------------------------------------------------------- |
+  | `TRUST_PROXY_HOPS`      | `1`     | Proxies in front of the API; the client IP is read that many hops from the end of `X-Forwarded-For`. `0` when clients connect directly. |
+  | `THROTTLE_TTL_MS`       | `60000` | Window of the rate limits.                                                                                     |
+  | `THROTTLE_LIMIT`        | `300`   | Requests per window per signed-in user (Firebase uid), or per IP signed out. `429 rate_limited` + `Retry-After` past it. `/health` is exempt. |
+  | `THROTTLE_WRITE_LIMIT`  | `60`    | Of those, writes (anything but `GET`, `HEAD`, `OPTIONS`).                                                      |
+  | `UPLOAD_LIMIT_PER_HOUR` | `20`    | Document uploads per driver per rolling hour, counted in Postgres. `429 upload_limit_reached` past it.         |
+  | `UPLOAD_LIMIT_PER_DAY`  | `60`    | The same per rolling day.                                                                                      |
+  | `REQUEST_TIMEOUT_MS`    | `30000` | A handler still running after this answers `503`. Uploads and WebSockets are exempt.                           |
+  | `LOG_LEVEL`             | `info`  | JSON logs (`nestjs-pino`) with a request id (`x-request-id`, else Cloud Run's trace id, else a new one) on every line; tokens and cookies are redacted. Pretty-printed when `NODE_ENV=development`. |
 - `RNMAPBOX_MAPS_DOWNLOAD_TOKEN` (Mapbox **secret** `sk.` token with
   `DOWNLOADS:READ`) is only needed when building native code: export it in your
   shell for local native builds; it is an EAS secret for cloud builds.
