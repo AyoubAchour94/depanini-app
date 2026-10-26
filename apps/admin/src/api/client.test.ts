@@ -1,7 +1,13 @@
 import { adminDriverPageSchema } from '@depanini/shared';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ApiError, createApiClient } from './client';
+import {
+  ApiError,
+  ApiTimeoutError,
+  createApiClient,
+  FILE_TIMEOUT_MS,
+  REQUEST_TIMEOUT_MS,
+} from './client';
 
 function respond(status: number, body: unknown, init: ResponseInit = {}) {
   return new Response(typeof body === 'string' ? body : JSON.stringify(body), {
@@ -57,5 +63,87 @@ describe('api client', () => {
     const { api } = setup(respond(200, 'abc', { headers: { 'content-type': 'image/png' } }));
     const blob = await api.blob('/admin/files/1');
     expect(blob.size).toBe(3);
+  });
+});
+
+describe('api client timeouts', () => {
+  function hanging() {
+    return vi.fn(
+      (_url: unknown, init?: RequestInit) =>
+        new Promise<Response>((_, reject) => {
+          init?.signal?.addEventListener('abort', () =>
+            reject(new DOMException('Aborted', 'AbortError')),
+          );
+        }),
+    ) as unknown as typeof fetch;
+  }
+  const make = (fetchFn: typeof fetch) =>
+    createApiClient({ baseUrl: 'http://api.test', getToken: async () => 'tok', fetchFn });
+
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('fails with an ApiTimeoutError (a TypeError) after 15 s', async () => {
+    const api = make(hanging());
+    const result = api.get('/x', adminDriverPageSchema).catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS - 1);
+    await vi.advanceTimersByTimeAsync(1);
+    const error = await result;
+    expect(error).toBeInstanceOf(ApiTimeoutError);
+    expect(error).toBeInstanceOf(TypeError);
+  });
+
+  it('gives a file download 60 s', async () => {
+    const api = make(hanging());
+    const result = api.blob('/admin/files/1').catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS);
+    expect(vi.getTimerCount()).toBe(1);
+    await vi.advanceTimersByTimeAsync(FILE_TIMEOUT_MS - REQUEST_TIMEOUT_MS);
+    expect(await result).toBeInstanceOf(ApiTimeoutError);
+  });
+
+  it('times out a body that never finishes', async () => {
+    // Like a real fetch, the body stream errors once the request's signal aborts.
+    const stalled = (async (_url: unknown, init?: RequestInit) =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            init?.signal?.addEventListener('abort', () =>
+              controller.error(new DOMException('Aborted', 'AbortError')),
+            );
+          },
+        }),
+      )) as unknown as typeof fetch;
+    const api = make(stalled);
+    const result = api.get('/x', adminDriverPageSchema).catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS);
+    expect(await result).toBeInstanceOf(ApiTimeoutError);
+  });
+
+  it('keeps the abort error, not a timeout, when the caller cancels', async () => {
+    const api = make(hanging());
+    const caller = new AbortController();
+    const result = api
+      .get('/x', adminDriverPageSchema, { signal: caller.signal })
+      .catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(10);
+    caller.abort();
+    const error = await result;
+    expect(error).not.toBeInstanceOf(ApiTimeoutError);
+    expect(error).toMatchObject({ name: 'AbortError' });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('shows a friendly message for 429', async () => {
+    const api = make((async () =>
+      respond(429, {
+        statusCode: 429,
+        message: 'ThrottlerException: Too Many Requests',
+      })) as never);
+    const error = await api.get('/x', adminDriverPageSchema).catch((e: unknown) => e);
+    expect(error).toMatchObject({
+      status: 429,
+      message: 'Too many requests. Wait a moment and try again.',
+    });
   });
 });

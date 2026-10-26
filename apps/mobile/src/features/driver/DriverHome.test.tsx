@@ -6,6 +6,7 @@ import { Text } from 'react-native';
 
 import { DriverHome } from './DriverHome';
 import { RequestDetailsScreen } from './RequestDetailsScreen';
+import { LOCATION_TIMEOUT_MS, PRESENCE_INTERVAL_MS } from './usePresence';
 import { useRefetchVerificationWhenNotApproved } from '@/api/verification';
 import { markDriverOnboardingDone } from '@/features/profile/onboarding';
 import { registerForPush } from '@/push';
@@ -320,10 +321,24 @@ describe('DriverHome presence ordering', () => {
     const api = mockApi();
     await renderHome();
     await goOnline();
-    await act(async () => jest.advanceTimersByTime(60_000));
+    await act(async () => jest.advanceTimersByTime(LOCATION_TIMEOUT_MS - 1));
 
     expect(location.getCurrentPositionAsync).toHaveBeenCalledTimes(1);
     expect(api.calls('PUT /driver/presence')).toHaveLength(0);
+  });
+
+  it('drops a hung location read after its time limit and tries again on the next tick', async () => {
+    location.getCurrentPositionAsync.mockImplementationOnce(() => new Promise(() => {}));
+    const api = mockApi();
+    await renderHome();
+    await goOnline();
+    expect(api.calls('PUT /driver/presence')).toHaveLength(0);
+
+    await act(async () => jest.advanceTimersByTime(LOCATION_TIMEOUT_MS));
+    await act(async () => jest.advanceTimersByTime(PRESENCE_INTERVAL_MS - LOCATION_TIMEOUT_MS));
+
+    expect(location.getCurrentPositionAsync).toHaveBeenCalledTimes(2);
+    expect(api.calls('PUT /driver/presence')).toHaveLength(1);
   });
 
   it('sends online false last when switched off during a send', async () => {
