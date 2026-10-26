@@ -60,7 +60,7 @@ apps/
 packages/
 └── shared/                     # zod schemas + types used by app AND API
 docker-compose.yml              # local Postgres + PostGIS
-.github/workflows/              # CI, EAS builds, API deploy stub (see CI.md)
+.github/workflows/              # CI, EAS builds, API deploy (see CI.md)
 ```
 
 The shared package is the point of having TypeScript on both ends: the API
@@ -444,7 +444,7 @@ GitHub Actions + EAS. Every PR runs the quality gates. EAS builds are started by
 hand at milestones (`gh workflow run eas-build.yml --ref develop`), which runs the
 gates again and queues four builds (user/driver × Android/iOS). Android goes to EAS internal
 distribution and iOS to TestFlight. Details, the secrets checklist, and the
-API deploy stub are in **[CI.md](./CI.md)**.
+API deploy are in **[CI.md](./CI.md)**.
 
 ---
 

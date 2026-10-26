@@ -110,23 +110,83 @@ EAS generates and stores an Android keystore per application ID on the first
 build. Nothing to do; back it up from `eas credentials` before going to the
 Play Store.
 
-## API deploy (stub)
+## API deploy (production runbook)
 
-`api-deploy.yml` is **manual-only** until the infrastructure exists. To turn
-it on:
+`api-deploy.yml` is **manual-only** (`workflow_dispatch`) until the
+infrastructure below exists. One run does: build and push the image, run the
+database migrations, deploy to Cloud Run. If the migration fails the run stops
+before anything is deployed, so the old revision keeps serving.
 
-1. In GCP (`europe-west1`, same project as Firebase): create an Artifact
-   Registry Docker repo, a Cloud SQL Postgres instance (enable PostGIS), and
-   the Cloud Run service `depanini-api` with `DATABASE_URL` and
-   `FIREBASE_PROJECT_ID` set (`PORT` is injected by Cloud Run).
-2. Set up Workload Identity Federation for this GitHub repo and a deploy
-   service account (roles: Cloud Run Admin, Artifact Registry Writer, Service
-   Account User).
-3. Add GitHub repository **variables**: `GCP_ARTIFACT_REPO`,
-   `GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_DEPLOY_SERVICE_ACCOUNT`.
-4. Decide how migrations run against Cloud SQL (Cloud Run job or Cloud SQL
-   Auth Proxy step) and add it before the deploy step.
-5. Add a `push: branches: [develop]` trigger when ready.
+### Set up once
+
+1. **Database.** Any Postgres with PostGIS reachable over the internet.
+   Recommended free option: Neon (PostGIS is available; migration `0000` runs
+   `CREATE EXTENSION postgis`). Copy the connection string with
+   `?sslmode=require`. Prefer the provider's pooled host, and keep (Cloud Run
+   max instances x `DB_POOL_MAX`) under its connection limit. Cloud SQL works
+   too (no free tier), but then the runner needs a way to reach it (public IP
+   with authorized networks, or the Auth Proxy), which is why the workflow does
+   not assume it.
+2. **Firebase.** A production project (e.g. `depanini-prod`); its id is
+   `FIREBASE_PROJECT_ID`.
+3. **GCP** (`europe-west1`, same project as Firebase): an Artifact Registry
+   Docker repo, and the Cloud Run service `depanini-api` with the variables
+   from [`apps/api/.env.production.example`](./apps/api/.env.production.example):
+   `DATABASE_URL` (from Secret Manager), `FIREBASE_PROJECT_ID`, `CORS_ORIGINS`
+   (the admin app origin) and `PUSH_PROVIDER` (see `docs/push.md`). `PORT` is
+   injected by Cloud Run. Health check path: `/health`. The hardening variables
+   (rate limits, log level, timeouts) are added by #152: see #152.
+4. **Workload Identity Federation** for this GitHub repo and a deploy service
+   account (roles: Cloud Run Admin, Artifact Registry Writer, Service Account
+   User).
+5. **GitHub.** Repository **variables**: `GCP_ARTIFACT_REPO`,
+   `GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_DEPLOY_SERVICE_ACCOUNT`. Create an
+   environment named `production` (optionally with required reviewers as an
+   approval gate) and add the **secret** `DATABASE_URL` to it.
+6. Optionally add a `push: branches: [develop]` trigger once a deploy has
+   succeeded by hand.
+
+### Deploy
+
+Actions, then "API deploy", then Run workflow. Check
+`https://<service-url>/health` afterwards.
+
+### Migrations
+
+- Run by `scripts/api-migrate.sh`, which calls
+  `pnpm --filter @depanini/api db:migrate` (Drizzle) with `DATABASE_URL`; it
+  logs the target without the password.
+- **Safe to re-run:** Drizzle records applied files in
+  `drizzle.__drizzle_migrations`, so a run on an up-to-date database changes
+  nothing.
+- **Forward-only:** there are no down migrations. Write each migration so the
+  previous API revision still works against it (add columns as nullable or with
+  defaults; remove or rename in a later release, after the old code is gone).
+  That is also what makes a code rollback safe.
+- Dry-run it against a throwaway database (needs `pnpm db:up`):
+
+  ```bash
+  docker exec depanini-app-db-1 psql -U depanini -d postgres -c "CREATE DATABASE migrate_dry_run"
+  DATABASE_URL=postgres://depanini:depanini@localhost:5432/migrate_dry_run scripts/api-migrate.sh
+  # run it again: nothing is applied the second time
+  docker exec depanini-app-db-1 psql -U depanini -d postgres -c "DROP DATABASE migrate_dry_run"
+  ```
+
+### Rollback
+
+Roll back the code by sending traffic to the previous Cloud Run revision:
+
+```bash
+gcloud run revisions list --service depanini-api --region europe-west1
+gcloud run services update-traffic depanini-api --region europe-west1 \
+  --to-revisions <PREVIOUS_REVISION>=100
+```
+
+(or Console, Cloud Run, the service, Revisions, "Manage traffic"). Migrations
+are not undone: because they are forward-only and written to be compatible with
+the previous revision, the old code keeps working. If a migration itself was
+wrong, fix it with a new forward migration and deploy again; restore from the
+database provider's point-in-time backup only as a last resort.
 
 Test the image locally first:
 
