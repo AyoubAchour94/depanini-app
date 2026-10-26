@@ -34,6 +34,9 @@ describe('driver documents, verification and the online gate (e2e)', () => {
 
   beforeAll(async () => {
     app = await createTestApp(database.db);
+    // Listening up front: on a server that is not, supertest starts it on the first call and
+    // every concurrent call waits with its own listeners (a MaxListeners warning past 10).
+    await app.listen(0, '127.0.0.1');
   });
 
   beforeEach(async () => {
