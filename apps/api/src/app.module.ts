@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_FILTER } from '@nestjs/core';
 
 import { AccountsModule } from './accounts/accounts.module.js';
 import { AdminModule } from './admin/admin.module.js';
@@ -9,6 +10,7 @@ import { DriversModule } from './drivers/drivers.module.js';
 import { FilesModule } from './files/files.module.js';
 import { HealthModule } from './health/health.module.js';
 import { HttpHardeningModule } from './http/http-hardening.module.js';
+import { SentryExceptionFilter } from './observability/sentry.js';
 import { OffersModule } from './offers/offers.module.js';
 import { PaymentsModule } from './payments/payments.module.js';
 import { PushModule } from './push/push.module.js';
@@ -38,5 +40,7 @@ import { VerificationModule } from './verification/verification.module.js';
     VerificationModule,
     AdminModule,
   ],
+  // Reports unexpected errors and 5xx to Sentry (when configured); see src/observability.
+  providers: [{ provide: APP_FILTER, useClass: SentryExceptionFilter }],
 })
 export class AppModule {}

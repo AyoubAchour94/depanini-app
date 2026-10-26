@@ -21,6 +21,7 @@ nodeLinker: hoisted
 # Dependency install scripts are opt-in. None of these are needed at runtime.
 allowBuilds:
   '@firebase/util': false
+  '@sentry/cli': false # only uploads source maps, which we do not do yet (CI.md)
   protobufjs: false
   esbuild: true # verifies the platform binary (used by drizzle-kit)
   '@parcel/watcher': true # native file watcher used by Metro tooling

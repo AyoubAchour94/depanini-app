@@ -48,3 +48,9 @@ jest.mock('@react-native-firebase/auth', () => ({
 jest.mock('@react-native-async-storage/async-storage', () =>
   jest.requireActual('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
+
+// Error reporting is off in tests (no DSN); the SDK itself is ESM and has native modules.
+jest.mock('@sentry/react-native', () => ({
+  init: jest.fn(),
+  wrap: (component: unknown) => component,
+}));

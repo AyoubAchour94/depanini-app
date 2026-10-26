@@ -11,6 +11,8 @@
     "@react-native-firebase/auth": "^26.4.0",
     "@react-native-firebase/messaging": "^26.4.0",
     "@rnmapbox/maps": "^10.3.8",
+    "@sentry/react": "10.75.2",
+    "@sentry/react-native": "8.28.0",
     "@tanstack/react-query": "^5.104.3",
     "expo": "~58.0.14",
     "expo-build-properties": "~58.0.11",

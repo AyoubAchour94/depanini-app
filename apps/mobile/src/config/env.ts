@@ -19,6 +19,8 @@ const envSchema = z.object({
   mapboxAccessToken: z.string().startsWith('pk.').optional().catch(undefined),
   apiUrl: z.url().optional().catch(undefined),
   environment: z.enum(['dev', 'staging', 'prod']).catch('dev'),
+  /** Sentry project DSN; unset means error reporting is off (src/observability). */
+  sentryDsn: z.string().min(1).optional().catch(undefined),
   /** Firebase Auth emulator (e.g. `http://localhost:9099`); unset to use the real project. */
   authEmulatorUrl: z.url().optional().catch(undefined),
   /** Lets the driver app pretend to be at a chosen place in Tunisia; never on in store builds by default. */
@@ -37,6 +39,7 @@ export const env = envSchema.parse({
       ? (process.env.EXPO_PUBLIC_WEB_API_URL ?? process.env.EXPO_PUBLIC_API_URL)
       : process.env.EXPO_PUBLIC_API_URL,
   environment: process.env.EXPO_PUBLIC_ENVIRONMENT,
+  sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN || undefined,
   // Same host split as the API URL.
   authEmulatorUrl:
     Platform.OS === 'web'

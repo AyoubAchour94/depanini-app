@@ -16,11 +16,14 @@ import { verificationStrings } from '@/features/verification/strings';
 import { getFirebaseStatus } from '@/firebase/firebase';
 import { configurePush } from '@/push';
 import { PushProvider } from '@/push/PushProvider';
+import { initSentry, withSentry } from '@/observability/sentry';
 import { RealtimeProvider } from '@/realtime/RealtimeProvider';
 import { useInterFonts } from '@/theme/fonts';
 import { ThemeProvider, useTheme, useThemeSetting } from '@/theme/theme';
 import { variant } from '@/variant/variant';
 
+// First, so errors raised while the app starts are reported too. No-op without EXPO_PUBLIC_SENTRY_DSN.
+initSentry();
 // Surface Firebase misconfiguration once at startup (logs a warning in dev).
 getFirebaseStatus();
 // Foreground behaviour and the Android channel; never asks for permission.
@@ -28,7 +31,7 @@ configurePush();
 // Keep the splash up until Firebase has restored (or ruled out) a session.
 void SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+function RootLayout() {
   const [queryClient] = useState(() => new QueryClient());
 
   return (
@@ -48,6 +51,8 @@ export default function RootLayout() {
     </ThemeProvider>
   );
 }
+
+export default withSentry(RootLayout);
 
 function ThemedStatusBar() {
   const theme = useTheme();

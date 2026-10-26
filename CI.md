@@ -65,6 +65,7 @@ dev client profiles use **`development`**, so set them on both.
 | `EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN`   | string | plain text | Mapbox **public** token (`pk....`)                             |
 | `EXPO_PUBLIC_API_URL`               | string | plain text | API base URL (the Cloud Run URL once deployed)                 |
 | `EXPO_PUBLIC_ENVIRONMENT`           | string | plain text | `dev`                                                          |
+| `EXPO_PUBLIC_SENTRY_DSN`            | string | plain text | optional: Sentry DSN; unset = error reporting off              |
 | `RNMAPBOX_MAPS_DOWNLOAD_TOKEN`      | string | **secret** | Mapbox **secret** token (`sk....`) with `DOWNLOADS:READ`       |
 | `GOOGLE_SERVICES_JSON_USER`         | file   | sensitive  | user `google-services.json`                                    |
 | `GOOGLE_SERVICE_INFO_PLIST_USER`    | file   | sensitive  | user `GoogleService-Info.plist`                                |
@@ -197,6 +198,30 @@ docker run --rm -p 8080:8080 -e PORT=8080 \
   -e FIREBASE_PROJECT_ID=depanini-dev depanini-api
 curl localhost:8080/health
 ```
+
+## Error reporting: source maps
+
+Sentry runs in the API (`SENTRY_DSN`), the mobile app (`EXPO_PUBLIC_SENTRY_DSN`) and the
+admin app (`VITE_SENTRY_DSN`); with no DSN it is off. Source maps are **not uploaded yet**
+(that needs a Sentry auth token), so stack traces of release builds are minified. The
+mobile config plugin is set to `disableAutoUpload: true` so builds do not look for a token.
+To turn uploads on later:
+
+1. In Sentry, create an organization auth token (scope `project:releases`, `org:read`).
+   Add it as the GitHub secret `SENTRY_AUTH_TOKEN`, and as an EAS **secret** of the same
+   name. Also set `SENTRY_ORG` and `SENTRY_PROJECT` per app (plain variables).
+2. Mobile: in `apps/mobile/app.config.ts`, drop `disableAutoUpload` and give the
+   `@sentry/react-native/expo` plugin `organization` and `project`; wrap `metro.config.js`
+   with `getSentryExpoConfig` (from `@sentry/react-native/metro`) so bundles carry debug ids.
+   EAS builds then upload native symbols and the JS source maps. For OTA updates run
+   `npx sentry-expo-upload-sourcemaps dist` after `eas update`. Allow the `@sentry/cli`
+   install script (`allowBuilds` in `pnpm-workspace.yaml`, currently `false`).
+3. Admin: add `@sentry/vite-plugin` to `apps/admin/vite.config.ts` with `org`, `project` and
+   `authToken: process.env.SENTRY_AUTH_TOKEN`, `build.sourcemap: true`, and delete the maps
+   from the deployed folder after upload.
+4. API: build with source maps (already on in `tsconfig.json`), then run
+   `sentry-cli sourcemaps inject dist && sentry-cli sourcemaps upload dist` in the deploy
+   workflow, with the same release name the SDK uses (`depanini-api@<version>`).
 
 ## First-build expectations
 

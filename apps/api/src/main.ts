@@ -7,6 +7,7 @@ import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module.js';
 import { parseEnv } from './config/env.js';
 import { configureApp, createFastifyAdapter } from './http/configure-app.js';
+import { initSentry } from './observability/sentry.js';
 
 // Local dev convenience: load apps/api/.env when present. In production
 // (Cloud Run) variables are set on the service and no file exists.
@@ -19,6 +20,8 @@ try {
 async function bootstrap() {
   // Parsed here too because the adapter is built before the app (and its ENV provider).
   const env = parseEnv(process.env);
+  // First, so errors raised while the app boots are reported too. No-op without SENTRY_DSN.
+  initSentry(env);
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     createFastifyAdapter(env),

@@ -59,6 +59,16 @@ const envSchema = z
     LOG_LEVEL: z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),
+    /** Sentry project DSN. Unset (or empty) means error reporting is off; see src/observability. */
+    SENTRY_DSN: z
+      .string()
+      .optional()
+      .transform((value) => value || undefined),
+    /** Environment tag on Sentry events; defaults to NODE_ENV (set `staging` on a staging deploy). */
+    SENTRY_ENVIRONMENT: z
+      .string()
+      .optional()
+      .transform((value) => value || undefined),
     /** Who delivers pushes: `log` writes them to the log (dev, CI); `fcm` sends them through Firebase. */
     PUSH_PROVIDER: z.enum(['log', 'fcm']).default('log'),
     /**
