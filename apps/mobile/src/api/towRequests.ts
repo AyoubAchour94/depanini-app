@@ -20,15 +20,22 @@ import { usePollMs } from '@/realtime/status';
 import { apiRequest } from './client';
 
 /** `POST /tow-requests/estimate`: the distance and the fare bounds for a trip. */
-export function estimateFare(input: FareEstimateInput): Promise<FareEstimate> {
-  return apiRequest('/tow-requests/estimate', fareEstimateSchema, { method: 'POST', json: input });
+export function estimateFare(
+  input: FareEstimateInput,
+  signal?: AbortSignal,
+): Promise<FareEstimate> {
+  return apiRequest('/tow-requests/estimate', fareEstimateSchema, {
+    method: 'POST',
+    json: input,
+    signal,
+  });
 }
 
 /** The estimate for a trip; refetched when the pickup, drop-off or vehicle type changes. */
 export function useFareEstimate(input: FareEstimateInput | null) {
   return useQuery({
     queryKey: ['tow-requests', 'estimate', input],
-    queryFn: () => estimateFare(input!),
+    queryFn: ({ signal }) => estimateFare(input!, signal),
     enabled: input !== null,
     staleTime: 60_000,
   });
@@ -79,8 +86,8 @@ export function useActiveTowRequest({ poll = false }: { poll?: boolean } = {}) {
   const openMs = usePollMs(ACTIVE_POLL_MS);
   return useQuery({
     queryKey: ACTIVE_KEY,
-    queryFn: async () =>
-      (await apiRequest('/tow-requests/active', towRequestSchema.optional())) ?? null,
+    queryFn: async ({ signal }) =>
+      (await apiRequest('/tow-requests/active', towRequestSchema.optional(), { signal })) ?? null,
     refetchInterval: (query) =>
       poll ? (query.state.data?.status === 'assigned' ? assignedMs : openMs) : false,
   });
@@ -120,8 +127,8 @@ export function useOffers(requestId: string, { poll = false }: { poll?: boolean 
   const pollMs = usePollMs(OFFERS_POLL_MS);
   return useQuery({
     queryKey: [...OFFERS_KEY, requestId],
-    queryFn: (): Promise<CustomerOffer[]> =>
-      apiRequest(`/tow-requests/${requestId}/offers`, z.array(customerOfferSchema)),
+    queryFn: ({ signal }): Promise<CustomerOffer[]> =>
+      apiRequest(`/tow-requests/${requestId}/offers`, z.array(customerOfferSchema), { signal }),
     refetchInterval: poll ? pollMs : false,
   });
 }
@@ -178,10 +185,12 @@ export function useTowRequestHistory() {
   return useInfiniteQuery({
     queryKey: HISTORY_KEY,
     initialPageParam: null as string | null,
-    queryFn: ({ pageParam }) => {
+    queryFn: ({ pageParam, signal }) => {
       const query = new URLSearchParams({ limit: String(HISTORY_PAGE_SIZE) });
       if (pageParam) query.set('cursor', pageParam);
-      return apiRequest(`/tow-requests?${query}`, z.unknown().transform(parseHistoryPage));
+      return apiRequest(`/tow-requests?${query}`, z.unknown().transform(parseHistoryPage), {
+        signal,
+      });
     },
     getNextPageParam: (last) => last.nextCursor,
   });
@@ -191,7 +200,7 @@ export function useTowRequestHistory() {
 export function useTowRequest(id: string, { enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: [...TOW_REQUEST_KEY, id],
-    queryFn: () => apiRequest(`/tow-requests/${id}`, towRequestSchema),
+    queryFn: ({ signal }) => apiRequest(`/tow-requests/${id}`, towRequestSchema, { signal }),
     enabled,
   });
 }
@@ -229,8 +238,8 @@ export const RATING_KEY = ['tow-requests', 'rating'] as const;
 export function useMyRating(requestId: string) {
   return useQuery({
     queryKey: [...RATING_KEY, requestId],
-    queryFn: (): Promise<MyRating> =>
-      apiRequest(`/tow-requests/${requestId}/rating`, myRatingSchema),
+    queryFn: ({ signal }): Promise<MyRating> =>
+      apiRequest(`/tow-requests/${requestId}/rating`, myRatingSchema, { signal }),
   });
 }
 

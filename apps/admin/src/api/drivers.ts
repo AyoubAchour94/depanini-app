@@ -23,11 +23,11 @@ export function useDrivers(status: VerificationStatus | undefined) {
   return useInfiniteQuery({
     queryKey: driverKeys.list(status),
     initialPageParam: undefined as string | undefined,
-    queryFn: ({ pageParam }) => {
+    queryFn: ({ pageParam, signal }) => {
       const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
       if (status) params.set('status', status);
       if (pageParam) params.set('cursor', pageParam);
-      return api.get(`/admin/drivers?${params}`, adminDriverPageSchema);
+      return api.get(`/admin/drivers?${params}`, adminDriverPageSchema, { signal });
     },
     getNextPageParam: (page) => page.nextCursor ?? undefined,
   });
@@ -37,7 +37,8 @@ export function useDriver(userId: string) {
   const api = useApi();
   return useQuery({
     queryKey: driverKeys.detail(userId),
-    queryFn: () => api.get(`/admin/drivers/${userId}`, adminDriverDetailSchema),
+    queryFn: ({ signal }) =>
+      api.get(`/admin/drivers/${userId}`, adminDriverDetailSchema, { signal }),
   });
 }
 

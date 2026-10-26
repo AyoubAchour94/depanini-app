@@ -76,7 +76,10 @@ export class VerificationService {
       })
       .from(documentUploads)
       .where(
-        and(eq(documentUploads.driverUserId, driverId), gt(documentUploads.createdAt, sql`now() - interval '1 day'`)),
+        and(
+          eq(documentUploads.driverUserId, driverId),
+          gt(documentUploads.createdAt, sql`now() - interval '1 day'`),
+        ),
       );
     if (
       counts!.lastHour >= this.env.UPLOAD_LIMIT_PER_HOUR ||

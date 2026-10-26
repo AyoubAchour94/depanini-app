@@ -13,7 +13,13 @@ import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { eq } from 'drizzle-orm';
 import request from 'supertest';
 
-import { documentUploads, driverDocuments, driverProfiles, files, users } from '../src/db/schema.js';
+import {
+  documentUploads,
+  driverDocuments,
+  driverProfiles,
+  files,
+  users,
+} from '../src/db/schema.js';
 import { driversNearRequests } from '../src/realtime/nearby-drivers.js';
 import { MAX_PAGES_PER_KIND } from '../src/verification/verification.service.js';
 import { approveDriver, approveDriverByToken } from './support/approve-driver.js';
@@ -244,7 +250,9 @@ describe('driver documents, verification and the online gate (e2e)', () => {
       await makeDriver(dan);
       await uploadedEarlier(dan, 19, 0.5);
       const results = await Promise.all(
-        Array.from({ length: 5 }, () => upload(dan, 'insurance', PNG, { contentType: 'image/png' })),
+        Array.from({ length: 5 }, () =>
+          upload(dan, 'insurance', PNG, { contentType: 'image/png' }),
+        ),
       );
       expect(results.map((res) => res.status).sort()).toEqual([201, 429, 429, 429, 429]);
       expect(await database.db.select().from(files)).toHaveLength(1);

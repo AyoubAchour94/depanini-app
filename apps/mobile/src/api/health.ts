@@ -10,7 +10,8 @@ export function useApiHealth() {
   return useQuery({
     queryKey: ['health'],
     // The API answers 503 with a valid body when its database is down.
-    queryFn: () => apiRequest('/health', healthResponseSchema, { acceptStatuses: [503] }),
+    queryFn: ({ signal }) =>
+      apiRequest('/health', healthResponseSchema, { acceptStatuses: [503], signal }),
     enabled: Boolean(env.apiUrl),
     refetchInterval: 30_000,
     // The interval is the retry; a failed check should show immediately.

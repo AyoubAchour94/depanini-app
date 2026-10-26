@@ -41,10 +41,11 @@ function usePagedList<S extends z.ZodType<{ items: unknown[]; nextCursor: string
   return useInfiniteQuery({
     queryKey: [...key, params],
     initialPageParam: undefined as string | undefined,
-    queryFn: ({ pageParam }) =>
+    queryFn: ({ pageParam, signal }) =>
       api.get(
         `${path}?${queryString(params, { limit: String(PAGE_SIZE), cursor: pageParam })}`,
         schema,
+        { signal },
       ),
     getNextPageParam: (page) => page.nextCursor ?? undefined,
   });
@@ -68,7 +69,7 @@ export function useUser(id: string) {
   const api = useApi();
   return useQuery({
     queryKey: [...lookupKeys.users, 'detail', id],
-    queryFn: () => api.get(`/admin/users/${id}`, adminUserDetailSchema),
+    queryFn: ({ signal }) => api.get(`/admin/users/${id}`, adminUserDetailSchema, { signal }),
   });
 }
 
@@ -93,7 +94,7 @@ export function useTrip(id: string) {
   const api = useApi();
   return useQuery({
     queryKey: [...lookupKeys.trips, 'detail', id],
-    queryFn: () => api.get(`/admin/trips/${id}`, adminTripDetailSchema),
+    queryFn: ({ signal }) => api.get(`/admin/trips/${id}`, adminTripDetailSchema, { signal }),
   });
 }
 
