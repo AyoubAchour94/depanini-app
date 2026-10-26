@@ -122,9 +122,33 @@ describe('scrubSentryEvent', () => {
     });
 
     it('truncates text past 2000 characters with a marker and masks only what is kept', () => {
-      // The first 2000 characters are `a@b.tn ` and 1993 `x`; the email after them is cut off.
+      // No delimiter in the last 200 characters of the window, so the cut is 200 characters early.
       const text = `a@b.tn ${'x'.repeat(1993)} c@d.tn`;
-      expect(scrubText(text)).toBe(`[email] ${'x'.repeat(1993)}…[truncated]`);
+      expect(scrubText(text)).toBe(`[email] ${'x'.repeat(1793)}…[truncated]`);
+    });
+
+    it('cuts back to the last delimiter so a JWT straddling the cut leaves no fragment', () => {
+      const jwt = 'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxMjMifQ.c2ln-na_ture';
+      const text = `${'x '.repeat(997)}${jwt} rest`;
+      expect(scrubText(text)).toBe(`${'x '.repeat(997)}…[truncated]`);
+    });
+
+    it('cuts back to the last delimiter so an email straddling the cut leaves no fragment', () => {
+      const text = `${'x '.repeat(997)}amine@example.com and more`;
+      expect(scrubText(text)).toBe(`${'x '.repeat(997)}…[truncated]`);
+    });
+
+    it('drops a JWT straddling the cut when no delimiter is near it', () => {
+      const jwt = 'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxMjMifQ.c2ln-na_ture';
+      const text = `${'x'.repeat(1950)}${jwt}${'y'.repeat(100)}`;
+      const scrubbed = scrubText(text);
+      expect(scrubbed).not.toMatch(/eyJ|\.|c2ln|na_ture/);
+      expect(scrubbed).toBe(`${'x'.repeat(1800)}…[truncated]`);
+    });
+
+    it('drops an email straddling the cut when no delimiter is near it', () => {
+      const text = `${'x'.repeat(1950)}amine@example.com${'y'.repeat(100)}`;
+      expect(scrubText(text)).toBe(`${'x'.repeat(1800)}…[truncated]`);
     });
 
     it('leaves text of 2000 characters or less unchanged', () => {
