@@ -1,0 +1,10 @@
+{
+  "api": {
+    "unconfigured": "API : EXPO_PUBLIC_API_URL non défini",
+    "checking": "API : vérification…",
+    "ok": "API : ok",
+    "degraded": "API : dégradée (base de données hors service)",
+    "unreachable": "API : injoignable"
+  },
+  "firebaseMissing": "Firebase non configuré"
+}

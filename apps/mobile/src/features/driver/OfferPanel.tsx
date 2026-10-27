@@ -198,5 +198,5 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   actions: { flexDirection: 'row', gap: 12 },
   secondary: { flex: 1 },
-  primary: { flex: 1.6 },
+  primary: { flex: 2 },
 });

@@ -13,6 +13,7 @@ import { expect, type Page, test } from '@playwright/test';
 // needs the Mapbox token in apps/mobile/.env; without it the map area shows the
 // "Mapbox token missing" notice.
 import { stubMap } from './mapStub';
+import { useShotLocale } from './shotLocale';
 import { VIEWPORT } from './viewport';
 
 const DRIVER_URL = (process.env.E2E_DRIVER_URL ?? 'http://localhost:8082').replace(/\/$/, '');
@@ -45,6 +46,7 @@ for (const scheme of ['light', 'dark'] as const) {
     });
     const page = await context.newPage();
     await stubMap(page, scheme);
+    await useShotLocale(page);
     try {
       for (const [name, query, action] of SCREENS) {
         await page.goto(`${DRIVER_URL}/dev/driver?${query}&theme=${scheme}`);

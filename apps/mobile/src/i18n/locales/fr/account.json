@@ -1,0 +1,32 @@
+{
+  "loadFailed": "Impossible de charger votre compte depuis le serveur.",
+  "loading": "Chargement de votre compte",
+  "tryAgain": "Réessayer",
+  "signOut": "Se déconnecter",
+  "delete": {
+    "title": "Supprimer votre compte ?",
+    "subtitle": "Votre compte ainsi que vos informations client et chauffeur seront supprimés définitivement, dans les deux applications Depanini. Cette action est irréversible.",
+    "confirm": "Supprimer mon compte",
+    "keep": "Garder mon compte",
+    "passwordPlaceholder": "Saisissez votre mot de passe pour confirmer",
+    "failed": "Impossible de supprimer votre compte. Vérifiez votre connexion et réessayez.",
+    "wrongPassword": "Le mot de passe est incorrect."
+  },
+  "title": "Compte",
+  "profileTitle": "Profil",
+  "deleteTitle": "Supprimer le compte",
+  "noEmail": "Aucun e-mail",
+  "unavailable": "Compte indisponible",
+  "editDetails": "Modifier",
+  "appearance": {
+    "label": "Apparence",
+    "system": "Système",
+    "light": "Clair",
+    "dark": "Sombre"
+  },
+  "language": {
+    "label": "Langue",
+    "system": "Système"
+  },
+  "deleteLink": "Supprimer le compte"
+}

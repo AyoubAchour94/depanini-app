@@ -79,7 +79,10 @@ describe('AccountScreen language setting', () => {
 
     await fireEvent.press(language().getByRole('radio', { name: 'Français' }));
 
-    expect(language().getByRole('radio', { name: 'Français' })).toBeChecked();
+    // The screen is French now, so its Language group is called Langue.
+    expect(
+      within(screen.getByLabelText('Langue')).getByRole('radio', { name: 'Français' }),
+    ).toBeChecked();
     await waitFor(async () =>
       expect(await AsyncStorage.getItem(LANGUAGE_PREFERENCE_KEY)).toBe('fr'),
     );
@@ -89,7 +92,12 @@ describe('AccountScreen language setting', () => {
   it('shows the saved language on the next start', async () => {
     await AsyncStorage.setItem(LANGUAGE_PREFERENCE_KEY, 'ar');
     await renderScreen();
-    await waitFor(() => expect(language().getByRole('radio', { name: 'العربية' })).toBeChecked());
+    // Arabic has no messages yet, so the screen reads in French.
+    await waitFor(() =>
+      expect(
+        within(screen.getByLabelText('Langue')).getByRole('radio', { name: 'العربية' }),
+      ).toBeChecked(),
+    );
     expect(i18n.language).toBe('ar');
   });
 
@@ -99,10 +107,10 @@ describe('AccountScreen language setting', () => {
     await waitFor(() => expect(i18n.language).toBe('ar'));
   });
 
-  it('keeps showing English until the French and Arabic messages exist', async () => {
+  it('shows French until the Arabic messages exist', async () => {
     await renderScreen();
     await fireEvent.press(language().getByRole('radio', { name: 'العربية' }));
-    expect(screen.getByLabelText('Language')).toBeOnTheScreen();
-    expect(screen.getByText('Sign out')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Langue')).toBeOnTheScreen();
+    expect(screen.getByText('Se déconnecter')).toBeOnTheScreen();
   });
 });

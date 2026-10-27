@@ -1,0 +1,4 @@
+{
+  "tokenMissingTitle": "Jeton Mapbox manquant",
+  "tokenMissingBody": "Renseignez EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN dans apps/mobile/.env"
+}

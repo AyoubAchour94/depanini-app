@@ -6,6 +6,7 @@
 //   node scripts/design/final-boards.mjs                  # 390x844, into docs/design/redesign-a/final
 //   node scripts/design/final-boards.mjs --small          # 360x640, into .../final/small
 //   node scripts/design/final-boards.mjs --with-map       # the apps have a real Mapbox token: keep the live map tiles
+//   node scripts/design/final-boards.mjs --locale=fr      # the apps in French, into docs/design/i18n/fr (and .../small)
 //   node scripts/design/final-boards.mjs --assemble-only  # only rebuild the boards from the shots on disk
 //
 // Needs the stack the screenshot specs need (see e2e/web/*-screenshots.spec.ts):
@@ -22,11 +23,18 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium } from '@playwright/test';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const args = new Set(process.argv.slice(2));
+const argv = process.argv.slice(2);
+const args = new Set(argv);
+// --locale=fr: show the apps in that language (the specs translate their texts from the message files).
+const locale = argv.find((arg) => arg.startsWith('--locale='))?.slice('--locale='.length);
 const small = args.has('--small');
 const withMap = args.has('--with-map');
 const viewport = small ? '360x640' : '390x844';
-const outDir = path.join(root, 'docs/design/redesign-a/final', small ? 'small' : '');
+const outDir = path.join(
+  root,
+  locale ? `docs/design/i18n/${locale}` : 'docs/design/redesign-a/final',
+  small ? 'small' : '',
+);
 const rawDir = path.join(outDir, '.raw');
 
 /** The screenshot specs, and which app each one shows (`by` picks a shared spec's shots by file name). */
@@ -58,6 +66,7 @@ if (!args.has('--assemble-only')) {
         E2E_SHOTS_DIR: dir,
         E2E_SHOTS_VIEWPORT: viewport,
         E2E_SHOTS_MAP_STUB: withMap ? '' : '1',
+        E2E_LOCALE: locale ?? 'en',
       },
     });
     if (run.status !== 0) {
@@ -124,7 +133,7 @@ try {
         main { display: grid; grid-template-columns: repeat(${COLUMNS}, ${cellWidth}px); gap: 16px; }
         figure { margin: 0; } img { display: block; border-radius: 8px; }
         figcaption { margin-top: 4px; }
-      </style><h1>Depanini ${app === 'driver' ? 'Driver' : ''} - ${scheme} - ${viewport} (${items.length} screens)</h1>
+      </style><h1>Depanini ${app === 'driver' ? 'Driver' : ''} - ${scheme} - ${viewport}${locale ? ` - ${locale}` : ''} (${items.length} screens)</h1>
       <main>${cells}</main>`;
       const htmlFile = path.join(outDir, `.${app}-${scheme}.html`);
       writeFileSync(htmlFile, html);

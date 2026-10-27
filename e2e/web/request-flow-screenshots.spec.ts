@@ -11,6 +11,7 @@ import { expect, type Page, test } from '@playwright/test';
 // It leaves an open request per run behind, so use a fresh database before the
 // tow-flow spec.
 import { stubMap } from './mapStub';
+import { useShotLocale } from './shotLocale';
 import { VIEWPORT } from './viewport';
 
 const CUSTOMER_URL = (process.env.E2E_CUSTOMER_URL ?? 'http://localhost:8081').replace(/\/$/, '');
@@ -70,6 +71,7 @@ for (const scheme of ['light', 'dark'] as const) {
     });
     const page = await context.newPage();
     await stubMap(page, scheme);
+    await useShotLocale(page);
     await stubSearch(page);
     const shot = (name: string) => page.screenshot({ path: `${SHOTS_DIR}/${scheme}-${name}.png` });
 
