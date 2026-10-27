@@ -22,7 +22,7 @@
     "profiles": "Profils",
     "noProfile": "Aucun profil pour l'instant.",
     "customerProfile": "Profil client",
-    "driverProfile": "Profil chauffeur",
+    "driverProfile": "Profil dépanneur",
     "name": "Nom",
     "truck": "Camion",
     "plate": "Immatriculation",
@@ -31,7 +31,7 @@
     "activity": "Activité",
     "counts": "Compteurs",
     "tripsAsCustomer": "Courses en tant que client",
-    "tripsAsDriver": "Courses en tant que chauffeur",
+    "tripsAsDriver": "Courses en tant que dépanneur",
     "reportsMade": "Signalements effectués",
     "reportsAgainst": "Signalements reçus",
     "recentTrips": "Courses récentes"

@@ -1,10 +1,10 @@
 {
   "queueTitle": "File de vérification",
-  "title": "Chauffeurs",
-  "loadFailed": "Impossible de charger les chauffeurs.",
-  "queueCaption": "Chauffeurs en attente de vérification",
-  "queueEmpty": "Aucun chauffeur n'attend de vérification.",
-  "empty": "Aucun chauffeur trouvé.",
+  "title": "Dépanneurs",
+  "loadFailed": "Impossible de charger les dépanneurs.",
+  "queueCaption": "Dépanneurs en attente de vérification",
+  "queueEmpty": "Aucun dépanneur n'attend de vérification.",
+  "empty": "Aucun dépanneur trouvé.",
   "columns": {
     "name": "Nom",
     "phone": "Téléphone",
@@ -14,9 +14,9 @@
     "submitted": "Soumis le"
   },
   "detail": {
-    "notFound": "Chauffeur introuvable.",
-    "loadFailed": "Impossible de charger le chauffeur.",
-    "back": "Retour aux chauffeurs",
+    "notFound": "Dépanneur introuvable.",
+    "loadFailed": "Impossible de charger le dépanneur.",
+    "back": "Retour aux dépanneurs",
     "email": "E-mail",
     "phone": "Téléphone",
     "truck": "Camion",
@@ -36,12 +36,12 @@
   },
   "approve": {
     "title": "Approuver {{name}} ?",
-    "body": "Ce chauffeur pourra se mettre en ligne et accepter des courses.",
+    "body": "Ce dépanneur pourra se mettre en ligne et accepter des courses.",
     "confirm": "Confirmer l'approbation"
   },
   "reject": {
     "title": "Refuser {{name}} ?",
-    "reasonLabel": "Motif (affiché au chauffeur)",
+    "reasonLabel": "Motif (affiché au dépanneur)",
     "confirm": "Confirmer le refus",
     "reasonRequired": "Indiquez un motif",
     "reasonTooLong": "Le motif est trop long"

@@ -5,7 +5,7 @@
   "signOut": "Se déconnecter",
   "delete": {
     "title": "Supprimer votre compte ?",
-    "subtitle": "Votre compte ainsi que vos informations client et chauffeur seront supprimés définitivement, dans les deux applications Depanini. Cette action est irréversible.",
+    "subtitle": "Votre compte ainsi que vos informations client et dépanneur seront supprimés définitivement, dans les deux applications Depanini. Cette action est irréversible.",
     "confirm": "Supprimer mon compte",
     "keep": "Garder mon compte",
     "passwordPlaceholder": "Saisissez votre mot de passe pour confirmer",

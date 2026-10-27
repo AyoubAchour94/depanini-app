@@ -1,0 +1,71 @@
+{
+  "_note": "DRAFT store copy. Limits are checked by scripts/store-listing.test.mjs. Owner to review wording and claims before submission.",
+  "limits": {
+    "appName": 30,
+    "subtitle": 30,
+    "keywords": 100,
+    "title": 30,
+    "shortDescription": 80,
+    "fullDescription": 4000
+  },
+  "apps": {
+    "user": {
+      "bundleId": "com.depanini.app",
+      "locales": {
+        "fr": {
+          "appName": "Depanini",
+          "subtitle": "Dépannage auto en Tunisie",
+          "keywords": "dépanneur,remorquage,panne,auto,voiture,assistance,routière,Tunisie,Tunis,batterie,pneu,camion",
+          "title": "Depanini : dépannage auto",
+          "shortDescription": "Demandez un dépanneur près de vous et suivez son arrivée en direct.",
+          "fullDescription": "Panne, accident, batterie à plat, pneu crevé ? Depanini vous met en relation avec un dépanneur près de vous, en quelques minutes.\n\nCOMMENT ÇA MARCHE\n1. Indiquez où vous êtes et où votre véhicule doit aller.\n2. Décrivez le problème et proposez un tarif, ou comparez les offres des dépanneurs.\n3. Choisissez un dépanneur et suivez son arrivée sur la carte.\n4. Payez en espèces à la fin de la course et notez le dépanneur.\n\nPOURQUOI DEPANINI\n- Des dépanneurs vérifiés : leurs documents sont contrôlés avant qu'ils puissent accepter une course.\n- Un prix clair, convenu avant le départ.\n- Suivi en direct du dépanneur sur la carte.\n- Notifications à chaque étape : offre reçue, dépanneur en route, arrivé.\n- Une application disponible en français, en arabe et en anglais.\n\nVOTRE POSITION\nL'application utilise votre position uniquement lorsqu'elle est ouverte, pour trouver les dépanneurs proches et leur montrer où vous êtes pendant une course.\n\nVOTRE COMPTE\nVous pouvez supprimer votre compte à tout moment depuis l'application.\n\nVous êtes dépanneur ? Téléchargez Depanini Dépanneur."
+        },
+        "ar": {
+          "appName": "Depanini",
+          "subtitle": "سيارة الجرّ عند الحاجة",
+          "keywords": "جر,سحب,سيارة,عطب,تونس,سائق جر,مساعدة,طريق,بطارية,إطار,نجدة,رافعة",
+          "title": "Depanini: جرّ السيارات",
+          "shortDescription": "اطلب سائق جرّ قريبًا منك وتابع وصوله مباشرة على الخريطة.",
+          "fullDescription": "عطل في السيارة؟ حادث؟ بطارية فارغة؟ إطار مثقوب؟ يربطك Depanini بسائق جرّ قريب منك في دقائق.\n\nكيف يعمل التطبيق\n1. حدّد مكانك والوجهة التي يجب أن تُنقل إليها سيارتك.\n2. صف المشكلة واقترح أجرة، أو قارن عروض سائقي الجرّ.\n3. اختر سائق الجرّ وتابع وصوله على الخريطة.\n4. ادفع نقدًا عند نهاية الرحلة وقيّم السائق.\n\nلماذا Depanini\n- سائقو جرّ موثَّقون: تُراجَع وثائقهم قبل أن يتمكنوا من قبول أي رحلة.\n- أجرة واضحة يُتَّفق عليها قبل الانطلاق.\n- متابعة مباشرة للسائق على الخريطة.\n- إشعارات في كل مرحلة: وصول عرض، السائق في الطريق، وصل السائق.\n- التطبيق متوفر بالعربية والفرنسية والإنجليزية.\n\nموقعك\nيستعمل التطبيق موقعك فقط أثناء فتحه، لإيجاد السائقين القريبين وإظهار مكانك لهم خلال الرحلة.\n\nحسابك\nيمكنك حذف حسابك في أي وقت من داخل التطبيق.\n\nهل أنت سائق جرّ؟ حمّل تطبيق Depanini Driver."
+        },
+        "en": {
+          "appName": "Depanini",
+          "subtitle": "Tow trucks in Tunisia",
+          "keywords": "tow truck,towing,breakdown,roadside,assistance,car,Tunisia,Tunis,battery,flat tyre,recovery",
+          "title": "Depanini: Tow Truck Requests",
+          "shortDescription": "Request a tow truck near you and follow its arrival live on the map.",
+          "fullDescription": "Broken down, had an accident, flat battery, flat tyre? Depanini connects you with a tow truck operator near you in minutes.\n\nHOW IT WORKS\n1. Tell us where you are and where your vehicle needs to go.\n2. Describe the problem and propose a fare, or compare offers from operators.\n3. Pick an operator and follow their arrival on the map.\n4. Pay in cash at the end of the trip and rate the operator.\n\nWHY DEPANINI\n- Verified operators: their documents are checked before they can accept jobs.\n- A clear price, agreed before the truck leaves.\n- Live tracking of your operator on the map.\n- Notifications at each step: offer received, operator on the way, arrived.\n- Available in French, Arabic and English.\n\nYOUR LOCATION\nThe app uses your location only while it is open, to find nearby operators and show them where you are during a job.\n\nYOUR ACCOUNT\nYou can delete your account at any time from inside the app.\n\nAre you a tow truck operator? Get Depanini Driver."
+        }
+      }
+    },
+    "driver": {
+      "bundleId": "com.depanini.driver",
+      "locales": {
+        "fr": {
+          "appName": "Depanini Dépanneur",
+          "subtitle": "Courses de remorquage",
+          "keywords": "dépanneur,remorquage,course,missions,camion,plateau,Tunisie,Tunis,revenus,chauffeur,client",
+          "title": "Depanini Dépanneur",
+          "shortDescription": "Recevez des demandes de dépannage près de vous et gérez vos courses.",
+          "fullDescription": "Depanini Dépanneur est l'application des dépanneurs professionnels en Tunisie. Recevez des demandes de clients près de vous, proposez votre prix et gérez vos courses de bout en bout.\n\nCOMMENT ÇA MARCHE\n1. Créez votre profil et envoyez vos documents (permis, carte grise, assurance, etc.). Notre équipe les vérifie.\n2. Passez en ligne pour voir les demandes proches.\n3. Acceptez le tarif du client ou faites une contre-offre.\n4. Une fois choisi, rejoignez le client avec la carte, suivez les étapes de la course et confirmez le paiement en espèces.\n\nAVANTAGES\n- Des demandes qualifiées, près de votre position.\n- Vous fixez votre prix : acceptez ou négociez.\n- Historique de vos courses et de vos revenus.\n- Notifications dès qu'une offre est acceptée.\n- Disponible en français, en arabe et en anglais.\n\nVOTRE POSITION\nVotre position est partagée uniquement lorsque vous êtes en ligne et que l'application est ouverte, pour recevoir les demandes proches et permettre au client de vous suivre. Passez hors ligne pour arrêter le partage.\n\nVOS DOCUMENTS\nVos documents sont utilisés uniquement pour vérifier votre profil et ne sont visibles que de l'équipe Depanini.\n\nVOTRE COMPTE\nVous pouvez supprimer votre compte à tout moment depuis l'application.\n\nBesoin d'un dépanneur ? Téléchargez Depanini."
+        },
+        "ar": {
+          "appName": "Depanini سائق الجرّ",
+          "subtitle": "استقبل طلبات الجرّ",
+          "keywords": "سائق جر,سحب,رحلات,شاحنة,تونس,دخل,زبون,رافعة,سطحة,عمل",
+          "title": "Depanini سائق الجرّ",
+          "shortDescription": "استقبل طلبات جرّ قريبة منك وأدر رحلاتك بسهولة.",
+          "fullDescription": "Depanini سائق الجرّ هو تطبيق سائقي الجرّ المحترفين في تونس. استقبل طلبات الزبائن القريبين منك، اقترح سعرك، وأدر رحلاتك من البداية إلى النهاية.\n\nكيف يعمل التطبيق\n1. أنشئ ملفك وأرسل وثائقك (رخصة السياقة، البطاقة الرمادية، التأمين...). يراجعها فريقنا.\n2. فعّل حالة \"متصل\" لترى الطلبات القريبة.\n3. اقبل أجرة الزبون أو قدّم عرضًا مضادًا.\n4. عند اختيارك، توجّه إلى الزبون عبر الخريطة، وتابع مراحل الرحلة وأكّد الدفع نقدًا.\n\nالمزايا\n- طلبات حقيقية قريبة من موقعك.\n- أنت تحدد سعرك: اقبل أو فاوض.\n- سجلّ رحلاتك وأرباحك.\n- إشعارات فور قبول عرضك.\n- متوفر بالعربية والفرنسية والإنجليزية.\n\nموقعك\nتتم مشاركة موقعك فقط عندما تكون متصلًا والتطبيق مفتوحًا، لتصلك الطلبات القريبة ولكي يتابعك الزبون. اختر \"غير متصل\" لإيقاف المشاركة.\n\nوثائقك\nتُستعمل وثائقك فقط للتحقق من ملفك ولا يراها إلا فريق Depanini.\n\nحسابك\nيمكنك حذف حسابك في أي وقت من داخل التطبيق.\n\nهل تحتاج إلى سائق جرّ؟ حمّل تطبيق Depanini."
+        },
+        "en": {
+          "appName": "Depanini Driver",
+          "subtitle": "Get tow jobs near you",
+          "keywords": "tow truck,driver,towing,jobs,Tunisia,Tunis,flatbed,earnings,operator,recovery,dispatch",
+          "title": "Depanini Driver",
+          "shortDescription": "Receive tow requests near you and manage your jobs end to end.",
+          "fullDescription": "Depanini Driver is the app for professional tow truck operators in Tunisia. Receive requests from nearby customers, set your price and manage each job from start to finish.\n\nHOW IT WORKS\n1. Create your profile and upload your documents (licence, vehicle registration, insurance, etc.). Our team reviews them.\n2. Go online to see nearby requests.\n3. Accept the customer's fare or make a counter-offer.\n4. Once chosen, drive to the customer with the map, follow the trip stages and confirm the cash payment.\n\nBENEFITS\n- Real requests close to your position.\n- You set your price: accept or negotiate.\n- History of your jobs and earnings.\n- Notifications as soon as your offer is accepted.\n- Available in French, Arabic and English.\n\nYOUR LOCATION\nYour location is shared only while you are online and the app is open, so you receive nearby requests and the customer can follow you. Go offline to stop sharing.\n\nYOUR DOCUMENTS\nYour documents are used only to verify your profile and are visible only to the Depanini team.\n\nYOUR ACCOUNT\nYou can delete your account at any time from inside the app.\n\nNeed a tow? Get Depanini."
+        }
+      }
+    }
+  }
+}
