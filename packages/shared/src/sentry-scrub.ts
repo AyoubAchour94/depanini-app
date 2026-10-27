@@ -38,9 +38,29 @@ const IPV6 =
   /(?<![\w:])(?:(?:[\da-f]{1,4}:){7}[\da-f]{1,4}|(?:[\da-f]{1,4}:){1,7}:(?:[\da-f]{1,4}(?::[\da-f]{1,4}){0,6})?|::[\da-f]{1,4}(?::[\da-f]{1,4}){0,6})(?![\w:])/gi;
 
 const MAX_DEPTH = 12;
+// The regexes above backtrack quadratically on long numeric-ish text, so long strings are cut first.
+const MAX_TEXT_LENGTH = 2000;
+// Where a cut may fall: after the last delimiter in the final 200 characters, or else 200 characters early.
+const CUT_BACK_LENGTH = 200;
+const TOKEN_END = /[\s,;&?"']/;
+
+// Cuts a long text so that no token is left half-kept at its end, which would escape the masking.
+function truncate(text: string): string {
+  if (text.length <= MAX_TEXT_LENGTH) return text;
+  const window = text.slice(0, MAX_TEXT_LENGTH);
+  const earliest = MAX_TEXT_LENGTH - CUT_BACK_LENGTH;
+  let cut = earliest;
+  for (let index = window.length - 1; index >= earliest; index--) {
+    if (TOKEN_END.test(window[index] ?? '')) {
+      cut = index + 1;
+      break;
+    }
+  }
+  return `${window.slice(0, cut)}…[truncated]`;
+}
 
 export function scrubText(text: string): string {
-  return text
+  return truncate(text)
     .replace(BEARER, 'Bearer [token]')
     .replace(JWT, '[token]')
     .replace(URL_SECRET, '$1[token]')
