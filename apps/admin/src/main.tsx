@@ -9,6 +9,8 @@ import { App } from './App';
 import { AuthProvider } from './auth/AuthProvider';
 import { createFirebaseAuthService } from './auth/firebase-service';
 import { readConfig } from './config';
+import { useTranslation } from './i18n';
+import { LanguageProvider } from './i18n/language';
 import { ErrorBoundary, initSentry } from './observability/sentry';
 import './styles/theme.css';
 import './styles/app.css';
@@ -21,18 +23,25 @@ const auth = createFirebaseAuthService(config);
 const api = createApiClient({ baseUrl: config.apiUrl, getToken: () => auth.getToken() });
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
+function ErrorFallback() {
+  const { t } = useTranslation();
+  return <p role="alert">{t('common:somethingWentWrong')}</p>;
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ErrorBoundary fallback={<p role="alert">Something went wrong. Reload the page.</p>}>
-      <AuthProvider service={auth}>
-        <ApiProvider client={api}>
-          <QueryClientProvider client={queryClient}>
-            <BrowserRouter>
-              <App />
-            </BrowserRouter>
-          </QueryClientProvider>
-        </ApiProvider>
-      </AuthProvider>
-    </ErrorBoundary>
+    <LanguageProvider>
+      <ErrorBoundary fallback={<ErrorFallback />}>
+        <AuthProvider service={auth}>
+          <ApiProvider client={api}>
+            <QueryClientProvider client={queryClient}>
+              <BrowserRouter>
+                <App />
+              </BrowserRouter>
+            </QueryClientProvider>
+          </ApiProvider>
+        </AuthProvider>
+      </ErrorBoundary>
+    </LanguageProvider>
   </StrictMode>,
 );

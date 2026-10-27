@@ -1,0 +1,13 @@
+{
+  "title": "Audit log",
+  "loadFailed": "Could not load the audit log.",
+  "caption": "Admin actions",
+  "empty": "No admin actions yet.",
+  "columns": {
+    "when": "When",
+    "admin": "Admin",
+    "action": "Action",
+    "target": "Target",
+    "note": "Note"
+  }
+}

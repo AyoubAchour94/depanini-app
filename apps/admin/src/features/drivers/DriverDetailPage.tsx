@@ -4,25 +4,29 @@ import { Link, useParams } from 'react-router';
 
 import { ApiError } from '../../api/client';
 import { useDriver } from '../../api/drivers';
+import { useTranslation } from '../../i18n';
+import { useEnumLabel } from '../../i18n/enums';
 import { Button } from '../../ui/Button';
 import { DocumentViewer } from './DocumentViewer';
-import { formatDate, humanize, KIND_LABEL, StatusBadge } from './labels';
+import { formatDate, StatusBadge } from './labels';
 import { ApproveDialog, RejectDialog } from './ReviewDialogs';
 
 export function DriverDetailPage() {
+  const { t } = useTranslation();
+  const label = useEnumLabel();
   const { userId = '' } = useParams();
   const driver = useDriver(userId);
   const [dialog, setDialog] = useState<'approve' | 'reject' | null>(null);
 
-  if (driver.isPending) return <p className="muted">Loading…</p>;
+  if (driver.isPending) return <p className="muted">{t('common:loading')}</p>;
   if (driver.isError) {
     const notFound = driver.error instanceof ApiError && driver.error.status === 404;
     return (
       <>
         <p role="alert" className="error">
-          {notFound ? 'Driver not found.' : 'Could not load the driver.'}
+          {notFound ? t('drivers:detail.notFound') : t('drivers:detail.loadFailed')}
         </p>
-        <Link to="/drivers">Back to drivers</Link>
+        <Link to="/drivers">{t('drivers:detail.back')}</Link>
       </>
     );
   }
@@ -32,7 +36,7 @@ export function DriverDetailPage() {
   return (
     <>
       <p>
-        <Link to="/drivers">Drivers</Link>
+        <Link to="/drivers">{t('drivers:title')}</Link>
       </p>
       <div className="row">
         <h1>{data.fullName}</h1>
@@ -40,25 +44,25 @@ export function DriverDetailPage() {
       </div>
 
       <dl className="details">
-        <dt>Email</dt>
+        <dt>{t('drivers:detail.email')}</dt>
         <dd>{data.email ?? '-'}</dd>
-        <dt>Phone</dt>
+        <dt>{t('drivers:detail.phone')}</dt>
         <dd>{data.phone}</dd>
-        <dt>Truck</dt>
-        <dd>{humanize(data.truckType)}</dd>
-        <dt>Plate</dt>
+        <dt>{t('drivers:detail.truck')}</dt>
+        <dd>{label('truck', data.truckType)}</dd>
+        <dt>{t('drivers:detail.plate')}</dt>
         <dd>{data.plateNumber}</dd>
-        <dt>Submitted</dt>
+        <dt>{t('drivers:detail.submitted')}</dt>
         <dd>{formatDate(data.submittedAt)}</dd>
         {data.reviewedAt ? (
           <>
-            <dt>Reviewed</dt>
+            <dt>{t('drivers:detail.reviewed')}</dt>
             <dd>{formatDate(data.reviewedAt)}</dd>
           </>
         ) : null}
         {data.rejectionReason ? (
           <>
-            <dt>Rejection reason</dt>
+            <dt>{t('drivers:detail.rejectionReason')}</dt>
             <dd>{data.rejectionReason}</dd>
           </>
         ) : null}
@@ -67,22 +71,24 @@ export function DriverDetailPage() {
       {data.verificationStatus === 'pending' ? (
         <div className="row" style={{ marginTop: 'var(--space-4)' }}>
           <Button variant="primary" onClick={() => setDialog('approve')}>
-            Approve
+            {t('drivers:detail.approve')}
           </Button>
           <Button variant="danger" onClick={() => setDialog('reject')}>
-            Reject
+            {t('drivers:detail.reject')}
           </Button>
         </div>
       ) : null}
 
-      <h2>Documents</h2>
-      {data.documents.length === 0 ? <p className="muted">No documents uploaded.</p> : null}
+      <h2>{t('drivers:detail.documents')}</h2>
+      {data.documents.length === 0 ? (
+        <p className="muted">{t('drivers:detail.noDocuments')}</p>
+      ) : null}
       {DOCUMENT_KINDS.map((kind) => {
         const pages = data.documents.filter((document) => document.kind === kind);
         if (pages.length === 0) return null;
         return (
-          <section key={kind} aria-label={KIND_LABEL[kind]}>
-            <h3>{KIND_LABEL[kind]}</h3>
+          <section key={kind} aria-label={label('documentKind', kind)}>
+            <h3>{label('documentKind', kind)}</h3>
             <div className="documents">
               {pages.map((document) => (
                 <DocumentViewer key={document.id} document={document} />

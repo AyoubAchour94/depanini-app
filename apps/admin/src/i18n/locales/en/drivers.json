@@ -1,0 +1,49 @@
+{
+  "queueTitle": "Review queue",
+  "title": "Drivers",
+  "loadFailed": "Could not load the drivers.",
+  "queueCaption": "Drivers waiting for review",
+  "queueEmpty": "No drivers are waiting for review.",
+  "empty": "No drivers found.",
+  "columns": {
+    "name": "Name",
+    "phone": "Phone",
+    "truck": "Truck",
+    "plate": "Plate",
+    "status": "Status",
+    "submitted": "Submitted"
+  },
+  "detail": {
+    "notFound": "Driver not found.",
+    "loadFailed": "Could not load the driver.",
+    "back": "Back to drivers",
+    "email": "Email",
+    "phone": "Phone",
+    "truck": "Truck",
+    "plate": "Plate",
+    "submitted": "Submitted",
+    "reviewed": "Reviewed",
+    "rejectionReason": "Rejection reason",
+    "approve": "Approve",
+    "reject": "Reject",
+    "documents": "Documents",
+    "noDocuments": "No documents uploaded."
+  },
+  "document": {
+    "label": "{{kind}}, page {{page}}",
+    "loading": "Loading {{label}}…",
+    "failed": "Could not load {{label}}."
+  },
+  "approve": {
+    "title": "Approve {{name}}?",
+    "body": "They will be able to go online and take jobs.",
+    "confirm": "Confirm approval"
+  },
+  "reject": {
+    "title": "Reject {{name}}?",
+    "reasonLabel": "Reason (shown to the driver)",
+    "confirm": "Confirm rejection",
+    "reasonRequired": "Give a reason",
+    "reasonTooLong": "Reason is too long"
+  }
+}

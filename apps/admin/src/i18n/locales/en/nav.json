@@ -1,0 +1,13 @@
+{
+  "main": "Main",
+  "queue": "Review queue",
+  "drivers": "Drivers",
+  "users": "Users",
+  "trips": "Trips",
+  "reports": "Reports",
+  "disputes": "Disputes",
+  "audit": "Audit log",
+  "signOut": "Sign out",
+  "terms": "Terms",
+  "privacy": "Privacy policy"
+}

@@ -1,0 +1,95 @@
+{
+  "verification": {
+    "unsubmitted": "Not submitted",
+    "pending": "Pending review",
+    "approved": "Approved",
+    "rejected": "Rejected"
+  },
+  "documentKind": {
+    "licence": "Driver's licence",
+    "registration": "Vehicle registration",
+    "insurance": "Insurance certificate",
+    "national_id": "National ID"
+  },
+  "truck": {
+    "flatbed": "Flatbed",
+    "wheel_lift": "Wheel-lift"
+  },
+  "vehicle": {
+    "car": "Car",
+    "suv_van": "SUV or van",
+    "motorcycle": "Motorcycle"
+  },
+  "problem": {
+    "breakdown": "Breakdown",
+    "accident": "Accident",
+    "flat_tire": "Flat tyre",
+    "battery": "Battery",
+    "out_of_fuel": "Out of fuel",
+    "stuck": "Stuck",
+    "other": "Other"
+  },
+  "tripStatus": {
+    "open": "Open",
+    "assigned": "Assigned",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+    "expired": "Expired"
+  },
+  "offerStatus": {
+    "pending": "Pending",
+    "accepted": "Accepted",
+    "rejected": "Rejected",
+    "declined": "Declined",
+    "withdrawn": "Withdrawn",
+    "expired": "Expired"
+  },
+  "paymentStatus": {
+    "driver_confirmed": "Confirmed by the driver",
+    "customer_confirmed": "Confirmed by the customer",
+    "disputed": "Disputed"
+  },
+  "paymentMethod": {
+    "cash": "Cash"
+  },
+  "party": {
+    "customer": "Customer",
+    "driver": "Driver"
+  },
+  "ratingTag": {
+    "on_time": "On time",
+    "careful_with_vehicle": "Careful with the vehicle",
+    "friendly": "Friendly",
+    "fair_price": "Fair price",
+    "late": "Late",
+    "rough_handling": "Rough handling",
+    "rude": "Rude",
+    "clear_location": "Clear location",
+    "ready_on_time": "Ready on time",
+    "wrong_location": "Wrong location",
+    "made_me_wait": "Made me wait"
+  },
+  "reportCategory": {
+    "safety": "Safety",
+    "vehicle_damage": "Vehicle damage",
+    "overcharged": "Overcharged",
+    "no_show": "No-show",
+    "behaviour": "Behaviour",
+    "other": "Other"
+  },
+  "reportStatus": {
+    "open": "Open",
+    "resolved": "Resolved"
+  },
+  "auditAction": {
+    "driver_approved": "Approved a driver",
+    "driver_rejected": "Rejected a driver",
+    "report_resolved": "Resolved a report",
+    "dispute_resolved": "Resolved a payment dispute"
+  },
+  "auditTarget": {
+    "driver": "Driver",
+    "report": "Report",
+    "dispute": "Dispute"
+  }
+}

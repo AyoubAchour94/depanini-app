@@ -1,7 +1,7 @@
 import type { TowRequestStatus } from '@depanini/shared';
 
+import { useEnumLabel } from '../../i18n/enums';
 import { Badge, type Tone } from '../../ui/Badge';
-import { humanize } from '../drivers/labels';
 
 const TONE: Record<TowRequestStatus, Tone> = {
   open: 'warning',
@@ -12,9 +12,6 @@ const TONE: Record<TowRequestStatus, Tone> = {
 };
 
 export function TripStatusBadge({ status }: { status: TowRequestStatus }) {
-  return <Badge tone={TONE[status]}>{humanize(status)}</Badge>;
+  const label = useEnumLabel();
+  return <Badge tone={TONE[status]}>{label('tripStatus', status)}</Badge>;
 }
-
-/** Whole dinars as text. */
-export const dinars = (amount: number | null | undefined) =>
-  amount == null ? '-' : `${amount} TND`;

@@ -2,6 +2,7 @@ import { MAX_REJECTION_REASON_LENGTH, reviewInputSchema } from '@depanini/shared
 import { type FormEvent, useState } from 'react';
 
 import { useReviewDriver } from '../../api/drivers';
+import { useTranslation } from '../../i18n';
 import { Button } from '../../ui/Button';
 import { Dialog } from '../../ui/Dialog';
 import { TextArea } from '../../ui/Input';
@@ -21,19 +22,20 @@ function Failure({ error }: { error: Error | null }) {
 }
 
 export function ApproveDialog({ userId, driverName, onClose }: Props) {
+  const { t } = useTranslation();
   const review = useReviewDriver(userId);
   return (
-    <Dialog title={`Approve ${driverName}?`} onClose={onClose}>
-      <p>They will be able to go online and take jobs.</p>
+    <Dialog title={t('drivers:approve.title', { name: driverName })} onClose={onClose}>
+      <p>{t('drivers:approve.body')}</p>
       <Failure error={review.error} />
       <div className="dialog__actions">
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t('common:cancel')}</Button>
         <Button
           variant="primary"
           disabled={review.isPending}
           onClick={() => review.mutate({ decision: 'approve' }, { onSuccess: onClose })}
         >
-          Confirm approval
+          {t('drivers:approve.confirm')}
         </Button>
       </div>
     </Dialog>
@@ -41,6 +43,7 @@ export function ApproveDialog({ userId, driverName, onClose }: Props) {
 }
 
 export function RejectDialog({ userId, driverName, onClose }: Props) {
+  const { t } = useTranslation();
   const review = useReviewDriver(userId);
   const [reason, setReason] = useState('');
   const [invalid, setInvalid] = useState<string | null>(null);
@@ -49,7 +52,10 @@ export function RejectDialog({ userId, driverName, onClose }: Props) {
     event.preventDefault();
     const parsed = reviewInputSchema.safeParse({ decision: 'reject', reason });
     if (!parsed.success) {
-      setInvalid(parsed.error.issues[0]?.message ?? 'Give a reason');
+      // The schema's texts are English; say it in the active language instead.
+      setInvalid(
+        reason.trim() ? t('drivers:reject.reasonTooLong') : t('drivers:reject.reasonRequired'),
+      );
       return;
     }
     setInvalid(null);
@@ -57,10 +63,10 @@ export function RejectDialog({ userId, driverName, onClose }: Props) {
   }
 
   return (
-    <Dialog title={`Reject ${driverName}?`} onClose={onClose}>
+    <Dialog title={t('drivers:reject.title', { name: driverName })} onClose={onClose}>
       <form className="stack" onSubmit={submit} noValidate>
         <TextArea
-          label="Reason (shown to the driver)"
+          label={t('drivers:reject.reasonLabel')}
           value={reason}
           maxLength={MAX_REJECTION_REASON_LENGTH + 100}
           onChange={(event) => setReason(event.target.value)}
@@ -68,9 +74,9 @@ export function RejectDialog({ userId, driverName, onClose }: Props) {
         />
         <Failure error={review.error} />
         <div className="dialog__actions">
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t('common:cancel')}</Button>
           <Button type="submit" variant="danger" disabled={review.isPending}>
-            Confirm rejection
+            {t('drivers:reject.confirm')}
           </Button>
         </div>
       </form>

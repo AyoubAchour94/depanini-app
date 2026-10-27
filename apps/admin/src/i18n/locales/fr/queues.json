@@ -1,0 +1,43 @@
+{
+  "reports": {
+    "title": "Signalements",
+    "loadFailed": "Impossible de charger les signalements.",
+    "caption": "Signalements",
+    "openEmpty": "Aucun signalement ouvert.",
+    "empty": "Aucun signalement trouvé.",
+    "resolveTitle": "Résoudre le signalement ({{category}}) ?",
+    "noteLabel": "Note de résolution (visible par l'auteur du signalement)"
+  },
+  "disputes": {
+    "title": "Litiges de paiement",
+    "loadFailed": "Impossible de charger les litiges.",
+    "caption": "Litiges de paiement",
+    "openEmpty": "Aucun litige ouvert.",
+    "empty": "Aucun litige trouvé.",
+    "resolveTitle": "Résoudre le litige sur {{receipt}} ?",
+    "noteLabel": "Note de résolution (conservée avec le paiement)"
+  },
+  "columns": {
+    "category": "Catégorie",
+    "reporter": "Auteur",
+    "note": "Note",
+    "trip": "Course",
+    "reported": "Signalé le",
+    "status": "Statut",
+    "receipt": "Reçu",
+    "amount": "Montant",
+    "customer": "Client",
+    "driver": "Chauffeur",
+    "customerSays": "Selon le client",
+    "disputed": "Contesté le"
+  },
+  "reporter": "{{name}} ({{role}})",
+  "unknownReporter": "Inconnu",
+  "tripFallback": "Course",
+  "resolve": "Résoudre",
+  "resolveConfirm": "Confirmer la résolution",
+  "resolvedBy": "Résolu par {{who}} le {{date}}",
+  "anAdmin": "un administrateur",
+  "noteRequired": "Écrivez une note",
+  "noteTooLong": "La note est trop longue"
+}

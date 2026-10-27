@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router';
 
 import { useAuth } from './auth/AuthProvider';
+import { useTranslation } from './i18n';
 import { SignInPage } from './auth/SignInPage';
 import { DriverDetailPage } from './features/drivers/DriverDetailPage';
 import { DriversPage } from './features/drivers/DriversPage';
@@ -18,8 +19,9 @@ import { Layout } from './layout/Layout';
  * A new screen adds a `<Route>` here and an entry in `layout/nav.ts`.
  */
 export function App() {
+  const { t } = useTranslation();
   const { state } = useAuth();
-  if (state.status === 'loading') return <p className="muted centered">Loading…</p>;
+  if (state.status === 'loading') return <p className="muted centered">{t('common:loading')}</p>;
   if (state.status === 'signedOut') return <SignInPage />;
 
   return (
@@ -36,7 +38,7 @@ export function App() {
         <Route path="reports" element={<ReportsPage />} />
         <Route path="disputes" element={<DisputesPage />} />
         <Route path="audit" element={<AuditPage />} />
-        <Route path="*" element={<p>Page not found.</p>} />
+        <Route path="*" element={<p>{t('common:notFound')}</p>} />
       </Route>
     </Routes>
   );

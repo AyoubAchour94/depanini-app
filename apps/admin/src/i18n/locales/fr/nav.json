@@ -1,0 +1,13 @@
+{
+  "main": "Principale",
+  "queue": "File de vérification",
+  "drivers": "Chauffeurs",
+  "users": "Utilisateurs",
+  "trips": "Courses",
+  "reports": "Signalements",
+  "disputes": "Litiges",
+  "audit": "Journal d'audit",
+  "signOut": "Se déconnecter",
+  "terms": "Conditions d'utilisation",
+  "privacy": "Politique de confidentialité"
+}

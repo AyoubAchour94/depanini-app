@@ -1,0 +1,16 @@
+{
+  "brand": "Depanini Admin",
+  "money": "{{amount}} TND",
+  "kilometres": "{{value}} km",
+  "outOfFive": "{{stars}} / 5",
+  "loading": "Chargement…",
+  "loadMore": "Afficher plus",
+  "search": "Rechercher",
+  "cancel": "Annuler",
+  "all": "Tous",
+  "status": "Statut",
+  "language": "Langue",
+  "notFound": "Page introuvable.",
+  "somethingWentWrong": "Une erreur est survenue. Rechargez la page.",
+  "nothingHere": "Rien à afficher."
+}

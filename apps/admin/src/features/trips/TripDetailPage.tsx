@@ -3,49 +3,57 @@ import { Link, useParams } from 'react-router';
 
 import { ApiError } from '../../api/client';
 import { useTrip } from '../../api/lookups';
+import { useTranslation } from '../../i18n';
+import { useEnumLabel } from '../../i18n/enums';
+import { formatKilometres, formatMoney, formatNumber } from '../../i18n/format';
 import { Badge } from '../../ui/Badge';
 import { Table } from '../../ui/Table';
-import { formatDate, humanize } from '../drivers/labels';
-import { CATEGORY_LABEL, ReportStatusBadge, resolvedBy } from '../queues/labels';
-import { dinars, TripStatusBadge } from './labels';
+import { formatDate } from '../drivers/labels';
+import { ReportStatusBadge, useResolvedBy } from '../queues/labels';
+import { TripStatusBadge } from './labels';
 
 function Rating({ title, rating }: { title: string; rating: AdminRating | null | undefined }) {
+  const { t } = useTranslation();
+  const label = useEnumLabel();
   return (
     <section aria-label={title}>
       <h3>{title}</h3>
       {rating ? (
         <dl className="details">
-          <dt>Stars</dt>
-          <dd>{rating.stars} / 5</dd>
+          <dt>{t('trips:detail.stars')}</dt>
+          <dd>{t('common:outOfFive', { stars: formatNumber(rating.stars) })}</dd>
           {rating.tags.length > 0 ? (
             <>
-              <dt>Tags</dt>
-              <dd>{rating.tags.map(humanize).join(', ')}</dd>
+              <dt>{t('trips:detail.tags')}</dt>
+              <dd>{rating.tags.map((tag) => label('ratingTag', tag)).join(', ')}</dd>
             </>
           ) : null}
-          <dt>Comment</dt>
+          <dt>{t('trips:detail.comment')}</dt>
           <dd>{rating.comment || '-'}</dd>
         </dl>
       ) : (
-        <p className="muted">Not rated.</p>
+        <p className="muted">{t('trips:detail.notRated')}</p>
       )}
     </section>
   );
 }
 
 export function TripDetailPage() {
+  const { t } = useTranslation();
+  const label = useEnumLabel();
+  const resolvedBy = useResolvedBy();
   const { id = '' } = useParams();
   const trip = useTrip(id);
 
-  if (trip.isPending) return <p className="muted">Loading…</p>;
+  if (trip.isPending) return <p className="muted">{t('common:loading')}</p>;
   if (trip.isError) {
     const notFound = trip.error instanceof ApiError && trip.error.status === 404;
     return (
       <>
         <p role="alert" className="error">
-          {notFound ? 'Trip not found.' : 'Could not load the trip.'}
+          {notFound ? t('trips:detail.notFound') : t('trips:detail.loadFailed')}
         </p>
-        <Link to="/trips">Back to trips</Link>
+        <Link to="/trips">{t('trips:detail.back')}</Link>
       </>
     );
   }
@@ -53,32 +61,30 @@ export function TripDetailPage() {
   const data = trip.data;
   const { payment } = data;
   const timeline: [string, string | null | undefined][] = [
-    ['Requested', data.createdAt],
-    ['Accepted', data.assignedAt],
-    ['On the way', data.enRouteAt],
-    ['Arrived', data.arrivedAt],
-    ['Towing', data.towingAt],
-    ['Completed', data.completedAt],
-    ['Cancelled', data.cancelledAt],
+    [t('trips:detail.requested'), data.createdAt],
+    [t('trips:detail.accepted'), data.assignedAt],
+    [t('trips:detail.enRoute'), data.enRouteAt],
+    [t('trips:detail.arrived'), data.arrivedAt],
+    [t('trips:detail.towing'), data.towingAt],
+    [t('trips:detail.completed'), data.completedAt],
+    [t('trips:detail.cancelled'), data.cancelledAt],
   ];
 
   return (
     <>
       <p>
-        <Link to="/trips">Trips</Link>
+        <Link to="/trips">{t('trips:title')}</Link>
       </p>
       <div className="row">
-        <h1>
-          {data.pickupAddress} to {data.dropoffAddress}
-        </h1>
+        <h1>{t('trips:detail.route', { from: data.pickupAddress, to: data.dropoffAddress })}</h1>
         <TripStatusBadge status={data.status} />
       </div>
 
-      <section aria-label="Summary">
+      <section aria-label={t('trips:detail.summary')}>
         <dl className="details">
-          <dt>Trip id</dt>
+          <dt>{t('trips:detail.tripId')}</dt>
           <dd>{data.id}</dd>
-          <dt>Customer</dt>
+          <dt>{t('trips:detail.customer')}</dt>
           <dd>
             {data.customer ? (
               <Link to={`/users/${data.customer.userId}`}>{data.customer.fullName}</Link>
@@ -87,7 +93,7 @@ export function TripDetailPage() {
             )}
             {data.customer?.phone ? ` (${data.customer.phone})` : ''}
           </dd>
-          <dt>Driver</dt>
+          <dt>{t('trips:detail.driver')}</dt>
           <dd>
             {data.driver ? (
               <Link to={`/users/${data.driver.userId}`}>{data.driver.fullName}</Link>
@@ -97,132 +103,157 @@ export function TripDetailPage() {
             {data.driver?.phone ? ` (${data.driver.phone})` : ''}
             {data.driver?.plateNumber ? `, ${data.driver.plateNumber}` : ''}
           </dd>
-          <dt>Problem</dt>
+          <dt>{t('trips:detail.problem')}</dt>
           <dd>
-            {humanize(data.problemType)}, {humanize(data.vehicleType)}
+            {t('trips:detail.problemLine', {
+              problem: label('problem', data.problemType),
+              vehicle: label('vehicle', data.vehicleType),
+            })}
           </dd>
           {data.note ? (
             <>
-              <dt>Customer note</dt>
+              <dt>{t('trips:detail.customerNote')}</dt>
               <dd>{data.note}</dd>
             </>
           ) : null}
-          <dt>Distance</dt>
-          <dd>{(data.distanceM / 1000).toFixed(1)} km</dd>
-          <dt>Fare</dt>
+          <dt>{t('trips:detail.distance')}</dt>
+          <dd>{formatKilometres(data.distanceM)}</dd>
+          <dt>{t('trips:detail.fare')}</dt>
           <dd>
-            {dinars(data.agreedFare)} agreed (suggested {dinars(data.suggestedFare)}, proposed{' '}
-            {dinars(data.proposedFare)})
+            {t('trips:detail.fareLine', {
+              agreed: formatMoney(data.agreedFare),
+              suggested: formatMoney(data.suggestedFare),
+              proposed: formatMoney(data.proposedFare),
+            })}
           </dd>
           {data.cancelledBy ? (
             <>
-              <dt>Cancelled by</dt>
+              <dt>{t('trips:detail.cancelledBy')}</dt>
               <dd>
-                {humanize(data.cancelledBy)}
-                {data.cancelReason ? `: ${data.cancelReason}` : ''}
+                {data.cancelReason
+                  ? t('trips:detail.cancelledByLine', {
+                      who: label('party', data.cancelledBy),
+                      reason: data.cancelReason,
+                    })
+                  : label('party', data.cancelledBy)}
               </dd>
             </>
           ) : null}
         </dl>
       </section>
 
-      <section aria-label="Timeline">
-        <h2>Timeline</h2>
+      <section aria-label={t('trips:detail.timeline')}>
+        <h2>{t('trips:detail.timeline')}</h2>
         <dl className="details">
           {timeline
             .filter(([, at]) => at)
-            .map(([label, at]) => (
-              <div key={label} style={{ display: 'contents' }}>
-                <dt>{label}</dt>
+            .map(([name, at]) => (
+              <div key={name} style={{ display: 'contents' }}>
+                <dt>{name}</dt>
                 <dd>{formatDate(at)}</dd>
               </div>
             ))}
         </dl>
       </section>
 
-      <section aria-label="Offers">
-        <h2>Offers</h2>
+      <section aria-label={t('trips:detail.offers')}>
+        <h2>{t('trips:detail.offers')}</h2>
         <Table
-          caption="Offers"
+          caption={t('trips:detail.offers')}
           rows={data.offers}
           rowKey={(offer) => offer.id}
-          empty="No offers."
+          empty={t('trips:detail.noOffers')}
           columns={[
-            { header: 'Driver', cell: (offer) => offer.driverName },
-            { header: 'Fare', cell: (offer) => dinars(offer.fare) },
-            { header: 'Status', cell: (offer) => humanize(offer.status) },
-            { header: 'Offered', cell: (offer) => formatDate(offer.createdAt) },
+            { header: t('trips:columns.offeredBy'), cell: (offer) => offer.driverName },
+            { header: t('trips:columns.offerFare'), cell: (offer) => formatMoney(offer.fare) },
+            {
+              header: t('trips:columns.offerStatus'),
+              cell: (offer) => label('offerStatus', offer.status),
+            },
+            { header: t('trips:columns.offered'), cell: (offer) => formatDate(offer.createdAt) },
           ]}
         />
       </section>
 
-      <section aria-label="Payment">
-        <h2>Payment</h2>
+      <section aria-label={t('trips:detail.payment')}>
+        <h2>{t('trips:detail.payment')}</h2>
         {payment ? (
           <dl className="details">
-            <dt>Status</dt>
+            <dt>{t('trips:detail.paymentStatus')}</dt>
             <dd>
               <Badge tone={payment.status === 'disputed' ? 'danger' : 'success'}>
-                {humanize(payment.status)}
+                {label('paymentStatus', payment.status)}
               </Badge>
             </dd>
-            <dt>Receipt</dt>
+            <dt>{t('trips:detail.receipt')}</dt>
             <dd>{payment.receiptNo}</dd>
-            <dt>Amount</dt>
+            <dt>{t('trips:detail.amount')}</dt>
             <dd>
-              {dinars(payment.amountTnd)} ({payment.method})
+              {t('trips:detail.amountLine', {
+                amount: formatMoney(payment.amountTnd),
+                method: label('paymentMethod', payment.method),
+              })}
             </dd>
-            <dt>Driver confirmed</dt>
+            <dt>{t('trips:detail.driverConfirmed')}</dt>
             <dd>{formatDate(payment.driverConfirmedAt)}</dd>
             {payment.customerAnsweredAt ? (
               <>
-                <dt>Customer answered</dt>
+                <dt>{t('trips:detail.customerAnswered')}</dt>
                 <dd>{formatDate(payment.customerAnsweredAt)}</dd>
               </>
             ) : null}
             {payment.disputeNote ? (
               <>
-                <dt>Dispute note</dt>
+                <dt>{t('trips:detail.disputeNote')}</dt>
                 <dd>{payment.disputeNote}</dd>
               </>
             ) : null}
             {payment.resolutionNote ? (
               <>
-                <dt>Resolution</dt>
+                <dt>{t('trips:detail.resolution')}</dt>
                 <dd>
                   {payment.resolutionNote}
-                  <div className="muted">Resolved on {formatDate(payment.resolvedAt)}</div>
+                  <div className="muted">
+                    {t('trips:detail.resolvedOn', { date: formatDate(payment.resolvedAt) })}
+                  </div>
                 </dd>
               </>
             ) : null}
           </dl>
         ) : (
-          <p className="muted">No payment yet.</p>
+          <p className="muted">{t('trips:detail.noPayment')}</p>
         )}
       </section>
 
-      <section aria-label="Ratings">
-        <h2>Ratings</h2>
-        <Rating title="Customer rated the driver" rating={data.customerRating} />
-        <Rating title="Driver rated the customer" rating={data.driverRating} />
+      <section aria-label={t('trips:detail.ratings')}>
+        <h2>{t('trips:detail.ratings')}</h2>
+        <Rating title={t('trips:detail.customerRatedDriver')} rating={data.customerRating} />
+        <Rating title={t('trips:detail.driverRatedCustomer')} rating={data.driverRating} />
       </section>
 
-      <section aria-label="Reports">
-        <h2>Reports</h2>
+      <section aria-label={t('trips:detail.reports')}>
+        <h2>{t('trips:detail.reports')}</h2>
         <Table
-          caption="Reports on this trip"
+          caption={t('trips:detail.reportsCaption')}
           rows={data.reports}
           rowKey={(report) => report.id}
-          empty="No reports."
+          empty={t('trips:detail.noReports')}
           columns={[
-            { header: 'Category', cell: (report) => CATEGORY_LABEL[report.category] },
             {
-              header: 'Reporter',
-              cell: (report) => `${report.reporterName ?? 'Unknown'} (${report.reporterRole})`,
+              header: t('trips:columns.category'),
+              cell: (report) => label('reportCategory', report.category),
             },
-            { header: 'Note', cell: (report) => report.note },
             {
-              header: 'Status',
+              header: t('trips:columns.reporter'),
+              cell: (report) =>
+                t('queues:reporter', {
+                  name: report.reporterName ?? t('queues:unknownReporter'),
+                  role: label('party', report.reporterRole).toLowerCase(),
+                }),
+            },
+            { header: t('trips:columns.note'), cell: (report) => report.note },
+            {
+              header: t('queues:columns.status'),
               cell: (report) => (
                 <>
                   <ReportStatusBadge status={report.status} />

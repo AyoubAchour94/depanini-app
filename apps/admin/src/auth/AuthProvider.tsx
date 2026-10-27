@@ -2,12 +2,13 @@ import { createContext, type ReactNode, use, useEffect, useMemo, useRef, useStat
 
 import type { AuthService } from './service';
 
-export const NOT_ADMIN_MESSAGE = 'Not an admin';
+/** Why the person was sent back to sign-in; the sign-in page turns it into text. */
+export const NOT_ADMIN_NOTICE = 'notAdmin';
 
 export type AuthState =
   | { status: 'loading' }
   /** `notice` says why the person was sent back to sign-in. */
-  | { status: 'signedOut'; notice?: string }
+  | { status: 'signedOut'; notice?: typeof NOT_ADMIN_NOTICE }
   | { status: 'admin'; email: string | null };
 
 interface AuthContextValue {
@@ -26,7 +27,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
  */
 export function AuthProvider({ service, children }: { service: AuthService; children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: 'loading' });
-  const notice = useRef<string | undefined>(undefined);
+  const notice = useRef<typeof NOT_ADMIN_NOTICE | undefined>(undefined);
 
   useEffect(
     () =>
@@ -38,7 +39,7 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
         }
         if (session) {
           // Signed in but not an admin: remember why, then sign out.
-          notice.current = NOT_ADMIN_MESSAGE;
+          notice.current = NOT_ADMIN_NOTICE;
           void service.signOut();
           return;
         }
@@ -53,7 +54,7 @@ export function AuthProvider({ service, children }: { service: AuthService; chil
       signIn: (email, password) => service.signIn(email, password),
       signOut: () => service.signOut(),
       endRevokedSession: () => {
-        notice.current = NOT_ADMIN_MESSAGE;
+        notice.current = NOT_ADMIN_NOTICE;
         return service.signOut();
       },
     }),

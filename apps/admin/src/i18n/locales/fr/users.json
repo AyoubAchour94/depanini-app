@@ -1,0 +1,39 @@
+{
+  "title": "Utilisateurs",
+  "loadFailed": "Impossible de charger les utilisateurs.",
+  "empty": "Aucun utilisateur trouvé.",
+  "searchLabel": "E-mail ou téléphone",
+  "noProfile": "Aucun profil",
+  "columns": {
+    "name": "Nom",
+    "email": "E-mail",
+    "phone": "Téléphone",
+    "roles": "Rôles",
+    "joined": "Inscrit le"
+  },
+  "detail": {
+    "notFound": "Utilisateur introuvable.",
+    "loadFailed": "Impossible de charger l'utilisateur.",
+    "back": "Retour aux utilisateurs",
+    "fallbackTitle": "Utilisateur",
+    "email": "E-mail",
+    "phone": "Téléphone",
+    "joined": "Inscrit le",
+    "profiles": "Profils",
+    "noProfile": "Aucun profil pour l'instant.",
+    "customerProfile": "Profil client",
+    "driverProfile": "Profil chauffeur",
+    "name": "Nom",
+    "truck": "Camion",
+    "plate": "Immatriculation",
+    "verification": "Vérification",
+    "openReview": "Ouvrir la vérification",
+    "activity": "Activité",
+    "counts": "Compteurs",
+    "tripsAsCustomer": "Courses en tant que client",
+    "tripsAsDriver": "Courses en tant que chauffeur",
+    "reportsMade": "Signalements effectués",
+    "reportsAgainst": "Signalements reçus",
+    "recentTrips": "Courses récentes"
+  }
+}

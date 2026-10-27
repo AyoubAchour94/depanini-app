@@ -240,6 +240,12 @@ customer or driver; status and date filters), reports and payment disputes (open
 with a note), and the audit log. A 401/403 from the API mid-session signs the admin out ("Not an
 admin").
 
+The admin app is in French by default, with English one click away: the language switch in the sidebar (and on
+the sign-in page) is remembered in the browser, `<html lang>` follows it, and dates and numbers go through
+`Intl`. Texts live in `src/i18n/locales/{fr,en}/*.json` (a test checks every `en` key exists in `fr`); a lint rule
+refuses hard-coded text in JSX. There is no Arabic: it is a desktop tool for the team. The Playwright
+specs pin English except the one that checks the French default.
+
 To add a screen: a `<Route>` in `src/App.tsx`, an entry in `src/layout/nav.ts`, queries next to
 `src/api/drivers.ts`, and the `@depanini/shared` schema for the response.
 
