@@ -43,8 +43,6 @@ const firebaseConfigured = Boolean(googleServicesJson && googleServiceInfoPlist)
 
 const locationUsage =
   'Depanini needs your location to find nearby tow trucks and show your position to drivers on the way.';
-const locationAlwaysUsage =
-  'Depanini uses your location to match you with the closest tow truck and share live position during a rescue.';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -55,12 +53,19 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   icon: './assets/images/icon.png',
   scheme: variant.scheme,
   userInterfaceStyle: 'automatic',
+  // Localized iOS permission prompts (InfoPlist strings); the English text in this file is the fallback.
+  locales: {
+    en: './locales/en.json',
+    fr: './locales/fr.json',
+    ar: './locales/ar.json',
+  },
   ios: {
     bundleIdentifier: variant.bundleId,
     googleServicesFile: googleServiceInfoPlist,
+    // Standard encryption only (HTTPS/TLS); answers the export-compliance question at upload.
+    config: { usesNonExemptEncryption: false },
     infoPlist: {
       NSLocationWhenInUseUsageDescription: locationUsage,
-      NSLocationAlwaysAndWhenInUseUsageDescription: locationAlwaysUsage,
     },
   },
   android: {
@@ -91,8 +96,18 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         imageWidth: 76,
       },
     ],
-    // Location is requested only when a customer starts a tow request.
-    ['expo-location', { locationWhenInUsePermission: locationUsage }],
+    // Foreground location only: no "Always" prompt, no background-location permission.
+    [
+      'expo-location',
+      {
+        locationWhenInUsePermission: locationUsage,
+        locationAlwaysAndWhenInUsePermission: false,
+        locationAlwaysPermission: false,
+        isAndroidBackgroundLocationEnabled: false,
+        isAndroidForegroundServiceEnabled: false,
+        isIosBackgroundLocationEnabled: false,
+      },
+    ],
     // Driver documents: the camera and the photo library, only when the driver adds a page.
     [
       'expo-image-picker',
