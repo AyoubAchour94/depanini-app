@@ -47,7 +47,7 @@
   "offerExpiresIn": "Expire dans {{time}}",
   "withdraw": "Retirer l'offre",
   "withdrawFailed": "Impossible de retirer votre offre. Réessayez.",
-  "offerRejected": "Le client a choisi un autre chauffeur",
+  "offerRejected": "Le client a choisi un autre dépanneur",
   "offerExpired": "Votre offre a expiré",
   "offerWithdrawn": "Vous avez retiré votre offre",
   "offerDeclined": "Le client a refusé votre offre",

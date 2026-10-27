@@ -24,13 +24,13 @@
   "receiptDate": "Date",
   "vehicleLabel": "Véhicule",
   "distanceLabel": "Distance",
-  "driverLabel": "Chauffeur",
+  "driverLabel": "Dépanneur",
   "customerLabel": "Client",
   "paidInCash": "Payé en espèces",
   "share": "Partager le reçu",
   "copied": "Copié",
   "shareFailed": "Impossible de partager le reçu.",
-  "rateDriverTitle": "Notez votre chauffeur",
+  "rateDriverTitle": "Notez votre dépanneur",
   "rateCustomerTitle": "Notez votre client",
   "starsLabel_one": "{{count}} étoile",
   "starsLabel_other": "{{count}} étoiles",
@@ -52,7 +52,7 @@
     "safety": "Sécurité",
     "vehicle_damage": "Véhicule endommagé",
     "overcharged": "Prix abusif",
-    "no_show": "Chauffeur absent",
+    "no_show": "Dépanneur absent",
     "behaviour": "Comportement",
     "other": "Autre"
   },
@@ -78,7 +78,7 @@
     "to": "À : {{value}}",
     "vehicle": "Véhicule : {{value}}",
     "distance": "Distance : {{value}}",
-    "driver": "Chauffeur : {{value}}",
+    "driver": "Dépanneur : {{value}}",
     "customer": "Client : {{value}}",
     "paid": "Payé en espèces : {{value}}"
   }

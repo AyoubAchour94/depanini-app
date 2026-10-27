@@ -45,7 +45,7 @@
     "expired": "Expirée"
   },
   "paymentStatus": {
-    "driver_confirmed": "Confirmé par le chauffeur",
+    "driver_confirmed": "Confirmé par le dépanneur",
     "customer_confirmed": "Confirmé par le client",
     "disputed": "Contesté"
   },
@@ -54,7 +54,7 @@
   },
   "party": {
     "customer": "Client",
-    "driver": "Chauffeur"
+    "driver": "Dépanneur"
   },
   "ratingTag": {
     "on_time": "Ponctuel",
@@ -82,13 +82,13 @@
     "resolved": "Résolu"
   },
   "auditAction": {
-    "driver_approved": "A approuvé un chauffeur",
-    "driver_rejected": "A refusé un chauffeur",
+    "driver_approved": "A approuvé un dépanneur",
+    "driver_rejected": "A refusé un dépanneur",
     "report_resolved": "A résolu un signalement",
     "dispute_resolved": "A résolu un litige de paiement"
   },
   "auditTarget": {
-    "driver": "Chauffeur",
+    "driver": "Dépanneur",
     "report": "Signalement",
     "dispute": "Litige"
   }
