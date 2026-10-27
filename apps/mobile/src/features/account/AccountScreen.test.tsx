@@ -20,7 +20,15 @@ jest.mock('@/auth/useSignOut', () => ({
   useSignOut: () => ({ mutate: jest.fn(), isPending: false }),
 }));
 
+// Changing the direction restarts the app, which a test cannot do.
+const mockApplyDirection = jest.fn(async (_language: string) => {});
+jest.mock('@/i18n/direction', () => ({
+  ...jest.requireActual('@/i18n/direction'),
+  applyDirection: (language: string) => mockApplyDirection(language),
+}));
+
 beforeEach(async () => {
+  mockApplyDirection.mockClear();
   mockDeviceLanguages = ['en'];
   await AsyncStorage.clear();
 });
@@ -92,10 +100,9 @@ describe('AccountScreen language setting', () => {
   it('shows the saved language on the next start', async () => {
     await AsyncStorage.setItem(LANGUAGE_PREFERENCE_KEY, 'ar');
     await renderScreen();
-    // Arabic has no messages yet, so the screen reads in French.
     await waitFor(() =>
       expect(
-        within(screen.getByLabelText('Langue')).getByRole('radio', { name: 'العربية' }),
+        within(screen.getByLabelText('اللغة')).getByRole('radio', { name: 'العربية' }),
       ).toBeChecked(),
     );
     expect(i18n.language).toBe('ar');
@@ -107,10 +114,20 @@ describe('AccountScreen language setting', () => {
     await waitFor(() => expect(i18n.language).toBe('ar'));
   });
 
-  it('shows French until the Arabic messages exist', async () => {
+  it('shows Arabic once chosen and turns the layout right to left', async () => {
     await renderScreen();
+    await waitFor(() => expect(mockApplyDirection).toHaveBeenCalledWith('en'));
     await fireEvent.press(language().getByRole('radio', { name: 'العربية' }));
-    expect(screen.getByLabelText('Langue')).toBeOnTheScreen();
-    expect(screen.getByText('Se déconnecter')).toBeOnTheScreen();
+    expect(screen.getByLabelText('اللغة')).toBeOnTheScreen();
+    expect(screen.getByText('تسجيل الخروج')).toBeOnTheScreen();
+    expect(mockApplyDirection).toHaveBeenLastCalledWith('ar');
+  });
+
+  it('does not apply the direction before the saved language is known', async () => {
+    await AsyncStorage.setItem(LANGUAGE_PREFERENCE_KEY, 'fr');
+    mockDeviceLanguages = ['ar'];
+    await renderScreen();
+    await waitFor(() => expect(mockApplyDirection).toHaveBeenCalled());
+    expect(mockApplyDirection.mock.calls).toEqual([['fr']]);
   });
 });

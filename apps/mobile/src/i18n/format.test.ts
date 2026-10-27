@@ -5,6 +5,7 @@ import {
   formatMinutes,
   formatMoney,
   formatTime,
+  minutesUnit,
 } from './format';
 
 describe('formatting in English', () => {
@@ -21,6 +22,8 @@ describe('formatting in English', () => {
   });
 
   it('writes minutes', () => expect(formatMinutes(12)).toBe('12 min'));
+
+  it('gives the minutes unit alone', () => expect(minutesUnit()).toBe('min'));
 
   it('writes the time of day and the date', () => {
     expect(formatTime('2026-01-01T10:05:00.000Z')).toMatch(/^\d{2}:\d{2}/);

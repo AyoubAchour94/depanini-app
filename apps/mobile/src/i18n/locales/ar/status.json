@@ -1,0 +1,10 @@
+{
+  "api": {
+    "unconfigured": "API: لم يتم تعيين EXPO_PUBLIC_API_URL",
+    "checking": "API: جارٍ التحقّق…",
+    "ok": "API: يعمل",
+    "degraded": "API: متدهور (قاعدة البيانات متوقفة)",
+    "unreachable": "API: يتعذّر الوصول"
+  },
+  "firebaseMissing": "Firebase غير مُعدّ"
+}

@@ -1,0 +1,4 @@
+{
+  "tokenMissingTitle": "رمز Mapbox مفقود",
+  "tokenMissingBody": "عيّن EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN في apps/mobile/.env"
+}
