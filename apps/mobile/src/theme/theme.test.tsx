@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { Pressable, Text } from 'react-native';
+
+import { i18n } from '@/i18n';
 
 import {
   loadThemePreference,
@@ -94,5 +96,46 @@ describe('theme setting', () => {
     mockSystemScheme = 'dark';
     await render(<Probe />);
     expect(probe()).toBe('dark:#2563EB:system:true');
+  });
+});
+
+describe('theme fonts', () => {
+  function FontProbe() {
+    const theme = useTheme();
+    return (
+      <Text testID="fonts">
+        {[theme.script, theme.type.body.fontFamily, theme.type.display.letterSpacing].join(':')}
+      </Text>
+    );
+  }
+  const fonts = () => screen.getByTestId('fonts').props.children;
+
+  afterEach(async () => {
+    await act(() => i18n.changeLanguage('en'));
+  });
+
+  it('sets the text in Inter for a Latin language', async () => {
+    await render(
+      <ThemeProvider>
+        <FontProbe />
+      </ThemeProvider>,
+    );
+    expect(fonts()).toBe('latin:Inter_400Regular:-1.5');
+  });
+
+  it('sets all text in IBM Plex Sans Arabic, untracked, when the language is Arabic', async () => {
+    await render(
+      <ThemeProvider>
+        <FontProbe />
+      </ThemeProvider>,
+    );
+    await act(() => i18n.changeLanguage('ar'));
+    expect(fonts()).toBe('arabic:IBMPlexSansArabic_400Regular:0');
+  });
+
+  it('follows the language without a provider too', async () => {
+    await act(() => i18n.changeLanguage('ar'));
+    await render(<FontProbe />);
+    expect(fonts()).toBe('arabic:IBMPlexSansArabic_400Regular:0');
   });
 });

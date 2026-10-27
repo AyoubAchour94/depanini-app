@@ -19,8 +19,9 @@ import { PushProvider } from '@/push/PushProvider';
 import { initSentry, withSentry } from '@/observability/sentry';
 import { RealtimeProvider } from '@/realtime/RealtimeProvider';
 import { useTranslation } from '@/i18n';
+import { DirectionRoot } from '@/i18n/DirectionRoot';
 import { LanguageProvider, useLanguageSetting } from '@/i18n/language';
-import { useInterFonts } from '@/theme/fonts';
+import { useAppFonts } from '@/theme/fonts';
 import { ThemeProvider, useTheme, useThemeSetting } from '@/theme/theme';
 import { variant } from '@/variant/variant';
 
@@ -45,7 +46,9 @@ function RootLayout() {
             <RealtimeProvider>
               <PushProvider>
                 <RequestFlowProvider>
-                  <RootNavigator />
+                  <DirectionRoot>
+                    <RootNavigator />
+                  </DirectionRoot>
                 </RequestFlowProvider>
               </PushProvider>
             </RealtimeProvider>
@@ -84,7 +87,7 @@ function RootNavigator() {
   const account = signedIn ? me.data : undefined;
   const onboarded = account ? hasProfileFor(account, variant) : false;
   const accountLoading = signedIn && me.isPending;
-  const fonts = useInterFonts();
+  const fonts = useAppFonts();
   const themeSetting = useThemeSetting();
   const languageSetting = useLanguageSetting();
   const assetsReady = fonts.ready && themeSetting.ready && languageSetting.ready;
