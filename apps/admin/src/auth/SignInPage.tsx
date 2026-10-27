@@ -1,25 +1,28 @@
 import { type FormEvent, useState } from 'react';
 
+import { useTranslation } from '../i18n';
+import { LanguageSwitch } from '../layout/LanguageSwitch';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useAuth } from './AuthProvider';
 
-/** The message for a failed sign-in. Firebase codes are not for people. */
-function signInError(error: unknown): string {
+/** The message key for a failed sign-in. Firebase codes are not for people. */
+function signInErrorKey(error: unknown): string {
   const code = (error as { code?: string } | null)?.code ?? '';
   if (/invalid-credential|wrong-password|user-not-found|invalid-email/.test(code)) {
-    return 'Wrong email or password.';
+    return 'auth:wrongCredentials';
   }
-  if (code === 'auth/too-many-requests') return 'Too many attempts. Try again later.';
-  if (code === 'auth/network-request-failed') return 'Cannot reach the sign-in service.';
-  return 'Could not sign in.';
+  if (code === 'auth/too-many-requests') return 'auth:tooManyAttempts';
+  if (code === 'auth/network-request-failed') return 'auth:network';
+  return 'auth:failed';
 }
 
 export function SignInPage() {
+  const { t } = useTranslation();
   const { state, signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null); // a message key
   const [busy, setBusy] = useState(false);
 
   const notice = state.status === 'signedOut' ? state.notice : undefined;
@@ -31,7 +34,7 @@ export function SignInPage() {
     try {
       await signIn(email.trim(), password);
     } catch (caught) {
-      setError(signInError(caught));
+      setError(signInErrorKey(caught));
     } finally {
       setBusy(false);
     }
@@ -39,15 +42,18 @@ export function SignInPage() {
 
   return (
     <main className="centered">
+      <div className="corner">
+        <LanguageSwitch />
+      </div>
       <form className="card card--narrow stack" onSubmit={submit} aria-labelledby="sign-in-title">
-        <h1 id="sign-in-title">Depanini Admin</h1>
+        <h1 id="sign-in-title">{t('common:brand')}</h1>
         {notice ? (
           <p role="alert" className="error">
-            {notice}
+            {t(`auth:${notice}`)}
           </p>
         ) : null}
         <Input
-          label="Email"
+          label={t('auth:email')}
           type="email"
           autoComplete="username"
           required
@@ -55,16 +61,16 @@ export function SignInPage() {
           onChange={(event) => setEmail(event.target.value)}
         />
         <Input
-          label="Password"
+          label={t('auth:password')}
           type="password"
           autoComplete="current-password"
           required
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          error={error}
+          error={error ? t(error) : null}
         />
         <Button type="submit" variant="primary" disabled={busy}>
-          Sign in
+          {t('auth:signIn')}
         </Button>
       </form>
     </main>

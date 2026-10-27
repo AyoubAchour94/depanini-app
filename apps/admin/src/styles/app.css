@@ -226,7 +226,7 @@ a {
 
 .table th,
 .table td {
-  text-align: left;
+  text-align: start;
   padding: var(--space-3);
   border-bottom: 1px solid var(--color-border);
 }
@@ -290,6 +290,18 @@ a {
 
 .details dd {
   margin: 0;
+}
+
+/* Controls on the dark sidebar keep the page's text colour, not the sidebar's. */
+.sidebar .input {
+  color: var(--color-text);
+}
+
+/* Language switch: top corner of the sign-in page, in the sidebar elsewhere. */
+.corner {
+  position: absolute;
+  inset-block-start: var(--space-4);
+  inset-inline-end: var(--space-4);
 }
 
 .visually-hidden {

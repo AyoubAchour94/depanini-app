@@ -1,0 +1,49 @@
+{
+  "queueTitle": "File de vérification",
+  "title": "Chauffeurs",
+  "loadFailed": "Impossible de charger les chauffeurs.",
+  "queueCaption": "Chauffeurs en attente de vérification",
+  "queueEmpty": "Aucun chauffeur n'attend de vérification.",
+  "empty": "Aucun chauffeur trouvé.",
+  "columns": {
+    "name": "Nom",
+    "phone": "Téléphone",
+    "truck": "Camion",
+    "plate": "Immatriculation",
+    "status": "Statut",
+    "submitted": "Soumis le"
+  },
+  "detail": {
+    "notFound": "Chauffeur introuvable.",
+    "loadFailed": "Impossible de charger le chauffeur.",
+    "back": "Retour aux chauffeurs",
+    "email": "E-mail",
+    "phone": "Téléphone",
+    "truck": "Camion",
+    "plate": "Immatriculation",
+    "submitted": "Soumis le",
+    "reviewed": "Vérifié le",
+    "rejectionReason": "Motif du refus",
+    "approve": "Approuver",
+    "reject": "Refuser",
+    "documents": "Documents",
+    "noDocuments": "Aucun document téléversé."
+  },
+  "document": {
+    "label": "{{kind}}, page {{page}}",
+    "loading": "Chargement : {{label}}…",
+    "failed": "Impossible de charger : {{label}}."
+  },
+  "approve": {
+    "title": "Approuver {{name}} ?",
+    "body": "Ce chauffeur pourra se mettre en ligne et accepter des courses.",
+    "confirm": "Confirmer l'approbation"
+  },
+  "reject": {
+    "title": "Refuser {{name}} ?",
+    "reasonLabel": "Motif (affiché au chauffeur)",
+    "confirm": "Confirmer le refus",
+    "reasonRequired": "Indiquez un motif",
+    "reasonTooLong": "Le motif est trop long"
+  }
+}

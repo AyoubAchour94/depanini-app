@@ -2,22 +2,27 @@ import { Link, useParams } from 'react-router';
 
 import { ApiError } from '../../api/client';
 import { useUser } from '../../api/lookups';
-import { formatDate, humanize, StatusBadge } from '../drivers/labels';
+import { useTranslation } from '../../i18n';
+import { useEnumLabel } from '../../i18n/enums';
+import { formatNumber } from '../../i18n/format';
+import { formatDate, StatusBadge } from '../drivers/labels';
 import { TripsTable } from '../trips/TripsTable';
 
 export function UserDetailPage() {
+  const { t } = useTranslation();
+  const label = useEnumLabel();
   const { id = '' } = useParams();
   const user = useUser(id);
 
-  if (user.isPending) return <p className="muted">Loading…</p>;
+  if (user.isPending) return <p className="muted">{t('common:loading')}</p>;
   if (user.isError) {
     const notFound = user.error instanceof ApiError && user.error.status === 404;
     return (
       <>
         <p role="alert" className="error">
-          {notFound ? 'User not found.' : 'Could not load the user.'}
+          {notFound ? t('users:detail.notFound') : t('users:detail.loadFailed')}
         </p>
-        <Link to="/users">Back to users</Link>
+        <Link to="/users">{t('users:detail.back')}</Link>
       </>
     );
   }
@@ -27,72 +32,76 @@ export function UserDetailPage() {
   return (
     <>
       <p>
-        <Link to="/users">Users</Link>
+        <Link to="/users">{t('users:title')}</Link>
       </p>
-      <h1>{data.customerName ?? data.driverName ?? data.email ?? 'User'}</h1>
+      <h1>
+        {data.customerName ?? data.driverName ?? data.email ?? t('users:detail.fallbackTitle')}
+      </h1>
 
       <dl className="details">
-        <dt>Email</dt>
+        <dt>{t('users:detail.email')}</dt>
         <dd>{data.email ?? '-'}</dd>
-        <dt>Phone</dt>
+        <dt>{t('users:detail.phone')}</dt>
         <dd>{data.phone ?? '-'}</dd>
-        <dt>Joined</dt>
+        <dt>{t('users:detail.joined')}</dt>
         <dd>{formatDate(data.createdAt)}</dd>
       </dl>
 
-      <section aria-label="Profiles">
-        <h2>Profiles</h2>
-        {!customerProfile && !driverProfile ? <p className="muted">No profile yet.</p> : null}
+      <section aria-label={t('users:detail.profiles')}>
+        <h2>{t('users:detail.profiles')}</h2>
+        {!customerProfile && !driverProfile ? (
+          <p className="muted">{t('users:detail.noProfile')}</p>
+        ) : null}
         {customerProfile ? (
-          <section aria-label="Customer profile">
-            <h3>Customer</h3>
+          <section aria-label={t('users:detail.customerProfile')}>
+            <h3>{label('party', 'customer')}</h3>
             <dl className="details">
-              <dt>Name</dt>
+              <dt>{t('users:detail.name')}</dt>
               <dd>{customerProfile.fullName}</dd>
-              <dt>Phone</dt>
+              <dt>{t('users:detail.phone')}</dt>
               <dd>{customerProfile.phone}</dd>
             </dl>
           </section>
         ) : null}
         {driverProfile ? (
-          <section aria-label="Driver profile">
-            <h3>Driver</h3>
+          <section aria-label={t('users:detail.driverProfile')}>
+            <h3>{label('party', 'driver')}</h3>
             <dl className="details">
-              <dt>Name</dt>
+              <dt>{t('users:detail.name')}</dt>
               <dd>{driverProfile.fullName}</dd>
-              <dt>Phone</dt>
+              <dt>{t('users:detail.phone')}</dt>
               <dd>{driverProfile.phone}</dd>
-              <dt>Truck</dt>
-              <dd>{humanize(driverProfile.truckType)}</dd>
-              <dt>Plate</dt>
+              <dt>{t('users:detail.truck')}</dt>
+              <dd>{label('truck', driverProfile.truckType)}</dd>
+              <dt>{t('users:detail.plate')}</dt>
               <dd>{driverProfile.plateNumber}</dd>
-              <dt>Verification</dt>
+              <dt>{t('users:detail.verification')}</dt>
               <dd>
                 <StatusBadge status={driverProfile.verificationStatus} />{' '}
-                <Link to={`/drivers/${data.id}`}>Open the review</Link>
+                <Link to={`/drivers/${data.id}`}>{t('users:detail.openReview')}</Link>
               </dd>
             </dl>
           </section>
         ) : null}
       </section>
 
-      <section aria-label="Counts">
-        <h2>Activity</h2>
+      <section aria-label={t('users:detail.counts')}>
+        <h2>{t('users:detail.activity')}</h2>
         <dl className="details">
-          <dt>Trips as customer</dt>
-          <dd>{counts.tripsAsCustomer}</dd>
-          <dt>Trips as driver</dt>
-          <dd>{counts.tripsAsDriver}</dd>
-          <dt>Reports made</dt>
-          <dd>{counts.reportsMade}</dd>
-          <dt>Reports against</dt>
-          <dd>{counts.reportsAgainst}</dd>
+          <dt>{t('users:detail.tripsAsCustomer')}</dt>
+          <dd>{formatNumber(counts.tripsAsCustomer)}</dd>
+          <dt>{t('users:detail.tripsAsDriver')}</dt>
+          <dd>{formatNumber(counts.tripsAsDriver)}</dd>
+          <dt>{t('users:detail.reportsMade')}</dt>
+          <dd>{formatNumber(counts.reportsMade)}</dd>
+          <dt>{t('users:detail.reportsAgainst')}</dt>
+          <dd>{formatNumber(counts.reportsAgainst)}</dd>
         </dl>
       </section>
 
-      <section aria-label="Recent trips">
-        <h2>Recent trips</h2>
-        <TripsTable caption="Recent trips" rows={data.recentTrips} />
+      <section aria-label={t('users:detail.recentTrips')}>
+        <h2>{t('users:detail.recentTrips')}</h2>
+        <TripsTable caption={t('users:detail.recentTrips')} rows={data.recentTrips} />
       </section>
     </>
   );

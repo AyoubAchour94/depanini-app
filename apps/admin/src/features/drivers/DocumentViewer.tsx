@@ -2,7 +2,8 @@ import type { DriverDocument } from '@depanini/shared';
 import { useEffect, useState } from 'react';
 
 import { useApi } from '../../api/ApiProvider';
-import { KIND_LABEL } from './labels';
+import { useTranslation } from '../../i18n';
+import { useEnumLabel } from '../../i18n/enums';
 
 type FileState = { status: 'loading' } | { status: 'failed' } | { status: 'ready'; url: string };
 
@@ -12,9 +13,14 @@ type FileState = { status: 'loading' } | { status: 'failed' } | { status: 'ready
  * are fetched as a blob and shown through an object URL, released on unmount.
  */
 export function DocumentViewer({ document }: { document: DriverDocument }) {
+  const { t } = useTranslation();
+  const enumLabel = useEnumLabel();
   const api = useApi();
   const [file, setFile] = useState<FileState>({ status: 'loading' });
-  const label = `${KIND_LABEL[document.kind]}, page ${document.page}`;
+  const label = t('drivers:document.label', {
+    kind: enumLabel('documentKind', document.kind),
+    page: document.page,
+  });
 
   useEffect(() => {
     let objectUrl: string | undefined;
@@ -38,11 +44,13 @@ export function DocumentViewer({ document }: { document: DriverDocument }) {
   if (file.status === 'failed') {
     return (
       <p role="alert" className="error">
-        Could not load {label}.
+        {t('drivers:document.failed', { label })}
       </p>
     );
   }
-  if (file.status === 'loading') return <p className="muted">Loading {label}…</p>;
+  if (file.status === 'loading') {
+    return <p className="muted">{t('drivers:document.loading', { label })}</p>;
+  }
   return document.contentType === 'application/pdf' ? (
     <iframe className="document__file" src={file.url} title={label} />
   ) : (

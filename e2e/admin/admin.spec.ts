@@ -99,6 +99,11 @@ function grantAdmin(email: string) {
   );
 }
 
+/** These tests read English; the app itself defaults to French (the last test). */
+async function pinEnglish(page: Page) {
+  await page.addInitScript(() => window.localStorage.setItem('depanini.admin.language', 'en'));
+}
+
 async function signInOnPage(page: Page, account: Account) {
   await page.getByLabel('Email').fill(account.email);
   await page.getByLabel('Password').fill(PASSWORD);
@@ -136,6 +141,7 @@ test('an admin approves a driver who has uploaded documents, and the driver can 
     });
 
     // 2. An account without the admin claim is turned away.
+    await pinEnglish(page);
     await page.goto(ADMIN_URL);
     await signInOnPage(page, driver);
     await expect(page.getByText('Not an admin')).toBeVisible();
@@ -292,6 +298,7 @@ test('an admin resolves a customer report and a payment dispute on a completed t
     });
 
     // 2. The admin signs in; the report is in the reports queue.
+    await pinEnglish(page);
     await page.goto(ADMIN_URL);
     await signInOnPage(page, admin);
     const nav = page.getByRole('navigation', { name: 'Main' });
@@ -370,4 +377,17 @@ test('an admin resolves a customer report and a payment dispute on a completed t
   } finally {
     await cleanUp([customer, driver, admin]);
   }
+});
+
+test('the app is in French by default, and the language switch is remembered', async ({ page }) => {
+  await page.goto(ADMIN_URL);
+  await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
+  await expect(page.getByRole('button', { name: 'Se connecter' })).toBeVisible();
+
+  await page.getByLabel('Langue').selectOption('en');
+  await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
 });

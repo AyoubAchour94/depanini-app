@@ -2,16 +2,19 @@ import { TOW_REQUEST_STATUSES, towRequestStatusSchema } from '@depanini/shared';
 import { useSearchParams } from 'react-router';
 
 import { useTrips } from '../../api/lookups';
+import { useTranslation } from '../../i18n';
+import { useEnumLabel } from '../../i18n/enums';
 import { Input, Select } from '../../ui/Input';
 import { PagedList } from '../../ui/PagedList';
 import { SearchForm } from '../../ui/SearchForm';
-import { humanize } from '../drivers/labels';
 import { TripsTable } from './TripsTable';
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Trips, filtered by status and date range, searched by id, receipt, customer or driver. */
 export function TripsPage() {
+  const { t } = useTranslation();
+  const label = useEnumLabel();
   const [params, setParams] = useSearchParams();
   const q = params.get('q') ?? '';
   const status = towRequestStatusSchema.safeParse(params.get('status'));
@@ -30,40 +33,40 @@ export function TripsPage() {
 
   return (
     <>
-      <h1>Trips</h1>
+      <h1>{t('trips:title')}</h1>
       <div className="row row--end" style={{ marginBottom: 'var(--space-4)' }}>
         <SearchForm
-          label="Trip id, receipt, customer or driver"
+          label={t('trips:searchLabel')}
           value={q}
           onSearch={(value) => setFilter('q', value)}
         />
         <Select
-          label="Status"
+          label={t('common:status')}
           value={status.success ? status.data : ''}
           onChange={(event) => setFilter('status', event.target.value)}
         >
-          <option value="">All</option>
+          <option value="">{t('common:all')}</option>
           {TOW_REQUEST_STATUSES.map((value) => (
             <option key={value} value={value}>
-              {humanize(value)}
+              {label('tripStatus', value)}
             </option>
           ))}
         </Select>
         <Input
-          label="From"
+          label={t('trips:from')}
           type="date"
           value={from ?? ''}
           onChange={(event) => setFilter('from', event.target.value)}
         />
         <Input
-          label="To"
+          label={t('trips:to')}
           type="date"
           value={to ?? ''}
           onChange={(event) => setFilter('to', event.target.value)}
         />
       </div>
-      <PagedList query={trips} failure="Could not load the trips.">
-        <TripsTable caption="Trips" rows={rows} />
+      <PagedList query={trips} failure={t('trips:loadFailed')}>
+        <TripsTable caption={t('trips:title')} rows={rows} />
       </PagedList>
     </>
   );

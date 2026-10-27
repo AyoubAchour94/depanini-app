@@ -1,0 +1,95 @@
+{
+  "verification": {
+    "unsubmitted": "Non soumis",
+    "pending": "En attente de vérification",
+    "approved": "Approuvé",
+    "rejected": "Refusé"
+  },
+  "documentKind": {
+    "licence": "Permis de conduire",
+    "registration": "Carte grise",
+    "insurance": "Attestation d'assurance",
+    "national_id": "Carte d'identité nationale"
+  },
+  "truck": {
+    "flatbed": "Plateau",
+    "wheel_lift": "Dépanneuse à levage de roues"
+  },
+  "vehicle": {
+    "car": "Voiture",
+    "suv_van": "SUV ou camionnette",
+    "motorcycle": "Moto"
+  },
+  "problem": {
+    "breakdown": "Panne",
+    "accident": "Accident",
+    "flat_tire": "Pneu crevé",
+    "battery": "Batterie",
+    "out_of_fuel": "Panne d'essence",
+    "stuck": "Véhicule bloqué",
+    "other": "Autre"
+  },
+  "tripStatus": {
+    "open": "Ouverte",
+    "assigned": "Attribuée",
+    "completed": "Terminée",
+    "cancelled": "Annulée",
+    "expired": "Expirée"
+  },
+  "offerStatus": {
+    "pending": "En attente",
+    "accepted": "Acceptée",
+    "rejected": "Rejetée",
+    "declined": "Déclinée",
+    "withdrawn": "Retirée",
+    "expired": "Expirée"
+  },
+  "paymentStatus": {
+    "driver_confirmed": "Confirmé par le chauffeur",
+    "customer_confirmed": "Confirmé par le client",
+    "disputed": "Contesté"
+  },
+  "paymentMethod": {
+    "cash": "Espèces"
+  },
+  "party": {
+    "customer": "Client",
+    "driver": "Chauffeur"
+  },
+  "ratingTag": {
+    "on_time": "Ponctuel",
+    "careful_with_vehicle": "Soigneux avec le véhicule",
+    "friendly": "Aimable",
+    "fair_price": "Prix correct",
+    "late": "En retard",
+    "rough_handling": "Manipulation brutale",
+    "rude": "Impoli",
+    "clear_location": "Lieu bien indiqué",
+    "ready_on_time": "Prêt à l'heure",
+    "wrong_location": "Mauvais lieu",
+    "made_me_wait": "M'a fait attendre"
+  },
+  "reportCategory": {
+    "safety": "Sécurité",
+    "vehicle_damage": "Dommages au véhicule",
+    "overcharged": "Surfacturation",
+    "no_show": "Absence",
+    "behaviour": "Comportement",
+    "other": "Autre"
+  },
+  "reportStatus": {
+    "open": "Ouvert",
+    "resolved": "Résolu"
+  },
+  "auditAction": {
+    "driver_approved": "A approuvé un chauffeur",
+    "driver_rejected": "A refusé un chauffeur",
+    "report_resolved": "A résolu un signalement",
+    "dispute_resolved": "A résolu un litige de paiement"
+  },
+  "auditTarget": {
+    "driver": "Chauffeur",
+    "report": "Signalement",
+    "dispute": "Litige"
+  }
+}

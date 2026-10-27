@@ -1,17 +1,12 @@
-import type { AdminAction, AuditEntry } from '@depanini/shared';
+import type { AuditEntry } from '@depanini/shared';
 import { Link } from 'react-router';
 
 import { useAudit } from '../../api/lookups';
+import { useTranslation } from '../../i18n';
+import { useEnumLabel } from '../../i18n/enums';
 import { PagedList } from '../../ui/PagedList';
 import { Table } from '../../ui/Table';
 import { formatDate } from '../drivers/labels';
-
-const ACTION_LABEL: Record<AdminAction, string> = {
-  driver_approved: 'Approved a driver',
-  driver_rejected: 'Rejected a driver',
-  report_resolved: 'Resolved a report',
-  dispute_resolved: 'Resolved a payment dispute',
-};
 
 /** Where the target of an action lives in this app, if anywhere. */
 function targetPath(entry: AuditEntry): string | null {
@@ -21,12 +16,6 @@ function targetPath(entry: AuditEntry): string | null {
   return typeof requestId === 'string' ? `/trips/${requestId}` : null;
 }
 
-const TARGET_LABEL: Record<AuditEntry['targetType'], string> = {
-  driver: 'Driver',
-  report: 'Report',
-  dispute: 'Dispute',
-};
-
 /** What the admin wrote: the rejection reason or the resolution note. */
 function detailText(entry: AuditEntry): string {
   const text = entry.details?.note ?? entry.details?.reason;
@@ -35,31 +24,39 @@ function detailText(entry: AuditEntry): string {
 
 /** Everything admins did, newest first. */
 export function AuditPage() {
+  const { t } = useTranslation();
+  const label = useEnumLabel();
   const audit = useAudit();
   const rows = audit.data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
     <>
-      <h1>Audit log</h1>
-      <PagedList query={audit} failure="Could not load the audit log.">
+      <h1>{t('audit:title')}</h1>
+      <PagedList query={audit} failure={t('audit:loadFailed')}>
         <Table
-          caption="Admin actions"
+          caption={t('audit:caption')}
           rows={rows}
           rowKey={(entry) => entry.id}
-          empty="No admin actions yet."
+          empty={t('audit:empty')}
           columns={[
-            { header: 'When', cell: (entry) => formatDate(entry.createdAt) },
-            { header: 'Admin', cell: (entry) => entry.adminEmail ?? entry.adminUserId },
-            { header: 'Action', cell: (entry) => ACTION_LABEL[entry.action] },
+            { header: t('audit:columns.when'), cell: (entry) => formatDate(entry.createdAt) },
             {
-              header: 'Target',
+              header: t('audit:columns.admin'),
+              cell: (entry) => entry.adminEmail ?? entry.adminUserId,
+            },
+            {
+              header: t('audit:columns.action'),
+              cell: (entry) => label('auditAction', entry.action),
+            },
+            {
+              header: t('audit:columns.target'),
               cell: (entry) => {
                 const path = targetPath(entry);
-                const label = TARGET_LABEL[entry.targetType];
-                return path ? <Link to={path}>{label}</Link> : label;
+                const text = label('auditTarget', entry.targetType);
+                return path ? <Link to={path}>{text}</Link> : text;
               },
             },
-            { header: 'Note', cell: detailText },
+            { header: t('audit:columns.note'), cell: detailText },
           ]}
         />
       </PagedList>

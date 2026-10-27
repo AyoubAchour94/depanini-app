@@ -1,0 +1,43 @@
+{
+  "reports": {
+    "title": "Reports",
+    "loadFailed": "Could not load the reports.",
+    "caption": "Reports",
+    "openEmpty": "No open reports.",
+    "empty": "No reports found.",
+    "resolveTitle": "Resolve {{category}} report?",
+    "noteLabel": "Resolution note (the reporter sees it)"
+  },
+  "disputes": {
+    "title": "Payment disputes",
+    "loadFailed": "Could not load the disputes.",
+    "caption": "Payment disputes",
+    "openEmpty": "No open disputes.",
+    "empty": "No disputes found.",
+    "resolveTitle": "Resolve the dispute on {{receipt}}?",
+    "noteLabel": "Resolution note (kept on the payment)"
+  },
+  "columns": {
+    "category": "Category",
+    "reporter": "Reporter",
+    "note": "Note",
+    "trip": "Trip",
+    "reported": "Reported",
+    "status": "Status",
+    "receipt": "Receipt",
+    "amount": "Amount",
+    "customer": "Customer",
+    "driver": "Driver",
+    "customerSays": "Customer says",
+    "disputed": "Disputed"
+  },
+  "reporter": "{{name}} ({{role}})",
+  "unknownReporter": "Unknown",
+  "tripFallback": "Trip",
+  "resolve": "Resolve",
+  "resolveConfirm": "Confirm resolution",
+  "resolvedBy": "Resolved by {{who}} on {{date}}",
+  "anAdmin": "an admin",
+  "noteRequired": "Write a note",
+  "noteTooLong": "Note is too long"
+}

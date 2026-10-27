@@ -2,6 +2,7 @@ import { MAX_RESOLUTION_NOTE_LENGTH, resolveInputSchema } from '@depanini/shared
 import { type UseMutationResult } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 
+import { useTranslation } from '../../i18n';
 import { Button } from '../../ui/Button';
 import { Dialog } from '../../ui/Dialog';
 import { TextArea } from '../../ui/Input';
@@ -16,6 +17,7 @@ interface Props {
 
 /** Resolving needs a note: the confirm button stays refused until there is one. */
 export function ResolveDialog({ title, noteLabel, resolve, onClose }: Props) {
+  const { t } = useTranslation();
   const [note, setNote] = useState('');
   const [invalid, setInvalid] = useState<string | null>(null);
 
@@ -23,7 +25,8 @@ export function ResolveDialog({ title, noteLabel, resolve, onClose }: Props) {
     event.preventDefault();
     const parsed = resolveInputSchema.safeParse({ note });
     if (!parsed.success) {
-      setInvalid(parsed.error.issues[0]?.message ?? 'Write a note');
+      // The schema's texts are English; say it in the active language instead.
+      setInvalid(note.trim() ? t('queues:noteTooLong') : t('queues:noteRequired'));
       return;
     }
     setInvalid(null);
@@ -46,9 +49,9 @@ export function ResolveDialog({ title, noteLabel, resolve, onClose }: Props) {
           </p>
         ) : null}
         <div className="dialog__actions">
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t('common:cancel')}</Button>
           <Button type="submit" variant="primary" disabled={resolve.isPending}>
-            Confirm resolution
+            {t('queues:resolveConfirm')}
           </Button>
         </div>
       </form>

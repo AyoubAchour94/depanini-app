@@ -4,12 +4,14 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 
 import { useReports, useResolveReport } from '../../api/lookups';
+import { useTranslation } from '../../i18n';
+import { useEnumLabel } from '../../i18n/enums';
 import { Button } from '../../ui/Button';
 import { Select } from '../../ui/Input';
 import { PagedList } from '../../ui/PagedList';
 import { Table } from '../../ui/Table';
 import { formatDate } from '../drivers/labels';
-import { CATEGORY_LABEL, REPORT_STATUS_LABEL, ReportStatusBadge, resolvedBy } from './labels';
+import { ReportStatusBadge, useResolvedBy } from './labels';
 import { ResolveDialog } from './ResolveDialog';
 
 function ResolveReportDialog({
@@ -19,11 +21,15 @@ function ResolveReportDialog({
   report: AdminReportItem;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
+  const label = useEnumLabel();
   const resolve = useResolveReport(report.id);
   return (
     <ResolveDialog
-      title={`Resolve ${CATEGORY_LABEL[report.category].toLowerCase()} report?`}
-      noteLabel="Resolution note (the reporter sees it)"
+      title={t('queues:reports.resolveTitle', {
+        category: label('reportCategory', report.category).toLowerCase(),
+      })}
+      noteLabel={t('queues:reports.noteLabel')}
       resolve={resolve}
       onClose={onClose}
     />
@@ -32,6 +38,9 @@ function ResolveReportDialog({
 
 /** Reports from customers and drivers; open ones first by default. */
 export function ReportsPage() {
+  const { t } = useTranslation();
+  const label = useEnumLabel();
+  const resolvedBy = useResolvedBy();
   const [params, setParams] = useSearchParams();
   const parsed = reportStatusSchema.safeParse(params.get('status'));
   // Open reports are the work: they are what shows until the filter says otherwise.
@@ -42,48 +51,60 @@ export function ReportsPage() {
 
   return (
     <>
-      <h1>Reports</h1>
+      <h1>{t('queues:reports.title')}</h1>
       <div className="row" style={{ marginBottom: 'var(--space-4)' }}>
         <Select
-          label="Status"
+          label={t('common:status')}
           value={filter ?? 'all'}
           onChange={(event) => setParams({ status: event.target.value })}
         >
           {REPORT_STATUSES.map((value) => (
             <option key={value} value={value}>
-              {REPORT_STATUS_LABEL[value]}
+              {label('reportStatus', value)}
             </option>
           ))}
-          <option value="all">All</option>
+          <option value="all">{t('common:all')}</option>
         </Select>
       </div>
-      <PagedList query={reports} failure="Could not load the reports.">
+      <PagedList query={reports} failure={t('queues:reports.loadFailed')}>
         <Table
-          caption="Reports"
+          caption={t('queues:reports.caption')}
           rows={rows}
           rowKey={(report) => report.id}
-          empty={filter === 'open' ? 'No open reports.' : 'No reports found.'}
+          empty={filter === 'open' ? t('queues:reports.openEmpty') : t('queues:reports.empty')}
           columns={[
-            { header: 'Category', cell: (report) => CATEGORY_LABEL[report.category] },
             {
-              header: 'Reporter',
-              cell: (report) => `${report.reporterName ?? 'Unknown'} (${report.reporterRole})`,
+              header: t('queues:columns.category'),
+              cell: (report) => label('reportCategory', report.category),
             },
-            { header: 'Note', cell: (report) => report.note },
             {
-              header: 'Trip',
+              header: t('queues:columns.reporter'),
+              cell: (report) =>
+                t('queues:reporter', {
+                  name: report.reporterName ?? t('queues:unknownReporter'),
+                  role: label('party', report.reporterRole).toLowerCase(),
+                }),
+            },
+            { header: t('queues:columns.note'), cell: (report) => report.note },
+            {
+              header: t('queues:columns.trip'),
               cell: (report) => (
-                <Link to={`/trips/${report.requestId}`}>{report.pickupAddress ?? 'Trip'}</Link>
+                <Link to={`/trips/${report.requestId}`}>
+                  {report.pickupAddress ?? t('queues:tripFallback')}
+                </Link>
               ),
             },
-            { header: 'Reported', cell: (report) => formatDate(report.createdAt) },
             {
-              header: 'Status',
+              header: t('queues:columns.reported'),
+              cell: (report) => formatDate(report.createdAt),
+            },
+            {
+              header: t('queues:columns.status'),
               cell: (report) =>
                 report.status === 'open' ? (
                   <>
                     <ReportStatusBadge status="open" />{' '}
-                    <Button onClick={() => setResolving(report)}>Resolve</Button>
+                    <Button onClick={() => setResolving(report)}>{t('queues:resolve')}</Button>
                   </>
                 ) : (
                   <>

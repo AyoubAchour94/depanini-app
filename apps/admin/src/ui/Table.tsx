@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 
+import { useTranslation } from '../i18n';
+
 export interface Column<Row> {
   header: string;
   cell: (row: Row) => ReactNode;
@@ -14,14 +16,9 @@ interface Props<Row> {
   empty?: string;
 }
 
-export function Table<Row>({
-  caption,
-  columns,
-  rows,
-  rowKey,
-  empty = 'Nothing here.',
-}: Props<Row>) {
-  if (rows.length === 0) return <p className="muted">{empty}</p>;
+export function Table<Row>({ caption, columns, rows, rowKey, empty }: Props<Row>) {
+  const { t } = useTranslation();
+  if (rows.length === 0) return <p className="muted">{empty ?? t('common:nothingHere')}</p>;
   return (
     <table className="table">
       <caption className="visually-hidden">{caption}</caption>

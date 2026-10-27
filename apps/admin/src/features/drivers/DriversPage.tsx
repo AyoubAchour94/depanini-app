@@ -6,10 +6,12 @@ import {
 import { Link, useSearchParams } from 'react-router';
 
 import { useDrivers } from '../../api/drivers';
+import { useTranslation } from '../../i18n';
+import { useEnumLabel } from '../../i18n/enums';
 import { Button } from '../../ui/Button';
 import { Select } from '../../ui/Input';
 import { Table } from '../../ui/Table';
-import { formatDate, humanize, STATUS_LABEL, StatusBadge } from './labels';
+import { formatDate, StatusBadge } from './labels';
 
 /** Pending reviews first; the API's order is kept within each group. */
 function pendingFirst<T extends { verificationStatus: VerificationStatus }>(rows: T[]): T[] {
@@ -25,6 +27,8 @@ function pendingFirst<T extends { verificationStatus: VerificationStatus }>(rows
  * first); otherwise all drivers, pending first, with a status filter.
  */
 export function DriversPage({ mode }: { mode: 'queue' | 'all' }) {
+  const { t } = useTranslation();
+  const label = useEnumLabel();
   const [params, setParams] = useSearchParams();
   const filter = verificationStatusSchema.safeParse(params.get('status'));
   const status = mode === 'queue' ? 'pending' : filter.success ? filter.data : undefined;
@@ -34,51 +38,57 @@ export function DriversPage({ mode }: { mode: 'queue' | 'all' }) {
 
   return (
     <>
-      <h1>{mode === 'queue' ? 'Review queue' : 'Drivers'}</h1>
+      <h1>{mode === 'queue' ? t('drivers:queueTitle') : t('drivers:title')}</h1>
       {mode === 'all' ? (
         <div className="row" style={{ marginBottom: 'var(--space-4)' }}>
           <Select
-            label="Status"
+            label={t('common:status')}
             value={status ?? ''}
             onChange={(event) =>
               setParams(event.target.value ? { status: event.target.value } : {})
             }
           >
-            <option value="">All</option>
+            <option value="">{t('common:all')}</option>
             {VERIFICATION_STATUSES.map((value) => (
               <option key={value} value={value}>
-                {STATUS_LABEL[value]}
+                {label('verification', value)}
               </option>
             ))}
           </Select>
         </div>
       ) : null}
 
-      {drivers.isPending ? <p className="muted">Loading…</p> : null}
+      {drivers.isPending ? <p className="muted">{t('common:loading')}</p> : null}
       {drivers.isError ? (
         <p role="alert" className="error">
-          Could not load the drivers.
+          {t('drivers:loadFailed')}
         </p>
       ) : null}
       {drivers.isSuccess ? (
         <Table
-          caption={mode === 'queue' ? 'Drivers waiting for review' : 'Drivers'}
+          caption={mode === 'queue' ? t('drivers:queueCaption') : t('drivers:title')}
           rows={mode === 'queue' ? rows : pendingFirst(rows)}
           rowKey={(driver) => driver.userId}
-          empty={mode === 'queue' ? 'No drivers are waiting for review.' : 'No drivers found.'}
+          empty={mode === 'queue' ? t('drivers:queueEmpty') : t('drivers:empty')}
           columns={[
             {
-              header: 'Name',
+              header: t('drivers:columns.name'),
               cell: (driver) => <Link to={`/drivers/${driver.userId}`}>{driver.fullName}</Link>,
             },
-            { header: 'Phone', cell: (driver) => driver.phone },
-            { header: 'Truck', cell: (driver) => humanize(driver.truckType) },
-            { header: 'Plate', cell: (driver) => driver.plateNumber },
+            { header: t('drivers:columns.phone'), cell: (driver) => driver.phone },
             {
-              header: 'Status',
+              header: t('drivers:columns.truck'),
+              cell: (driver) => label('truck', driver.truckType),
+            },
+            { header: t('drivers:columns.plate'), cell: (driver) => driver.plateNumber },
+            {
+              header: t('drivers:columns.status'),
               cell: (driver) => <StatusBadge status={driver.verificationStatus} />,
             },
-            { header: 'Submitted', cell: (driver) => formatDate(driver.submittedAt) },
+            {
+              header: t('drivers:columns.submitted'),
+              cell: (driver) => formatDate(driver.submittedAt),
+            },
           ]}
         />
       ) : null}
@@ -88,7 +98,7 @@ export function DriversPage({ mode }: { mode: 'queue' | 'all' }) {
             onClick={() => void drivers.fetchNextPage()}
             disabled={drivers.isFetchingNextPage}
           >
-            Load more
+            {t('common:loadMore')}
           </Button>
         </p>
       ) : null}

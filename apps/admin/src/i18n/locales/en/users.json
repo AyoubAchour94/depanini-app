@@ -1,0 +1,39 @@
+{
+  "title": "Users",
+  "loadFailed": "Could not load the users.",
+  "empty": "No users found.",
+  "searchLabel": "Email or phone",
+  "noProfile": "No profile",
+  "columns": {
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "roles": "Roles",
+    "joined": "Joined"
+  },
+  "detail": {
+    "notFound": "User not found.",
+    "loadFailed": "Could not load the user.",
+    "back": "Back to users",
+    "fallbackTitle": "User",
+    "email": "Email",
+    "phone": "Phone",
+    "joined": "Joined",
+    "profiles": "Profiles",
+    "noProfile": "No profile yet.",
+    "customerProfile": "Customer profile",
+    "driverProfile": "Driver profile",
+    "name": "Name",
+    "truck": "Truck",
+    "plate": "Plate",
+    "verification": "Verification",
+    "openReview": "Open the review",
+    "activity": "Activity",
+    "counts": "Counts",
+    "tripsAsCustomer": "Trips as customer",
+    "tripsAsDriver": "Trips as driver",
+    "reportsMade": "Reports made",
+    "reportsAgainst": "Reports against",
+    "recentTrips": "Recent trips"
+  }
+}

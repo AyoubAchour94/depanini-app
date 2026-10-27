@@ -1,0 +1,13 @@
+{
+  "title": "Journal d'audit",
+  "loadFailed": "Impossible de charger le journal d'audit.",
+  "caption": "Actions des administrateurs",
+  "empty": "Aucune action d'administrateur pour l'instant.",
+  "columns": {
+    "when": "Date",
+    "admin": "Administrateur",
+    "action": "Action",
+    "target": "Cible",
+    "note": "Note"
+  }
+}

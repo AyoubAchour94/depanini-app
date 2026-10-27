@@ -63,6 +63,17 @@ export default tseslint.config(
     settings: { 'import/resolver': { typescript: { project: 'apps/admin/tsconfig.json' } } },
   },
 
+  // Admin screens: text comes from the message files (src/i18n/locales), in French and English.
+  // Only symbols may stay in JSX.
+  {
+    files: ['apps/admin/src/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}', 'apps/admin/src/test/**'],
+    rules: {
+      'no-restricted-syntax': ['error', ...hardCodedTextSelectors],
+      'react/jsx-no-literals': ['error', { allowedStrings: ['·', '›', '‹', '-'] }],
+    },
+  },
+
   // Mobile: Expo's recommended config (React, hooks, import resolution).
   ...expoConfig.map((config) => ({ ...config, files: ['apps/mobile/**/*.{ts,tsx,js}'] })),
   {
