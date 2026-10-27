@@ -1,0 +1,7 @@
+{
+  "ios": {
+    "NSLocationWhenInUseUsageDescription": "Depanini needs your location to find nearby tow trucks and show your position to drivers on the way.",
+    "NSCameraUsageDescription": "Depanini Driver needs your camera so you can photograph your documents.",
+    "NSPhotoLibraryUsageDescription": "Depanini Driver needs your photos so you can upload your documents."
+  }
+}

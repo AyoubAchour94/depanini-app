@@ -1,0 +1,7 @@
+{
+  "ios": {
+    "NSLocationWhenInUseUsageDescription": "يستخدم Depanini موقعك للعثور على سائقي الجرّ القريبين منك وإظهار موقعك لهم أثناء توجههم إليك.",
+    "NSCameraUsageDescription": "يستخدم Depanini Driver الكاميرا لتصوير وثائقك.",
+    "NSPhotoLibraryUsageDescription": "يصل Depanini Driver إلى صورك حتى تتمكن من رفع وثائقك."
+  }
+}

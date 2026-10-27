@@ -1,0 +1,7 @@
+{
+  "ios": {
+    "NSLocationWhenInUseUsageDescription": "Depanini utilise votre position pour trouver les dépanneurs proches et leur montrer où vous êtes pendant qu'ils sont en route.",
+    "NSCameraUsageDescription": "Depanini Driver utilise l'appareil photo pour photographier vos documents.",
+    "NSPhotoLibraryUsageDescription": "Depanini Driver accède à vos photos pour que vous puissiez envoyer vos documents."
+  }
+}
