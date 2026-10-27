@@ -9,7 +9,7 @@ import { Card } from '@/ui/Card';
 import { Text } from '@/ui/Text';
 import { TextField } from '@/ui/TextField';
 
-import { requestStrings as t } from './strings';
+import { useRequestStrings } from './strings';
 
 const NOTE_MAX = 500;
 
@@ -26,6 +26,7 @@ export function PaymentPrompt({
   request: TowRequest;
   driverName?: string;
 }) {
+  const t = useRequestStrings();
   const confirm = useConfirmPayment();
   const dispute = useDisputePayment();
   const [reporting, setReporting] = useState(false);

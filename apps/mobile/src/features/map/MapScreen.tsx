@@ -5,6 +5,7 @@ import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { env } from '@/config/env';
 import { useTheme } from '@/theme/theme';
 import { MapSheet } from '@/ui/MapSheet';
+import { useTranslation } from '@/i18n';
 import { Text } from '@/ui/Text';
 
 import { CenterPin } from './CenterPin';
@@ -85,12 +86,13 @@ export function MapScreen({
 
 /** Explains a blank map instead of silently rendering nothing. */
 export function MissingTokenView() {
+  const { t: tr } = useTranslation();
   const t = useTheme();
   return (
     <View style={[styles.fill, styles.center, { backgroundColor: t.color.background }]}>
-      <Text variant="title">Mapbox token missing</Text>
+      <Text variant="title">{tr('map:tokenMissingTitle')}</Text>
       <Text tone="muted" style={styles.body}>
-        Set EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN in apps/mobile/.env
+        {tr('map:tokenMissingBody')}
       </Text>
     </View>
   );

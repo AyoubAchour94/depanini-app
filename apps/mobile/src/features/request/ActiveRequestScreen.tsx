@@ -29,7 +29,7 @@ import { formatRemaining, useCountdown } from './countdown';
 import { OffersList } from './OffersList';
 import { useRequestFlow } from './RequestFlowContext';
 import { RequestSummary } from './RequestSummary';
-import { requestStrings as t } from './strings';
+import { useRequestStrings } from './strings';
 import { TripStatus, tripMarkers } from './TripProgress';
 
 /** Snap points of the request sheet: the first fits the title, an offer or two and Cancel. */
@@ -43,6 +43,7 @@ const SHEET_SNAPS = [440, 'full'] as const;
  * map with the offers, then the live trip, in the sheet.
  */
 export function ActiveRequestScreen() {
+  const t = useRequestStrings();
   const theme = useTheme();
   const focused = useIsFocused();
   const live = useRealtimeStatus() === 'live';
@@ -114,9 +115,10 @@ export function ActiveRequestScreen() {
     };
     const sheetTop = Math.min(SHEET_SNAPS[0], windowHeight * 0.6);
     const pillLabel = open
-      ? `${live ? t.live : t.reconnecting} · ${
-          remaining === 0 ? t.expiring : t.timeLeft(formatRemaining(remaining ?? 0))
-        }`
+      ? t.pillOpen(
+          live ? t.live : t.reconnecting,
+          remaining === 0 ? t.expiring : t.timeLeft(formatRemaining(remaining ?? 0)),
+        )
       : t.assignedTitle;
     return (
       <MapScreen
@@ -227,6 +229,7 @@ export function ActiveRequestScreen() {
 
 /** "Cancel request": plain danger text under the offers, so it never competes with Accept. */
 function CancelAction({ onPress, disabled }: { onPress: () => void; disabled: boolean }) {
+  const t = useRequestStrings();
   return (
     <Pressable
       accessibilityRole="button"

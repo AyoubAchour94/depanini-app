@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import { authErrorMessage } from '@/auth/errors';
 import { sendPasswordReset } from '@/auth/firebase-auth';
+import { useTranslation } from '@/i18n';
 import { Button } from '@/ui/Button';
 import { Text } from '@/ui/Text';
 import { TextField } from '@/ui/TextField';
@@ -11,6 +12,7 @@ import { TextField } from '@/ui/TextField';
 import { AuthLayout } from './AuthLayout';
 
 export function ForgotPasswordScreen() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const submit = useMutation({
     mutationFn: async () => {
@@ -27,35 +29,35 @@ export function ForgotPasswordScreen() {
   if (submit.isSuccess) {
     return (
       <AuthLayout
-        title="Check your email"
-        action={<Button size="big" title="Back to sign in" onPress={() => router.back()} />}
+        title={t('auth:checkEmail')}
+        action={<Button size="big" title={t('auth:backToSignIn')} onPress={() => router.back()} />}
       >
         {/* Worded so it doesn't reveal whether an account exists for this email. */}
-        <Text>If an account exists for {email.trim()}, we sent a link to reset its password.</Text>
+        <Text>{t('auth:resetSent', { email: email.trim() })}</Text>
       </AuthLayout>
     );
   }
 
   return (
     <AuthLayout
-      title="Reset your password"
-      subtitle="We'll email you a link to choose a new one."
+      title={t('auth:resetTitle')}
+      subtitle={t('auth:resetSubtitle')}
       error={submit.isError ? authErrorMessage(submit.error) : undefined}
       action={
         <>
           <Button
             size="big"
-            title="Send reset link"
+            title={t('auth:sendResetLink')}
             onPress={() => submit.mutate()}
             loading={submit.isPending}
             disabled={!email.trim()}
           />
-          <Button kind="link" title="Back to sign in" onPress={() => router.back()} />
+          <Button kind="link" title={t('auth:backToSignIn')} onPress={() => router.back()} />
         </>
       }
     >
       <TextField
-        label="Email"
+        label={t('auth:email')}
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"

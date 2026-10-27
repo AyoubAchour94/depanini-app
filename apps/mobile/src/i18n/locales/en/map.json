@@ -1,0 +1,4 @@
+{
+  "tokenMissingTitle": "Mapbox token missing",
+  "tokenMissingBody": "Set EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN in apps/mobile/.env"
+}

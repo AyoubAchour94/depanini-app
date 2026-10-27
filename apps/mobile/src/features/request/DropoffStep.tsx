@@ -1,3 +1,4 @@
+import { formatDecimal } from '@/i18n/format';
 import { isInTunisia, type LatLng, type Place } from '@depanini/shared';
 import { useContext, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -15,13 +16,13 @@ import { Text } from '@/ui/Text';
 import { TextField } from '@/ui/TextField';
 
 import { PlaceReadout } from './PlaceReadout';
-import { requestStrings as t } from './strings';
+import { useRequestStrings } from './strings';
 
 /** Snap points of the pin sheet: the address, a notice and the pinned action fit at the first. */
 const PIN_SNAPS = [260] as const;
 
 const formatCoordinates = ({ latitude, longitude }: LatLng) =>
-  `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+  `${formatDecimal(latitude, 5)}, ${formatDecimal(longitude, 5)}`;
 
 interface DropoffStepProps {
   /** Where the vehicle is; results are ranked by closeness to it and the map starts there. */
@@ -65,6 +66,7 @@ function SearchPicker({
   onPickOnMap: () => void;
   onBack?: () => void;
 }) {
+  const t = useRequestStrings();
   const theme = useTheme();
   const insets = useContext(SafeAreaInsetsContext);
   const [query, setQuery] = useState(initialQuery);
@@ -153,6 +155,7 @@ function MapPicker({
   onConfirm: (place: Place) => void;
   onBack: () => void;
 }) {
+  const t = useRequestStrings();
   const [startCenter] = useState<LatLng>({ latitude: start.latitude, longitude: start.longitude });
   // The coordinate under the pin; the start point until the map has settled.
   const [picked, setPicked] = useState<LatLng | null>(null);

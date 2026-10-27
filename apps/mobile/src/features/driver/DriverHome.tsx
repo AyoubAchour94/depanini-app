@@ -11,9 +11,9 @@ import { MapScreen } from '@/features/map/MapScreen';
 import { shortAddress } from '@/features/places/address';
 import { consumeDriverOnboardingDone } from '@/features/profile/onboarding';
 import { formatRemaining, useCountdown } from '@/features/request/countdown';
-import { requestStrings } from '@/features/request/strings';
+import { useRequestStrings } from '@/features/request/strings';
 import { RatingBadge } from '@/features/trip/RatingBadge';
-import { verificationStrings as v } from '@/features/verification/strings';
+import { useVerificationStrings } from '@/features/verification/strings';
 import { REQUEST_CANCELLED_NOTICE } from '@/push/routing';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
@@ -21,7 +21,7 @@ import { Num } from '@/ui/Num';
 import { Pill } from '@/ui/Pill';
 import { Text } from '@/ui/Text';
 
-import { driverStrings as t } from './strings';
+import { useDriverStrings } from './strings';
 import { isTestLocationEnabled, setTestLocation, useTestLocation } from './testLocation';
 import { useDriverPresence } from './usePresence';
 
@@ -34,6 +34,9 @@ const HOME_SNAPS = [340, 'full'] as const;
  * sheet.
  */
 export function DriverHome() {
+  const t = useDriverStrings();
+  const v = useVerificationStrings();
+  const requestStrings = useRequestStrings();
   const theme = useTheme();
   const focused = useIsFocused();
   const { notice } = useLocalSearchParams<{ notice?: string }>();
@@ -234,6 +237,7 @@ function useApprovalNotice(status: VerificationStatus | undefined) {
 
 /** Dev/test builds: where the driver app thinks the driver is, with a way to change it. */
 function TestLocationRow() {
+  const t = useDriverStrings();
   const theme = useTheme();
   const test = useTestLocation();
   return (
@@ -250,13 +254,15 @@ function TestLocationRow() {
 }
 
 function RequestRow({ request, first }: { request: NearbyRequest; first: boolean }) {
+  const t = useDriverStrings();
+  const requestStrings = useRequestStrings();
   const theme = useTheme();
   // The list refetches and drops expired requests, so there is nothing to do at zero.
   const remaining = useCountdown(request.expiresAt, () => {});
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${t.viewRequest}: ${shortAddress(request.pickup.address)}`}
+      accessibilityLabel={t.viewRequestAt(shortAddress(request.pickup.address))}
       onPress={() => router.push({ pathname: '/job-offer/[id]', params: { id: request.id } })}
       style={[
         styles.row,

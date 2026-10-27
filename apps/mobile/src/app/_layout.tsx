@@ -8,16 +8,18 @@ import { useMe } from '@/api/me';
 import { useRefetchVerificationWhenNotApproved } from '@/api/verification';
 import { AuthProvider, useAuth } from '@/auth/AuthProvider';
 import { env } from '@/config/env';
-import { driverStrings } from '@/features/driver/strings';
+import { useDriverStrings } from '@/features/driver/strings';
 import { hasProfileFor } from '@/features/profile/onboarding';
 import { RequestFlowProvider } from '@/features/request/RequestFlowContext';
-import { requestStrings } from '@/features/request/strings';
-import { verificationStrings } from '@/features/verification/strings';
+import { useRequestStrings } from '@/features/request/strings';
+import { useVerificationStrings } from '@/features/verification/strings';
 import { getFirebaseStatus } from '@/firebase/firebase';
 import { configurePush } from '@/push';
 import { PushProvider } from '@/push/PushProvider';
 import { initSentry, withSentry } from '@/observability/sentry';
 import { RealtimeProvider } from '@/realtime/RealtimeProvider';
+import { useTranslation } from '@/i18n';
+import { LanguageProvider, useLanguageSetting } from '@/i18n/language';
 import { useInterFonts } from '@/theme/fonts';
 import { ThemeProvider, useTheme, useThemeSetting } from '@/theme/theme';
 import { variant } from '@/variant/variant';
@@ -36,18 +38,20 @@ function RootLayout() {
 
   return (
     <ThemeProvider>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <ThemedStatusBar />
-          <RealtimeProvider>
-            <PushProvider>
-              <RequestFlowProvider>
-                <RootNavigator />
-              </RequestFlowProvider>
-            </PushProvider>
-          </RealtimeProvider>
-        </AuthProvider>
-      </QueryClientProvider>
+      <LanguageProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <ThemedStatusBar />
+            <RealtimeProvider>
+              <PushProvider>
+                <RequestFlowProvider>
+                  <RootNavigator />
+                </RequestFlowProvider>
+              </PushProvider>
+            </RealtimeProvider>
+          </AuthProvider>
+        </QueryClientProvider>
+      </LanguageProvider>
     </ThemeProvider>
   );
 }
@@ -66,6 +70,10 @@ function ThemedStatusBar() {
  * user may see. The API still checks the token on every request.
  */
 function RootNavigator() {
+  const { t } = useTranslation();
+  const verificationStrings = useVerificationStrings();
+  const requestStrings = useRequestStrings();
+  const driverStrings = useDriverStrings();
   const theme = useTheme();
   const auth = useAuth();
   const signedIn = auth.status === 'signed-in';
@@ -78,7 +86,8 @@ function RootNavigator() {
   const accountLoading = signedIn && me.isPending;
   const fonts = useInterFonts();
   const themeSetting = useThemeSetting();
-  const assetsReady = fonts.ready && themeSetting.ready;
+  const languageSetting = useLanguageSetting();
+  const assetsReady = fonts.ready && themeSetting.ready && languageSetting.ready;
 
   // The router needs a navigator on the first render, so the stack always
   // renders; while the session, account, fonts and theme setting load the
@@ -105,9 +114,15 @@ function RootNavigator() {
     >
       <Stack.Protected guard={onboarded}>
         <Stack.Screen name="index" />
-        <Stack.Screen name="account" options={{ title: 'Account', ...plainHeader }} />
-        <Stack.Screen name="profile" options={{ title: 'Profile', ...plainHeader }} />
-        <Stack.Screen name="delete-account" options={{ title: 'Delete account', ...plainHeader }} />
+        <Stack.Screen name="account" options={{ title: t('account:title'), ...plainHeader }} />
+        <Stack.Screen
+          name="profile"
+          options={{ title: t('account:profileTitle'), ...plainHeader }}
+        />
+        <Stack.Screen
+          name="delete-account"
+          options={{ title: t('account:deleteTitle'), ...plainHeader }}
+        />
       </Stack.Protected>
       <Stack.Protected guard={onboarded && !variant.isDriverApp}>
         {/* Map screens draw their own floating back button; details is a plain screen. */}
@@ -154,10 +169,10 @@ function RootNavigator() {
       </Stack.Protected>
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="sign-in" options={{ headerShown: false }} />
-        <Stack.Screen name="sign-up" options={{ title: 'Create account', ...plainHeader }} />
+        <Stack.Screen name="sign-up" options={{ title: t('auth:createAccount'), ...plainHeader }} />
         <Stack.Screen
           name="forgot-password"
-          options={{ title: 'Reset password', ...plainHeader }}
+          options={{ title: t('auth:resetPassword'), ...plainHeader }}
         />
       </Stack.Protected>
       <Stack.Protected guard={__DEV__}>

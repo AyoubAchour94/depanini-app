@@ -1,3 +1,4 @@
+import { formatDateTime } from '@/i18n/format';
 import type { TowRequest } from '@depanini/shared';
 import { router } from 'expo-router';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
@@ -10,13 +11,11 @@ import { Text } from '@/ui/Text';
 
 import { PlaceMarker, StatusBadge } from './RequestSummary';
 import { shortAddress } from '@/features/places/address';
-import { requestStrings as t } from './strings';
-
-const formatDate = (iso: string) =>
-  new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+import { useRequestStrings } from './strings';
 
 /** Every request the customer has made, newest first. */
 export function HistoryScreen() {
+  const t = useRequestStrings();
   const theme = useTheme();
   const history = useTowRequestHistory();
 
@@ -70,6 +69,7 @@ export function HistoryScreen() {
 }
 
 function HistoryRow({ request }: { request: TowRequest }) {
+  const t = useRequestStrings();
   const theme = useTheme();
   const fare =
     request.status === 'completed'
@@ -92,7 +92,7 @@ function HistoryRow({ request }: { request: TowRequest }) {
     >
       <View style={styles.rowHeader}>
         <Text variant="caption" tone="muted">
-          {formatDate(request.createdAt)}
+          {formatDateTime(request.createdAt)}
         </Text>
         <StatusBadge status={request.status} />
       </View>

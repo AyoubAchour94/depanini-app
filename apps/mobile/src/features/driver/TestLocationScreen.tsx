@@ -1,3 +1,4 @@
+import { formatDecimal } from '@/i18n/format';
 import { isInTunisia, type LatLng, TUNIS_CENTER } from '@depanini/shared';
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
@@ -11,11 +12,11 @@ import { useReverseGeocode } from '@/features/places/hooks';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
 
-import { driverStrings as t } from './strings';
+import { useDriverStrings } from './strings';
 import { getTestLocation, isTestLocationEnabled, setTestLocation } from './testLocation';
 
 const formatCoordinates = ({ latitude, longitude }: LatLng) =>
-  `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+  `${formatDecimal(latitude, 5)}, ${formatDecimal(longitude, 5)}`;
 
 /** Dev/test builds: the driver positions the pin to set where the app thinks they are. */
 export function TestLocationScreen() {
@@ -25,6 +26,7 @@ export function TestLocationScreen() {
 }
 
 function TestLocationPicker() {
+  const t = useDriverStrings();
   const theme = useTheme();
   const [start] = useState<LatLng>(() => getTestLocation() ?? TUNIS_CENTER);
   const [picked, setPicked] = useState<LatLng | null>(null);

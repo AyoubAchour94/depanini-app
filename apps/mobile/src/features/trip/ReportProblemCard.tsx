@@ -19,14 +19,9 @@ import { Pill } from '@/ui/Pill';
 import { Text } from '@/ui/Text';
 import { TextField } from '@/ui/TextField';
 
-import { tripStrings as t } from './strings';
+import { useTripStrings } from './strings';
 
 const WINDOW_MS = REPORT_WINDOW_DAYS * 24 * 60 * 60 * 1000;
-
-const CATEGORY_OPTIONS = REPORT_CATEGORIES.map((value) => ({
-  value,
-  label: t.reportCategories[value],
-}));
 
 /**
  * Whether to offer reporting a trip: it is over and, for a completed one, its
@@ -47,6 +42,11 @@ export function canReport(request: Pick<TowRequest, 'status' | 'completedAt'>, n
  * in the caller's scroll view.
  */
 export function ReportProblemCard({ request }: { request: TowRequest }) {
+  const t = useTripStrings();
+  const categoryOptions = REPORT_CATEGORIES.map((value) => ({
+    value,
+    label: t.reportCategories[value],
+  }));
   const theme = useTheme();
   const eligible = request.status === 'completed' || request.status === 'cancelled';
   const reports = useTripReports(request.id, { enabled: eligible });
@@ -112,7 +112,7 @@ export function ReportProblemCard({ request }: { request: TowRequest }) {
         <>
           <ChoiceField
             label={t.reportCategoryLabel}
-            options={CATEGORY_OPTIONS}
+            options={categoryOptions}
             value={category}
             onChange={(value) => {
               setCategory(value);
@@ -160,6 +160,7 @@ export function ReportProblemCard({ request }: { request: TowRequest }) {
 }
 
 function ReportRow({ report }: { report: Report }) {
+  const t = useTripStrings();
   return (
     <View style={styles.row}>
       <View style={styles.rowHead}>

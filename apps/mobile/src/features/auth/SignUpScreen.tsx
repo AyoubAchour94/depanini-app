@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import { authErrorMessage } from '@/auth/errors';
 import { signUp } from '@/auth/firebase-auth';
+import { useTranslation } from '@/i18n';
 import { TermsConsent } from '@/features/legal/LegalLinks';
 import { Button } from '@/ui/Button';
 import { TextField } from '@/ui/TextField';
@@ -11,6 +12,7 @@ import { TextField } from '@/ui/TextField';
 import { AuthLayout } from './AuthLayout';
 
 export function SignUpScreen() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
@@ -20,34 +22,30 @@ export function SignUpScreen() {
 
   return (
     <AuthLayout
-      title="Create your account"
+      title={t('auth:createYourAccount')}
       action={
         <>
           <TermsConsent />
           <Button
             size="big"
-            title="Create account"
+            title={t('auth:createAccount')}
             onPress={() => submit.mutate()}
             loading={submit.isPending}
             disabled={!email.trim() || !password || confirmation !== password}
           />
-          <Button
-            kind="link"
-            title="Already have an account? Sign in"
-            onPress={() => router.back()}
-          />
+          <Button kind="link" title={t('auth:haveAccountLink')} onPress={() => router.back()} />
         </>
       }
       error={
         mismatch
-          ? 'Passwords do not match.'
+          ? t('auth:passwordMismatch')
           : submit.isError
             ? authErrorMessage(submit.error)
             : undefined
       }
     >
       <TextField
-        label="Email"
+        label={t('auth:email')}
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
@@ -56,7 +54,7 @@ export function SignUpScreen() {
         textContentType="emailAddress"
       />
       <TextField
-        label="Password"
+        label={t('auth:password')}
         value={password}
         onChangeText={setPassword}
         secureTextEntry
@@ -64,7 +62,7 @@ export function SignUpScreen() {
         textContentType="newPassword"
       />
       <TextField
-        label="Confirm password"
+        label={t('auth:confirmPassword')}
         value={confirmation}
         onChangeText={setConfirmation}
         secureTextEntry

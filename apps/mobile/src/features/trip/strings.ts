@@ -1,82 +1,87 @@
 import type { PaymentStatus, ReportCategory, ReportStatus } from '@depanini/shared';
+import type { TFunction } from 'i18next';
 
-/** User-facing text of the trip detail and receipt, shared by both apps. */
-export const tripStrings = {
-  pickupLabel: 'Pickup',
-  dropoffLabel: 'Drop-off',
-  fareLabel: 'Fare',
-  stagesTitle: 'Trip times',
+import { formatDateTime, formatDecimal, formatTime } from '@/i18n/format';
+import { liveStrings, useStrings } from '@/i18n';
+
+/** User-facing text of the trip detail and receipt, shared by both apps. The messages live in `i18n/locales/<lng>/trip.json`. */
+export const createTripStrings = (t: TFunction) => ({
+  pickupLabel: t('trip:pickupLabel'),
+  dropoffLabel: t('trip:dropoffLabel'),
+  fareLabel: t('trip:fareLabel'),
+  stagesTitle: t('trip:stagesTitle'),
   stages: {
-    assigned: 'Accepted',
-    enRoute: 'On the way',
-    arrived: 'Arrived',
-    towing: 'Towing',
-    completed: 'Completed',
+    assigned: t('trip:stages.assigned'),
+    enRoute: t('trip:stages.enRoute'),
+    arrived: t('trip:stages.arrived'),
+    towing: t('trip:stages.towing'),
+    completed: t('trip:stages.completed'),
   },
-  /** Local time of day, e.g. "10:05". */
-  time: (iso: string) =>
-    new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-
+  time: (iso: string) => formatTime(iso),
   paymentStatus: {
-    driver_confirmed: 'Cash received',
-    customer_confirmed: 'Confirmed by customer',
-    disputed: 'Disputed',
+    driver_confirmed: t('trip:paymentStatus.driver_confirmed'),
+    customer_confirmed: t('trip:paymentStatus.customer_confirmed'),
+    disputed: t('trip:paymentStatus.disputed'),
   } satisfies Record<PaymentStatus, string>,
-
-  receiptTitle: 'Receipt',
-  receiptLoading: 'Loading the receipt…',
-  receiptFailed: 'Could not load the receipt.',
-  receiptNotFound: 'This receipt is not available.',
-  retry: 'Try again',
-  receiptNumber: 'Receipt no.',
-  receiptDate: 'Date',
-  vehicleLabel: 'Vehicle',
-  distanceLabel: 'Distance',
-  driverLabel: 'Driver',
-  customerLabel: 'Customer',
-  paidInCash: 'Paid in cash',
-  /** Local date and time, e.g. "Jan 1, 2026, 10:05 AM". */
-  dateTime: (iso: string) =>
-    new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }),
-
-  share: 'Share receipt',
-  copied: 'Copied',
-  shareFailed: 'Could not share the receipt.',
-
-  rateDriverTitle: 'Rate your driver',
-  rateCustomerTitle: 'Rate your customer',
-  starsLabel: (n: number) => (n === 1 ? '1 star' : `${n} stars`),
-  starsGroup: 'Stars',
-  tagsLabel: 'What stood out?',
-  tagsRequired: 'Tell us what went wrong: pick at least one tag.',
-  pickStars: 'Pick a rating.',
-  commentLabel: 'Comment (optional)',
-  commentCounter: (used: number, max: number) => `${used}/${max}`,
-  sendRating: 'Send rating',
-  ratingFailed: 'Could not send your rating. Try again.',
-  thanksForRating: 'Thanks for rating',
-  youRated: (n: number) => `You gave ${n === 1 ? '1 star' : `${n} stars`}`,
-  ratingNew: 'New',
-  ratingBadge: (average: number, count: number) => `★ ${average.toFixed(1)} (${count})`,
-
-  reportLink: 'Report a problem with this trip',
-  reportCategoryLabel: 'What went wrong?',
+  receiptTitle: t('trip:receiptTitle'),
+  receiptLoading: t('trip:receiptLoading'),
+  receiptFailed: t('trip:receiptFailed'),
+  receiptNotFound: t('trip:receiptNotFound'),
+  retry: t('trip:retry'),
+  receiptNumber: t('trip:receiptNumber'),
+  receiptDate: t('trip:receiptDate'),
+  vehicleLabel: t('trip:vehicleLabel'),
+  distanceLabel: t('trip:distanceLabel'),
+  driverLabel: t('trip:driverLabel'),
+  customerLabel: t('trip:customerLabel'),
+  paidInCash: t('trip:paidInCash'),
+  dateTime: (iso: string) => formatDateTime(iso),
+  share: t('trip:share'),
+  copied: t('trip:copied'),
+  shareFailed: t('trip:shareFailed'),
+  rateDriverTitle: t('trip:rateDriverTitle'),
+  rateCustomerTitle: t('trip:rateCustomerTitle'),
+  starsLabel: (n: number) => t('trip:starsLabel', { count: n }),
+  starsGroup: t('trip:starsGroup'),
+  tagsLabel: t('trip:tagsLabel'),
+  tagsRequired: t('trip:tagsRequired'),
+  pickStars: t('trip:pickStars'),
+  commentLabel: t('trip:commentLabel'),
+  commentCounter: (used: number, max: number) => t('trip:commentCounter', { used, max }),
+  sendRating: t('trip:sendRating'),
+  ratingFailed: t('trip:ratingFailed'),
+  thanksForRating: t('trip:thanksForRating'),
+  youRated: (n: number) => t('trip:youRated', { stars: t('trip:starsLabel', { count: n }) }),
+  ratingNew: t('trip:ratingNew'),
+  ratingBadge: (average: number, count: number) =>
+    t('trip:ratingBadge', { average: formatDecimal(average), votes: count }),
+  reportLink: t('trip:reportLink'),
+  reportCategoryLabel: t('trip:reportCategoryLabel'),
   reportCategories: {
-    safety: 'Safety',
-    vehicle_damage: 'Vehicle damage',
-    overcharged: 'Overcharged',
-    no_show: 'No-show',
-    behaviour: 'Behaviour',
-    other: 'Other',
+    safety: t('trip:reportCategories.safety'),
+    vehicle_damage: t('trip:reportCategories.vehicle_damage'),
+    overcharged: t('trip:reportCategories.overcharged'),
+    no_show: t('trip:reportCategories.no_show'),
+    behaviour: t('trip:reportCategories.behaviour'),
+    other: t('trip:reportCategories.other'),
   } satisfies Record<ReportCategory, string>,
-  reportNoteLabel: 'What happened?',
-  reportNoteCounter: (used: number, max: number) => `${used}/${max}`,
-  reportSend: 'Send report',
-  reportBack: 'Back',
-  reportSent: 'Report sent',
-  reportFailed: 'Could not send your report. Try again.',
-  reportConflict: 'This trip can no longer be reported, or you already have an open report on it.',
-  reportsTitle: 'Your reports',
-  reportStatus: { open: 'Open', resolved: 'Resolved' } satisfies Record<ReportStatus, string>,
-  reportResolution: (note: string) => `Resolution: ${note}`,
-};
+  reportNoteLabel: t('trip:reportNoteLabel'),
+  reportNoteCounter: (used: number, max: number) => t('trip:reportNoteCounter', { used, max }),
+  reportSend: t('trip:reportSend'),
+  reportBack: t('trip:reportBack'),
+  reportSent: t('trip:reportSent'),
+  reportFailed: t('trip:reportFailed'),
+  reportConflict: t('trip:reportConflict'),
+  reportsTitle: t('trip:reportsTitle'),
+  reportStatus: {
+    open: t('trip:reportStatus.open'),
+    resolved: t('trip:reportStatus.resolved'),
+  } satisfies Record<ReportStatus, string>,
+  reportResolution: (note: string) => t('trip:reportResolution', { note }),
+});
+
+/** The messages for a component: re-renders it when the language changes. */
+export const useTripStrings = () => useStrings(createTripStrings);
+
+/** The messages for event handlers and other code outside React. */
+export const tripStrings = liveStrings(createTripStrings);

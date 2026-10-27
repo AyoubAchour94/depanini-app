@@ -16,18 +16,9 @@ import { ChoiceField } from '@/ui/ChoiceField';
 import { Text } from '@/ui/Text';
 import { TextField } from '@/ui/TextField';
 
-import { requestStrings as t } from './strings';
+import { useRequestStrings } from './strings';
 
 const NOTE_MAX_LENGTH = 280;
-
-const VEHICLE_OPTIONS = VEHICLE_TYPES.map((value) => ({
-  value,
-  label: t.vehicleOptions[value],
-}));
-const PROBLEM_OPTIONS = PROBLEM_TYPES.map((value) => ({
-  value,
-  label: t.problemOptions[value],
-}));
 
 export interface Details {
   vehicleType: VehicleType;
@@ -43,6 +34,9 @@ interface DetailsStepProps {
 
 /** Third step of a tow request: which vehicle, what went wrong, and an optional note. */
 export function DetailsStep({ initial, onConfirm }: DetailsStepProps) {
+  const t = useRequestStrings();
+  const vehicleOptions = VEHICLE_TYPES.map((value) => ({ value, label: t.vehicleOptions[value] }));
+  const problemOptions = PROBLEM_TYPES.map((value) => ({ value, label: t.problemOptions[value] }));
   const theme = useTheme();
   const insets = useContext(SafeAreaInsetsContext);
   const [vehicleType, setVehicleType] = useState<VehicleType | undefined>(
@@ -73,7 +67,7 @@ export function DetailsStep({ initial, onConfirm }: DetailsStepProps) {
       >
         <ChoiceField
           label={t.vehicleLabel}
-          options={VEHICLE_OPTIONS}
+          options={vehicleOptions}
           value={vehicleType}
           onChange={setVehicleType}
           error={submitted && !vehicle.success ? vehicle.error.issues[0]?.message : undefined}
@@ -81,7 +75,7 @@ export function DetailsStep({ initial, onConfirm }: DetailsStepProps) {
         <ChoiceField
           wrap
           label={t.problemLabel}
-          options={PROBLEM_OPTIONS}
+          options={problemOptions}
           value={problemType}
           onChange={setProblemType}
           error={submitted && !problem.success ? problem.error.issues[0]?.message : undefined}
@@ -97,7 +91,7 @@ export function DetailsStep({ initial, onConfirm }: DetailsStepProps) {
             style={styles.noteInput}
           />
           <Text variant="caption" tone="muted" style={styles.counter}>
-            {note.length}/{NOTE_MAX_LENGTH}
+            {t.disputeCounter(note.length, NOTE_MAX_LENGTH)}
           </Text>
         </View>
       </ScrollView>

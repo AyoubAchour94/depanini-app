@@ -1,4 +1,5 @@
 import { useSignOut } from '@/auth/useSignOut';
+import { useTranslation } from '@/i18n';
 import { Button } from '@/ui/Button';
 import { variant } from '@/variant/variant';
 
@@ -11,26 +12,29 @@ import { markDriverOnboardingDone } from './onboarding';
  * the cached account has the profile and the router moves on to the app.
  */
 export function OnboardingScreen() {
+  const { t } = useTranslation();
   const signOut = useSignOut();
-  const signOutLink = <Button kind="link" title="Sign out" onPress={() => signOut.mutate()} />;
+  const signOutLink = (
+    <Button kind="link" title={t('account:signOut')} onPress={() => signOut.mutate()} />
+  );
   return variant.isDriverApp ? (
     <DriverProfileForm
       mode="onboarding"
       onSaved={markDriverOnboardingDone}
       layout={{
         bare: true,
-        title: 'Set up your driver profile',
-        subtitle: 'Customers see your name, phone and truck when you take their tow.',
+        title: t('profile:driverSetupTitle'),
+        subtitle: t('profile:driverSetupSubtitle'),
       }}
       footer={signOutLink}
     />
   ) : (
     <CustomerProfileForm
-      submitTitle="Continue"
+      submitTitle={t('profile:continue')}
       layout={{
         bare: true,
-        title: 'Tell us about you',
-        subtitle: 'Drivers use your name and phone to reach you during a tow.',
+        title: t('profile:customerSetupTitle'),
+        subtitle: t('profile:customerSetupSubtitle'),
       }}
       footer={signOutLink}
     />

@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 're
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/auth/AuthProvider';
+import { useTranslation } from '@/i18n';
 import { useTheme } from '@/theme/theme';
 import { Text } from '@/ui/Text';
 
@@ -23,6 +24,7 @@ export interface AuthLayoutProps {
 export function AuthLayout({ title, subtitle, error, bare, action, children }: AuthLayoutProps) {
   const t = useTheme();
   const auth = useAuth();
+  const { t: tr } = useTranslation();
   const insets = useContext(SafeAreaInsetsContext);
   const unavailable = auth.status === 'signed-out' ? auth.unavailableReason : undefined;
 
@@ -50,7 +52,7 @@ export function AuthLayout({ title, subtitle, error, bare, action, children }: A
           {subtitle ? <Text tone="muted">{subtitle}</Text> : null}
         </View>
         {unavailable ? (
-          <Notice tone="warning" text={`Sign-in is unavailable: ${unavailable}`} />
+          <Notice tone="warning" text={tr('auth:signInUnavailable', { reason: unavailable })} />
         ) : null}
         {error ? <Notice tone="danger" text={error} /> : null}
         {children ? <View style={{ gap: t.space[4] }}>{children}</View> : null}

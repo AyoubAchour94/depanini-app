@@ -1,17 +1,20 @@
-const messages: Record<string, string> = {
-  'auth/invalid-email': 'Enter a valid email address.',
+import { translate } from '@/i18n';
+
+/** Firebase error code to the key (under `auth:errors`) of its message. */
+const messageKeys: Record<string, string> = {
+  'auth/invalid-email': 'invalidEmail',
   // Firebase reports a wrong password and an unknown email the same way
   // (email enumeration protection), so the message covers both.
-  'auth/invalid-credential': 'Email or password is incorrect.',
-  'auth/wrong-password': 'Email or password is incorrect.',
-  'auth/user-not-found': 'Email or password is incorrect.',
-  'auth/email-already-in-use': 'An account with this email already exists. Sign in instead.',
-  'auth/weak-password': 'Use a password with at least 6 characters.',
-  'auth/too-many-requests': 'Too many attempts. Wait a few minutes and try again.',
-  'auth/network-request-failed': 'No connection. Check your internet and try again.',
-  'auth/user-disabled': 'This account has been disabled.',
-  'auth/operation-not-allowed': 'This sign-in method is not enabled yet.',
-  'auth/requires-recent-login': 'For your security, sign out and sign in again, then retry.',
+  'auth/invalid-credential': 'invalidCredential',
+  'auth/wrong-password': 'invalidCredential',
+  'auth/user-not-found': 'invalidCredential',
+  'auth/email-already-in-use': 'emailInUse',
+  'auth/weak-password': 'weakPassword',
+  'auth/too-many-requests': 'tooManyRequests',
+  'auth/network-request-failed': 'network',
+  'auth/user-disabled': 'userDisabled',
+  'auth/operation-not-allowed': 'operationNotAllowed',
+  'auth/requires-recent-login': 'requiresRecentLogin',
 };
 
 /** The Firebase Auth error code (`auth/...`) of a thrown error, if it has one. */
@@ -21,5 +24,5 @@ export function authErrorCode(error: unknown): string {
 
 /** A message to show the user for an error thrown by Firebase Auth. */
 export function authErrorMessage(error: unknown): string {
-  return messages[authErrorCode(error)] ?? 'Something went wrong. Try again.';
+  return translate(`auth:errors.${messageKeys[authErrorCode(error)] ?? 'generic'}`);
 }

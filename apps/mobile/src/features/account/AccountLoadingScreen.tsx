@@ -2,6 +2,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { useMe } from '@/api/me';
 import { useSignOut } from '@/auth/useSignOut';
+import { useTranslation } from '@/i18n';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
 import { Text } from '@/ui/Text';
@@ -11,6 +12,7 @@ import { Text } from '@/ui/Text';
  * tell whether to onboard before then. Offers a retry if the API is unreachable.
  */
 export function AccountLoadingScreen() {
+  const { t: tr } = useTranslation();
   const t = useTheme();
   const me = useMe();
   const signOut = useSignOut();
@@ -25,19 +27,19 @@ export function AccountLoadingScreen() {
       {me.isError ? (
         <>
           <Text variant="heading" accessibilityRole="alert" style={styles.message}>
-            Could not load your account from the server.
+            {tr('account:loadFailed')}
           </Text>
           <Button
             size="big"
-            title="Try again"
+            title={tr('account:tryAgain')}
             onPress={() => void me.refetch()}
             loading={me.isFetching}
           />
-          <Button kind="link" title="Sign out" onPress={() => signOut.mutate()} />
+          <Button kind="link" title={tr('account:signOut')} onPress={() => signOut.mutate()} />
         </>
       ) : (
         <ActivityIndicator
-          accessibilityLabel="Loading your account"
+          accessibilityLabel={tr('account:loading')}
           color={t.color.brandAccent}
           size="large"
         />

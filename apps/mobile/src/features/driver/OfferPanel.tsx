@@ -12,7 +12,7 @@ import { Chip } from '@/ui/Chip';
 import { FareStepper } from '@/ui/FareStepper';
 import { Text } from '@/ui/Text';
 
-import { driverStrings as t } from './strings';
+import { useDriverStrings } from './strings';
 
 /** How far above the customer's fare the counter-offer chips go, in dinars. */
 const COUNTER_STEPS = [5, 10, 15] as const;
@@ -28,19 +28,13 @@ interface OfferPanelProps {
   draft: OfferDraft;
 }
 
-const endedMessage = {
-  rejected: t.offerRejected,
-  expired: t.offerExpired,
-  withdrawn: t.offerWithdrawn,
-  declined: t.offerDeclined,
-} as const;
-
 /**
  * The offer the driver is putting together for a request: the fare (the
  * customer's, until a counter-offer is picked) and the send call. The panel
  * (chips) and the actions (pinned buttons) share it.
  */
 export function useOfferDraft(requestId: string, request: NearbyRequest | undefined) {
+  const t = useDriverStrings();
   const send = useSendOffer(requestId);
   const [counter, setCounter] = useState<number | null>(null);
   const proposedFare = request?.proposedFare ?? 0;
@@ -68,9 +62,16 @@ export type OfferDraft = ReturnType<typeof useOfferDraft>;
  * `OfferActions`, which the screen pins at the bottom.
  */
 export function OfferPanel({ request, offer, onOfferElapsed, draft }: OfferPanelProps) {
+  const t = useDriverStrings();
   if (offer?.status === 'pending') {
     return <PendingOffer offer={offer} onElapsed={onOfferElapsed} />;
   }
+  const endedMessage = {
+    rejected: t.offerRejected,
+    expired: t.offerExpired,
+    withdrawn: t.offerWithdrawn,
+    declined: t.offerDeclined,
+  } as const;
   const ended = offer && offer.status !== 'accepted' ? endedMessage[offer.status] : null;
   return (
     <View style={styles.stack}>
@@ -90,6 +91,7 @@ export function OfferActions({
   offer: Offer | undefined;
   draft: OfferDraft;
 }) {
+  const t = useDriverStrings();
   if (!request || offer?.status === 'pending') return null;
   const { fare, send } = draft;
   return (
@@ -128,6 +130,7 @@ function Notice({ text }: { text: string }) {
 }
 
 function PendingOffer({ offer, onElapsed }: { offer: Offer; onElapsed: () => void }) {
+  const t = useDriverStrings();
   const theme = useTheme();
   const withdraw = useWithdrawOffer();
   const remaining = useCountdown(offer.expiresAt, onElapsed);
@@ -153,6 +156,7 @@ function PendingOffer({ offer, onElapsed }: { offer: Offer; onElapsed: () => voi
 
 /** Chips a few dinars above the customer's fare, and a stepper for any other amount. */
 function CounterOffer({ request, draft }: { request: NearbyRequest; draft: OfferDraft }) {
+  const t = useDriverStrings();
   const { proposedFare, minFare, maxFare } = request;
   const { fare, setCounter, failure } = draft;
   const options = [

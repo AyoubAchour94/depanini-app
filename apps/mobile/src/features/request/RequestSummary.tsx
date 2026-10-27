@@ -8,7 +8,7 @@ import { Num } from '@/ui/Num';
 import { Pill, type PillTone } from '@/ui/Pill';
 import { Text } from '@/ui/Text';
 
-import { requestStrings as t } from './strings';
+import { useRequestStrings } from './strings';
 
 /** The pickup dot and the drop-off square, as on the map. */
 export function PlaceMarker({ kind }: { kind: 'pickup' | 'dropoff' }) {
@@ -56,13 +56,17 @@ export function RequestSummary({
   request: TowRequest;
   showFare?: boolean;
 }) {
+  const t = useRequestStrings();
   const theme = useTheme();
   return (
     <View style={{ gap: theme.space[3] }}>
       <PlaceRow kind="pickup" label={t.pickupLabel} address={request.pickup.address} />
       <PlaceRow kind="dropoff" label={t.dropoffPointLabel} address={request.dropoff.address} />
       <Text>
-        {t.vehicleOptions[request.vehicleType]} · {t.problemOptions[request.problemType]}
+        {t.vehicleAndProblem(
+          t.vehicleOptions[request.vehicleType],
+          t.problemOptions[request.problemType],
+        )}
       </Text>
       {request.note ? <Text tone="muted">{request.note}</Text> : null}
       {showFare ? <Num size="small" value={request.proposedFare} unit="TND" /> : null}
@@ -79,6 +83,7 @@ const pillTone = (status: TowRequestStatus): PillTone =>
 
 /** The state of a request as a small coloured tag. */
 export function StatusBadge({ status }: { status: TowRequestStatus }) {
+  const t = useRequestStrings();
   const tone = pillTone(status);
   // A request that ended without a trip stays quiet: muted text on a fill, not a coloured tag.
   if (tone === 'neutral') return <MutedTag>{t.statusLabels[status]}</MutedTag>;

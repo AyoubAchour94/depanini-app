@@ -1,11 +1,13 @@
 import { StyleSheet, View } from 'react-native';
 
 import { getFirebaseStatus } from '@/firebase/firebase';
+import { useTranslation } from '@/i18n';
 import { useTheme } from '@/theme/theme';
 import { Text } from '@/ui/Text';
 
 /** Debug-only notice when Firebase is not configured; renders nothing otherwise. */
 export function FirebaseBanner() {
+  const { t } = useTranslation();
   const theme = useTheme();
   if (!__DEV__ || getFirebaseStatus().configured) return null;
 
@@ -17,7 +19,7 @@ export function FirebaseBanner() {
       ]}
     >
       <Text variant="bodyStrong" tone="warning">
-        Firebase not configured
+        {t('status:firebaseMissing')}
       </Text>
     </View>
   );

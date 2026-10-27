@@ -1,0 +1,32 @@
+{
+  "loadFailed": "Could not load your account from the server.",
+  "loading": "Loading your account",
+  "tryAgain": "Try again",
+  "signOut": "Sign out",
+  "delete": {
+    "title": "Delete your account?",
+    "subtitle": "This permanently deletes your account and your customer and driver details, in both Depanini apps. It can't be undone.",
+    "confirm": "Delete my account",
+    "keep": "Keep my account",
+    "passwordPlaceholder": "Enter your password to confirm",
+    "failed": "Could not delete your account. Check your connection and try again.",
+    "wrongPassword": "Password is incorrect."
+  },
+  "title": "Account",
+  "profileTitle": "Profile",
+  "deleteTitle": "Delete account",
+  "noEmail": "No email",
+  "unavailable": "Account unavailable",
+  "editDetails": "Edit details",
+  "appearance": {
+    "label": "Appearance",
+    "system": "System",
+    "light": "Light",
+    "dark": "Dark"
+  },
+  "language": {
+    "label": "Language",
+    "system": "System"
+  },
+  "deleteLink": "Delete account"
+}

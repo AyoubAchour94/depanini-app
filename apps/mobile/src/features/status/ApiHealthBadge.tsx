@@ -2,17 +2,10 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { useApiHealth } from '@/api/health';
 import { env } from '@/config/env';
+import { useTranslation } from '@/i18n';
 import { type Theme, useTheme } from '@/theme/theme';
 
 type Status = 'unconfigured' | 'checking' | 'ok' | 'degraded' | 'unreachable';
-
-const labels: Record<Status, string> = {
-  unconfigured: 'API: EXPO_PUBLIC_API_URL not set',
-  checking: 'API: checking…',
-  ok: 'API: ok',
-  degraded: 'API: degraded (database down)',
-  unreachable: 'API: unreachable',
-};
 
 function dotColor(status: Status, theme: Theme) {
   if (status === 'ok') return theme.success;
@@ -23,6 +16,7 @@ function dotColor(status: Status, theme: Theme) {
 
 /** Small pill showing whether the app can reach `GET /health`. */
 export function ApiHealthBadge() {
+  const { t } = useTranslation();
   const theme = useTheme();
   const { data, isError } = useApiHealth();
   const status: Status = !env.apiUrl
@@ -34,7 +28,7 @@ export function ApiHealthBadge() {
   return (
     <View style={[styles.pill, { backgroundColor: theme.surface }]} accessibilityRole="text">
       <View style={[styles.dot, { backgroundColor: dotColor(status, theme) }]} />
-      <Text style={{ color: theme.text }}>{labels[status]}</Text>
+      <Text style={{ color: theme.text }}>{t(`status:api.${status}`)}</Text>
     </View>
   );
 }

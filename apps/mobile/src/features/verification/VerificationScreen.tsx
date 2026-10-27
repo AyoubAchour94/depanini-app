@@ -21,9 +21,9 @@ import { Pill } from '@/ui/Pill';
 import { Text } from '@/ui/Text';
 
 import { type PickResult, pickPdf, pickPhoto } from './pickers';
-import { verificationStrings as t } from './strings';
+import { type createVerificationStrings, useVerificationStrings } from './strings';
 
-type Problem = keyof typeof t.errors;
+type Problem = keyof ReturnType<typeof createVerificationStrings>['errors'];
 
 /**
  * The driver's documents and where their check stands: one row per required kind with its
@@ -31,6 +31,7 @@ type Problem = keyof typeof t.errors;
  * or remove pages and to send them for review.
  */
 export function VerificationScreen() {
+  const t = useVerificationStrings();
   const theme = useTheme();
   const insets = useContext(SafeAreaInsetsContext);
   const verification = useVerification({ poll: true });
@@ -239,6 +240,7 @@ function uploadProblem(error: unknown): Problem {
 }
 
 function StatusBanner({ verification }: { verification: Verification }) {
+  const t = useVerificationStrings();
   const theme = useTheme();
   const { status, rejectionReason } = verification;
   const text =

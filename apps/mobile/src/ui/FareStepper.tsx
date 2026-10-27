@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { clampFare, FARE_LONG_STEP, FARE_STEP } from '@/features/request/fare';
-import { requestStrings as t } from '@/features/request/strings';
+import { useRequestStrings } from '@/features/request/strings';
 import { useTheme } from '@/theme/theme';
 
 import { Text } from './Text';
@@ -15,6 +15,7 @@ interface FareStepperProps {
 
 /** A ± control for a fare in dinars: 1 per press, 5 on long press, clamped to `min`–`max`. */
 export function FareStepper({ fare, min, max, onChange }: FareStepperProps) {
+  const t = useRequestStrings();
   const step = (delta: number) => onChange(clampFare(fare + delta, min, max));
   return (
     <View style={styles.stepper}>

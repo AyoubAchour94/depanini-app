@@ -8,7 +8,7 @@ import { Num } from '@/ui/Num';
 import { StageBar } from '@/ui/StageBar';
 import { Text } from '@/ui/Text';
 
-import { requestStrings as t } from './strings';
+import { useRequestStrings } from './strings';
 
 type Times = Pick<
   TowRequest,
@@ -40,6 +40,7 @@ const STAGE_PROGRESS: Record<TripStage, number> = {
 
 /** Where the trip is, how long until the truck gets to the next place, and the four stages. */
 export function TripStatus({ request }: { request: TowRequest }) {
+  const t = useRequestStrings();
   const stage: TripStage = request.tripStage ?? 'accepted';
   const { etaMin } = request;
   const showEta = Boolean(etaMin) && stage !== 'arrived';
@@ -76,6 +77,7 @@ export function Timeline({
   request: Times;
   withCompleted?: boolean;
 }) {
+  const t = useRequestStrings();
   const theme = useTheme();
   const steps = [
     [t.timeline.accepted, request.assignedAt],

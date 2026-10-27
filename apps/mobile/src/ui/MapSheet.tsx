@@ -21,6 +21,7 @@ import {
 } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
+import { useTranslation } from '@/i18n';
 import { useTheme } from '@/theme/theme';
 
 import { Sheet } from './Sheet';
@@ -81,6 +82,7 @@ export function MapSheet({
   scrollResetKey,
   testID = 'map-sheet',
 }: MapSheetProps) {
+  const { t: tr } = useTranslation();
   const t = useTheme();
   const insets = useContext(SafeAreaInsetsContext) ?? { top: 0, bottom: 0, left: 0, right: 0 };
   const root = useRef<ComponentRef<typeof View>>(null);
@@ -269,7 +271,7 @@ export function MapSheet({
             style={styles.handleZone}
             accessible
             accessibilityRole="adjustable"
-            accessibilityLabel="Sheet size"
+            accessibilityLabel={tr('common:sheetSize')}
             accessibilityValue={{ now: index + 1, min: 1, max: snapPoints.length }}
             accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
             onAccessibilityAction={(e) =>

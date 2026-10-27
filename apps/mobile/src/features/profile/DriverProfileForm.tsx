@@ -8,13 +8,14 @@ import { type ReactNode, useState } from 'react';
 
 import { useSaveDriverProfile } from '@/api/me';
 import { AuthLayout, type AuthLayoutProps } from '@/features/auth/AuthLayout';
+import { useTranslation } from '@/i18n';
 import { Button } from '@/ui/Button';
 import { ChoiceField } from '@/ui/ChoiceField';
 import { Text } from '@/ui/Text';
 import { TextField } from '@/ui/TextField';
 
 import { type FieldErrors, fieldErrorsOf, PersonalFields, SaveError } from './form-parts';
-import { TRUCK_TYPE_OPTIONS } from './truck-types';
+import { truckTypeOptions } from './truck-types';
 
 const personalSchema = driverProfileInputSchema.pick({ fullName: true, phone: true });
 
@@ -41,6 +42,7 @@ export function DriverProfileForm({
   layout,
   footer,
 }: DriverProfileFormProps) {
+  const { t } = useTranslation();
   const [fullName, setFullName] = useState(initial?.fullName ?? '');
   const [phone, setPhone] = useState(initial?.phone ?? '');
   const [truckType, setTruckType] = useState<TruckType | undefined>(initial?.truckType);
@@ -74,15 +76,15 @@ export function DriverProfileForm({
       {showTruck ? (
         <Button
           size="big"
-          title={mode === 'onboarding' ? 'Finish' : 'Save'}
+          title={mode === 'onboarding' ? t('profile:finish') : t('profile:save')}
           onPress={submit}
           loading={save.isPending}
         />
       ) : (
-        <Button size="big" title="Next" onPress={next} />
+        <Button size="big" title={t('profile:next')} onPress={next} />
       )}
       {mode === 'onboarding' && step === 'truck' ? (
-        <Button kind="link" title="Back" onPress={() => setStep('personal')} />
+        <Button kind="link" title={t('profile:back')} onPress={() => setStep('personal')} />
       ) : null}
       {footer}
     </>
@@ -92,7 +94,7 @@ export function DriverProfileForm({
     <AuthLayout {...layout} action={action}>
       {mode === 'onboarding' ? (
         <Text variant="label" tone="muted">
-          {step === 'personal' ? 'Step 1 of 2: your details' : 'Step 2 of 2: your truck'}
+          {step === 'personal' ? t('profile:step1') : t('profile:step2')}
         </Text>
       ) : null}
       {showPersonal ? (
@@ -108,18 +110,18 @@ export function DriverProfileForm({
       {showTruck ? (
         <>
           <ChoiceField
-            label="Truck type"
-            options={TRUCK_TYPE_OPTIONS}
+            label={t('profile:truckType')}
+            options={truckTypeOptions()}
             value={truckType}
             onChange={setTruckType}
             error={errors.truckType}
           />
           <TextField
-            label="Plate number"
+            label={t('profile:plateNumber')}
             value={plateNumber}
             onChangeText={setPlateNumber}
             error={errors.plateNumber}
-            placeholder="123 TU 4567"
+            placeholder={t('profile:platePlaceholder')}
             autoCapitalize="characters"
             autoCorrect={false}
             onSubmitEditing={submit}
