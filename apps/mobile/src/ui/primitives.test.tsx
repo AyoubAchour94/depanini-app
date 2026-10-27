@@ -1,6 +1,7 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { Text as RNText } from 'react-native';
 
+import { i18n } from '@/i18n';
 import { buildTheme } from '@/theme/tokens';
 
 import { Avatar, initialsOf } from './Avatar';
@@ -48,6 +49,16 @@ describe('Num', () => {
     await render(<Num value="85" unit="TND" size="display" />);
     const text = screen.getByText('85 TND');
     expect(flat(text.props.style).fontVariant).toEqual(['tabular-nums']);
+  });
+
+  it('reads figure then unit from the right in Arabic', async () => {
+    await act(() => i18n.changeLanguage('ar'));
+    try {
+      await render(<Num value="85" unit="TND" size="display" />);
+      expect(screen.getByText('‏85 TND')).toBeOnTheScreen();
+    } finally {
+      await act(() => i18n.changeLanguage('en'));
+    }
   });
 });
 

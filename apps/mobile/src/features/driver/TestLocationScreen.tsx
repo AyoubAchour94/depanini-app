@@ -1,4 +1,4 @@
-import { formatDecimal } from '@/i18n/format';
+import { formatCoordinates } from '@/i18n/format';
 import { isInTunisia, type LatLng, TUNIS_CENTER } from '@depanini/shared';
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
@@ -14,9 +14,6 @@ import { Button } from '@/ui/Button';
 
 import { useDriverStrings } from './strings';
 import { getTestLocation, isTestLocationEnabled, setTestLocation } from './testLocation';
-
-const formatCoordinates = ({ latitude, longitude }: LatLng) =>
-  `${formatDecimal(latitude, 5)}, ${formatDecimal(longitude, 5)}`;
 
 /** Dev/test builds: the driver positions the pin to set where the app thinks they are. */
 export function TestLocationScreen() {

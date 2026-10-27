@@ -1,0 +1,21 @@
+{
+  "finish": "إنهاء",
+  "save": "حفظ",
+  "next": "التالي",
+  "back": "رجوع",
+  "continue": "متابعة",
+  "step1": "الخطوة 1 من 2: بياناتك",
+  "step2": "الخطوة 2 من 2: شاحنتك",
+  "truckType": "نوع الشاحنة",
+  "plateNumber": "رقم اللوحة",
+  "platePlaceholder": "123 TU 4567",
+  "fullName": "الاسم الكامل",
+  "phone": "الهاتف",
+  "phonePlaceholder": "+216 98 123 456",
+  "saveFailed": "تعذّر حفظ بياناتك. تحقّق من اتصالك وأعد المحاولة.",
+  "driverSetupTitle": "أنشئ ملفك كسائق جرّ",
+  "driverSetupSubtitle": "يرى الحرفاء اسمك وهاتفك وشاحنتك عندما تتولّى طلبهم.",
+  "customerSetupTitle": "عرّفنا بنفسك",
+  "customerSetupSubtitle": "يستعمل سائق الجرّ اسمك وهاتفك للتواصل معك أثناء الجرّ.",
+  "detailsTitle": "بياناتك"
+}

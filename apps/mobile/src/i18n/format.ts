@@ -1,8 +1,16 @@
 import { currentLanguage, translate } from '.';
 
+/**
+ * The `Intl` locale of a language. Arabic is written as in Tunisia, with
+ * Western digits ("12,5" rather than "١٢٫٥").
+ */
+export function intlLocale(language: string): string {
+  return language === 'ar' ? 'ar-TN-u-nu-latn' : language;
+}
+
 /** A number as the language writes it; no digit grouping, as the app has always shown. */
 function number(value: number, locale: string, fractionDigits?: number): string {
-  return new Intl.NumberFormat(locale, {
+  return new Intl.NumberFormat(intlLocale(locale), {
     useGrouping: false,
     ...(fractionDigits === undefined
       ? {}
@@ -40,21 +48,41 @@ export function formatMinutes(minutes: number, locale = currentLanguage()): stri
   return translate('common:duration.minutes', { value: number(minutes, locale) });
 }
 
+/** The unit of `formatMinutes` alone, e.g. "min", for a `Num` that sets the unit smaller. */
+export function minutesUnit(): string {
+  return translate('common:duration.minutes', { value: '' }).trim();
+}
+
 /** A plain number with fixed decimals, for ratings and sizes. */
 export function formatDecimal(value: number, digits = 1, locale = currentLanguage()): string {
   return number(value, locale, digits);
 }
 
+/**
+ * A position as text when no address is known, e.g. "36.80650, 10.18150". Always
+ * with a decimal point: a decimal comma ("36,80650, 10,18150") would be read as
+ * four numbers, and the text is split on commas for display (`shortAddress`).
+ */
+export function formatCoordinates({
+  latitude,
+  longitude,
+}: {
+  latitude: number;
+  longitude: number;
+}) {
+  return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+}
+
 /** The local time of day, e.g. "10:05". */
 export function formatTime(iso: string, locale = currentLanguage()): string {
-  return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(
+  return new Intl.DateTimeFormat(intlLocale(locale), { hour: '2-digit', minute: '2-digit' }).format(
     new Date(iso),
   );
 }
 
 /** The date and time, e.g. "Jan 1, 2026, 10:05 AM", in the phone's time zone unless one is given. */
 export function formatDateTime(iso: string, locale = currentLanguage(), timeZone?: string): string {
-  return new Intl.DateTimeFormat(locale, {
+  return new Intl.DateTimeFormat(intlLocale(locale), {
     dateStyle: 'medium',
     timeStyle: 'short',
     ...(timeZone ? { timeZone } : {}),

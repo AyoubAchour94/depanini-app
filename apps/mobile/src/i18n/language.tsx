@@ -12,6 +12,8 @@ import {
 
 import { i18n, isLanguagePreference, type LanguagePreference, resolveLanguage } from '@/i18n';
 
+import { applyDirection } from './direction';
+
 export const LANGUAGE_PREFERENCE_KEY = 'depanini.languagePreference';
 
 /** The saved preference; `system` when nothing valid is saved or storage fails. */
@@ -71,8 +73,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    void i18n.changeLanguage(resolveLanguage(preference, deviceLanguages()));
-  }, [preference]);
+    const language = resolveLanguage(preference, deviceLanguages());
+    void i18n.changeLanguage(language);
+    // Only once the saved choice is known: the provisional System guess must not restart the app.
+    if (ready) void applyDirection(language);
+  }, [preference, ready]);
 
   const setPreference = useCallback((next: LanguagePreference) => {
     setPreferenceState(next);

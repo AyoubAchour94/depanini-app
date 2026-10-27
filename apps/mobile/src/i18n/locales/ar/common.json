@@ -1,0 +1,18 @@
+{
+  "money": "\u200f{{amount}} TND",
+  "distance": {
+    "km": "{{value}} كم",
+    "meters": "{{value}} م"
+  },
+  "duration": {
+    "minutes": "{{value}} د"
+  },
+  "back": "رجوع",
+  "truckTypes": {
+    "flatbed": "مسطحة",
+    "wheel_lift": "رافعة عجلات"
+  },
+  "truckLine": "{{truck}} · {{plate}}",
+  "sheetSize": "حجم اللوحة",
+  "rangeLabel": "{{value}}، بين {{min}} و{{max}}"
+}

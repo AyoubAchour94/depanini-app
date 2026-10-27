@@ -184,5 +184,5 @@ const styles = StyleSheet.create({
   row: { gap: 4 },
   rowHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   category: { flex: 1 },
-  counter: { textAlign: 'right' },
+  counter: { alignSelf: 'flex-end' },
 });

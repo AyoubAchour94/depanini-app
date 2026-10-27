@@ -259,7 +259,7 @@ export const radius = {
   full: 999,
 } as const;
 
-/** Inter files loaded by `useInterFonts`; one family name per weight (React Native needs that). */
+/** Inter files loaded by `useAppFonts`; one family name per weight (React Native needs that). */
 export const fontFamily = {
   regular: 'Inter_400Regular',
   medium: 'Inter_500Medium',
@@ -268,50 +268,87 @@ export const fontFamily = {
   extrabold: 'Inter_800ExtraBold',
 } as const;
 
+/** IBM Plex Sans Arabic at the same steps, for all text in Arabic. It stops at 700. */
+export const arabicFontFamily = {
+  regular: 'IBMPlexSansArabic_400Regular',
+  medium: 'IBMPlexSansArabic_500Medium',
+  semibold: 'IBMPlexSansArabic_600SemiBold',
+  bold: 'IBMPlexSansArabic_700Bold',
+  extrabold: 'IBMPlexSansArabic_700Bold',
+} as const;
+
+/** Which family the text is set in: Inter, or IBM Plex Sans Arabic when the language is Arabic. */
+export type Script = 'latin' | 'arabic';
+
+type FontFamilies = { [weight in keyof typeof fontFamily]: string };
+
 type TypeStyle = Required<Pick<TextStyle, 'fontFamily' | 'fontSize' | 'lineHeight'>> &
   Pick<TextStyle, 'letterSpacing' | 'fontVariant'>;
 
 const tabular: TextStyle['fontVariant'] = ['tabular-nums'];
 
+/**
+ * The type scale in one family. `tracking` scales the negative letter spacing
+ * of the large steps: Arabic sets it to 0, as tightening would pull joined
+ * letters apart.
+ */
+function typeScale(f: FontFamilies, tracking = 1) {
+  return {
+    /** Big figures: a fare, an ETA. Tabular numerals. */
+    display: {
+      fontFamily: f.extrabold,
+      fontSize: 48,
+      lineHeight: 52,
+      letterSpacing: -1.5 * tracking,
+      fontVariant: tabular,
+    },
+    /** Prices and distances in a screen. Tabular numerals. */
+    figure: {
+      fontFamily: f.extrabold,
+      fontSize: 36,
+      lineHeight: 40,
+      letterSpacing: -1 * tracking,
+      fontVariant: tabular,
+    },
+    /** Smaller figures: an offer price, a list row. Tabular numerals. */
+    figureSmall: {
+      fontFamily: f.extrabold,
+      fontSize: 20,
+      lineHeight: 24,
+      letterSpacing: -0.4 * tracking,
+      fontVariant: tabular,
+    },
+    title: { fontFamily: f.bold, fontSize: 24, lineHeight: 30, letterSpacing: -0.4 * tracking },
+    heading: {
+      fontFamily: f.semibold,
+      fontSize: 17,
+      lineHeight: 22,
+      letterSpacing: -0.2 * tracking,
+    },
+    body: { fontFamily: f.regular, fontSize: 16, lineHeight: 22 },
+    bodyStrong: { fontFamily: f.semibold, fontSize: 16, lineHeight: 22 },
+    label: { fontFamily: f.semibold, fontSize: 14, lineHeight: 18 },
+    caption: { fontFamily: f.medium, fontSize: 13, lineHeight: 17 },
+    micro: { fontFamily: f.bold, fontSize: 11, lineHeight: 14 },
+    button: { fontFamily: f.bold, fontSize: 17, lineHeight: 22 },
+    buttonBig: { fontFamily: f.bold, fontSize: 19, lineHeight: 24 },
+    buttonSmall: { fontFamily: f.semibold, fontSize: 15, lineHeight: 20 },
+  } as const satisfies Record<string, TypeStyle>;
+}
+
 /** The type scale. Spread a style into a `Text`, or use the `Text` / `Num` primitives. */
-export const type = {
-  /** Big figures: a fare, an ETA. Tabular numerals. */
-  display: {
-    fontFamily: fontFamily.extrabold,
-    fontSize: 48,
-    lineHeight: 52,
-    letterSpacing: -1.5,
-    fontVariant: tabular,
-  },
-  /** Prices and distances in a screen. Tabular numerals. */
-  figure: {
-    fontFamily: fontFamily.extrabold,
-    fontSize: 36,
-    lineHeight: 40,
-    letterSpacing: -1,
-    fontVariant: tabular,
-  },
-  /** Smaller figures: an offer price, a list row. Tabular numerals. */
-  figureSmall: {
-    fontFamily: fontFamily.extrabold,
-    fontSize: 20,
-    lineHeight: 24,
-    letterSpacing: -0.4,
-    fontVariant: tabular,
-  },
-  title: { fontFamily: fontFamily.bold, fontSize: 24, lineHeight: 30, letterSpacing: -0.4 },
-  heading: { fontFamily: fontFamily.semibold, fontSize: 17, lineHeight: 22, letterSpacing: -0.2 },
-  body: { fontFamily: fontFamily.regular, fontSize: 16, lineHeight: 22 },
-  bodyStrong: { fontFamily: fontFamily.semibold, fontSize: 16, lineHeight: 22 },
-  label: { fontFamily: fontFamily.semibold, fontSize: 14, lineHeight: 18 },
-  caption: { fontFamily: fontFamily.medium, fontSize: 13, lineHeight: 17 },
-  micro: { fontFamily: fontFamily.bold, fontSize: 11, lineHeight: 14 },
-  button: { fontFamily: fontFamily.bold, fontSize: 17, lineHeight: 22 },
-  buttonBig: { fontFamily: fontFamily.bold, fontSize: 19, lineHeight: 24 },
-  buttonSmall: { fontFamily: fontFamily.semibold, fontSize: 15, lineHeight: 20 },
-} as const satisfies Record<string, TypeStyle>;
+export const type = typeScale(fontFamily);
+
+/** The same scale in IBM Plex Sans Arabic. */
+const arabicType = typeScale(arabicFontFamily, 0);
 
 export type TypeVariant = keyof typeof type;
+
+function typeFor(script: Script) {
+  return script === 'arabic'
+    ? { families: arabicFontFamily, scale: arabicType }
+    : { families: fontFamily, scale: type };
+}
 
 /** Shadows as `boxShadow` strings, which React Native and React Native Web both accept. */
 function shadowsFor(scheme: Scheme) {
@@ -331,8 +368,9 @@ export interface Theme {
   color: Colors;
   space: typeof space;
   radius: typeof radius;
+  script: Script;
   type: typeof type;
-  fontFamily: typeof fontFamily;
+  fontFamily: FontFamilies;
   shadow: ReturnType<typeof shadowsFor>;
 
   /** @deprecated Use `color.brand`. Kept so screens not restyled yet keep working. */
@@ -355,17 +393,19 @@ export interface Theme {
   danger: string;
 }
 
-/** Resolves every token for one scheme and app variant. */
-export function buildTheme(scheme: Scheme, variant: AppVariant): Theme {
+/** Resolves every token for one scheme, app variant and script. */
+export function buildTheme(scheme: Scheme, variant: AppVariant, script: Script = 'latin'): Theme {
   const color = colorsFor(scheme, variant);
+  const { families, scale } = typeFor(script);
   return {
     scheme,
     variant,
     color,
     space,
     radius,
-    type,
-    fontFamily,
+    script,
+    type: scale,
+    fontFamily: families,
     shadow: shadowsFor(scheme),
     brand: color.brand,
     onBrand: color.onBrand,

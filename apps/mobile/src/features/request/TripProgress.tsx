@@ -2,6 +2,7 @@ import type { TowRequest, TripStage } from '@depanini/shared';
 import { StyleSheet, View } from 'react-native';
 
 import type { MapMarker } from '@/features/map/map-props';
+import { minutesUnit } from '@/i18n/format';
 import { useTheme } from '@/theme/theme';
 import { Card } from '@/ui/Card';
 import { Num } from '@/ui/Num';
@@ -55,7 +56,7 @@ export function TripStatus({ request }: { request: TowRequest }) {
             </Text>
           ) : null}
         </View>
-        {showEta ? <Num size="figure" value={etaMin!} unit="min" /> : null}
+        {showEta ? <Num size="figure" value={etaMin!} unit={minutesUnit()} /> : null}
       </View>
       <StageBar
         stages={[t.timeline.accepted, t.timeline.enRoute, t.timeline.arrived, t.timeline.towing]}
