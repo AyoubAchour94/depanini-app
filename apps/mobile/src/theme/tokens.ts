@@ -319,7 +319,12 @@ function typeScale(f: FontFamilies, tracking = 1) {
       fontVariant: tabular,
     },
     title: { fontFamily: f.bold, fontSize: 24, lineHeight: 30, letterSpacing: -0.4 * tracking },
-    heading: { fontFamily: f.semibold, fontSize: 17, lineHeight: 22, letterSpacing: -0.2 * tracking },
+    heading: {
+      fontFamily: f.semibold,
+      fontSize: 17,
+      lineHeight: 22,
+      letterSpacing: -0.2 * tracking,
+    },
     body: { fontFamily: f.regular, fontSize: 16, lineHeight: 22 },
     bodyStrong: { fontFamily: f.semibold, fontSize: 16, lineHeight: 22 },
     label: { fontFamily: f.semibold, fontSize: 14, lineHeight: 18 },

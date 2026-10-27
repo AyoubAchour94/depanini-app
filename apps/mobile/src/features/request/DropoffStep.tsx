@@ -1,4 +1,4 @@
-import { formatDecimal } from '@/i18n/format';
+import { formatCoordinates } from '@/i18n/format';
 import { isInTunisia, type LatLng, type Place } from '@depanini/shared';
 import { useContext, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -20,9 +20,6 @@ import { useRequestStrings } from './strings';
 
 /** Snap points of the pin sheet: the address, a notice and the pinned action fit at the first. */
 const PIN_SNAPS = [260] as const;
-
-const formatCoordinates = ({ latitude, longitude }: LatLng) =>
-  `${formatDecimal(latitude, 5)}, ${formatDecimal(longitude, 5)}`;
 
 interface DropoffStepProps {
   /** Where the vehicle is; results are ranked by closeness to it and the map starts there. */

@@ -1,4 +1,6 @@
+import { i18n } from '.';
 import {
+  formatCoordinates,
   formatDateTime,
   formatDistance,
   formatKilometres,
@@ -34,6 +36,17 @@ describe('formatting in English', () => {
 });
 
 describe('formatting in another language', () => {
+  it('writes coordinates with a decimal point in every language', async () => {
+    await i18n.changeLanguage('fr');
+    try {
+      expect(formatCoordinates({ latitude: 36.8065, longitude: 10.1815 })).toBe(
+        '36.80650, 10.18150',
+      );
+    } finally {
+      await i18n.changeLanguage('en');
+    }
+  });
+
   it('uses the locale of that language', () => {
     expect(formatKilometres(12_500, 'fr')).toBe('12,5 km');
     expect(formatDateTime('2026-01-01T10:05:00.000Z', 'fr', 'UTC')).toMatch(/^1 janv\. 2026/);

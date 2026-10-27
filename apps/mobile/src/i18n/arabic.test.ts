@@ -40,7 +40,9 @@ describe('Arabic messages', () => {
     const enPlurals = new Set(en.filter((key) => PLURAL.test(key)).map(pluralBase));
     const ar = entries(resources.ar?.[namespace]).map(([key]) => key);
     expect(
-      ar.filter((key) => !en.includes(key) && !(PLURAL.test(key) && enPlurals.has(pluralBase(key)))),
+      ar.filter(
+        (key) => !en.includes(key) && !(PLURAL.test(key) && enPlurals.has(pluralBase(key))),
+      ),
     ).toEqual([]);
   });
 

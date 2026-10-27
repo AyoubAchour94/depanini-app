@@ -58,6 +58,21 @@ export function formatDecimal(value: number, digits = 1, locale = currentLanguag
   return number(value, locale, digits);
 }
 
+/**
+ * A position as text when no address is known, e.g. "36.80650, 10.18150". Always
+ * with a decimal point: a decimal comma ("36,80650, 10,18150") would be read as
+ * four numbers, and the text is split on commas for display (`shortAddress`).
+ */
+export function formatCoordinates({
+  latitude,
+  longitude,
+}: {
+  latitude: number;
+  longitude: number;
+}) {
+  return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+}
+
 /** The local time of day, e.g. "10:05". */
 export function formatTime(iso: string, locale = currentLanguage()): string {
   return new Intl.DateTimeFormat(intlLocale(locale), { hour: '2-digit', minute: '2-digit' }).format(

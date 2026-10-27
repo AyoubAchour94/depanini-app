@@ -1,4 +1,4 @@
-import { formatDecimal } from '@/i18n/format';
+import { formatCoordinates } from '@/i18n/format';
 import { isInTunisia, type LatLng, type Place, TUNIS_CENTER } from '@depanini/shared';
 import * as Location from 'expo-location';
 import { useEffect, useState } from 'react';
@@ -60,9 +60,6 @@ function useStartPosition(): StartPosition {
 
   return position;
 }
-
-const formatCoordinates = ({ latitude, longitude }: LatLng) =>
-  `${formatDecimal(latitude, 5)}, ${formatDecimal(longitude, 5)}`;
 
 interface PickupStepProps {
   onConfirm: (pickup: Place) => void;

@@ -18,7 +18,13 @@ export const SHOT_LOCALE = process.env.E2E_LOCALE ?? 'en';
 const LOCALES_DIR = path.resolve(__dirname, '../../apps/mobile/src/i18n/locales');
 const LANGUAGE_PREFERENCE_KEY = 'depanini.languagePreference';
 
-type Pair = { en: string; fr: string };
+/**
+ * An English text and its translation. A plural message also has the
+ * translation's forms by plural category: Arabic has six where English has two.
+ */
+type Pair = { en: string; fr: string; forms?: Map<string, string> };
+
+const PLURAL = /_(zero|one|two|few|many|other)$/;
 
 function flatten(value: unknown, prefix = ''): [string, string][] {
   if (typeof value === 'string') return [[prefix.slice(0, -1), value]];
@@ -40,10 +46,21 @@ function loadPairs(): { fixed: Map<string, string>; templates: Pair[] } {
         ),
       );
     const target = read(SHOT_LOCALE);
+    const formsOf = (key: string) => {
+      const base = key.replace(PLURAL, '');
+      const forms = new Map<string, string>();
+      for (const [other, text] of target) {
+        if (PLURAL.test(other) && other.replace(PLURAL, '') === base) {
+          forms.set(PLURAL.exec(other)![1]!, text);
+        }
+      }
+      return forms;
+    };
     for (const [key, en] of read('en')) {
       const fr = target.get(key);
       if (fr === undefined) continue;
-      if (en.includes('{{')) templates.push({ en, fr });
+      if (en.includes('{{'))
+        templates.push({ en, fr, ...(PLURAL.test(key) ? { forms: formsOf(key) } : {}) });
       else if (!fixed.has(en)) fixed.set(en, fr);
     }
   }
@@ -64,7 +81,7 @@ export function translateText(text: string): string {
   if (SHOT_LOCALE === 'en') return text;
   const direct = fixed.get(text);
   if (direct !== undefined) return direct;
-  for (const { en, fr } of templates) {
+  for (const { en, fr, forms } of templates) {
     const names: string[] = [];
     const pattern = escapeRegExp(en).replace(/\\\{\\\{(\w+)\\\}\\\}/g, (_all, name: string) => {
       names.push(name);
@@ -72,7 +89,15 @@ export function translateText(text: string): string {
     });
     const match = new RegExp(`^${pattern}$`).exec(text);
     if (!match) continue;
-    return fr.replace(/{{(\w+)}}/g, (_all, name: string) => match[names.indexOf(name) + 1] ?? '');
+    const raw = (name: string) => match[names.indexOf(name) + 1] ?? '';
+    // A value can be a message too: "95 TND" in "Counter-offer 95 TND".
+    const value = (name: string) => (raw(name) === text ? text : translateText(raw(name)));
+    // "3 offers" is the `few` form in Arabic, not the `other` one.
+    const form =
+      forms && names.includes('count')
+        ? forms.get(new Intl.PluralRules(SHOT_LOCALE).select(Number(raw('count'))))
+        : undefined;
+    return (form ?? fr).replace(/{{(\w+)}}/g, (_all, name: string) => value(name));
   }
   return text;
 }
@@ -89,10 +114,11 @@ export function translatePattern(pattern: RegExp): RegExp {
     .replace(/\\(.)/g, '$1');
   const wrap = (body: string) =>
     new RegExp(`${anchoredStart ? '^' : ''}${body}${anchoredEnd ? '$' : ''}`, pattern.flags);
+  // A number may follow a bidi mark: Arabic prices start with one to read in Arabic order.
   const rest = (text: string) =>
     escapeRegExp(text)
       .replace(/\\\{\\\{\w+\\\}\\\}/g, '.+?')
-      .replace(/\u0000/g, '\\d+');
+      .replace(/\u0000/g, '[\\u200e\\u200f]?\\d+');
 
   // The same text as a whole message, e.g. /Completed/.
   const whole = fixed.get(literal);
