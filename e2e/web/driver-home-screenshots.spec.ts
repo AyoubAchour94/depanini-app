@@ -13,6 +13,7 @@ import { expect, type Page, type Route, test } from '@playwright/test';
 // app's API URL, default http://localhost:3000), so no API or database is
 // needed. The map is empty without a Mapbox token in the app's environment.
 import { stubMap } from './mapStub';
+import { useShotLocale } from './shotLocale';
 import { VIEWPORT } from './viewport';
 
 const DRIVER_URL = (process.env.E2E_DRIVER_URL ?? 'http://localhost:8082').replace(/\/$/, '');
@@ -163,6 +164,7 @@ for (const scheme of ['light', 'dark'] as const) {
     });
     const page = await context.newPage();
     await stubMap(page, scheme);
+    await useShotLocale(page);
     const state: ApiState = { verification: 'unsubmitted', online: false };
     await mockApi(page, state);
     const shot = (name: string) => page.screenshot({ path: `${SHOTS_DIR}/${scheme}-${name}.png` });

@@ -18,7 +18,7 @@ export const LANGUAGE_CODES: readonly LanguageCode[] = LANGUAGES.map((language) 
 export const LANGUAGE_PREFERENCES: readonly LanguagePreference[] = ['system', ...LANGUAGE_CODES];
 
 /** Used when the phone speaks a language the app does not offer, and for missing messages. */
-export const FALLBACK_LANGUAGE: LanguageCode = 'en';
+export const FALLBACK_LANGUAGE: LanguageCode = 'fr';
 
 export function isLanguagePreference(value: unknown): value is LanguagePreference {
   return LANGUAGE_PREFERENCES.includes(value as LanguagePreference);

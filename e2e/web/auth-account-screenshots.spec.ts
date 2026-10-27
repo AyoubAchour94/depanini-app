@@ -12,6 +12,7 @@ import { expect, type Page, type Route, test } from '@playwright/test';
 // browser (see `mockApi`), so no API, database or Mapbox token is needed, and
 // every state of /me and of the driver's documents can be shown on demand.
 import { stubMap } from './mapStub';
+import { useShotLocale } from './shotLocale';
 import { VIEWPORT } from './viewport';
 
 const CUSTOMER_URL = (process.env.E2E_CUSTOMER_URL ?? 'http://localhost:8081').replace(/\/$/, '');
@@ -198,6 +199,7 @@ for (const scheme of ['light', 'dark'] as const) {
     });
     const page = await context.newPage();
     await stubMap(page, scheme);
+    await useShotLocale(page);
     const state: ApiState = {
       me: 'error',
       customerProfile: null,
@@ -303,6 +305,7 @@ for (const scheme of ['light', 'dark'] as const) {
     });
     const page = await context.newPage();
     await stubMap(page, scheme);
+    await useShotLocale(page);
     const state: ApiState = {
       me: 'ok',
       customerProfile: null,

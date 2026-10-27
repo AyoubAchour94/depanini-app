@@ -25,7 +25,7 @@ if (!i18n.isInitialized) {
 
 export { i18n };
 
-/** The active language code, e.g. "en". For `Intl` and for event-time helpers. */
+/** The active language code, e.g. "fr". For `Intl` and for event-time helpers. */
 export const currentLanguage = (): string => i18n.language || FALLBACK_LANGUAGE;
 
 /** `t` bound to the active language, for code that runs outside React (alerts, share text). */

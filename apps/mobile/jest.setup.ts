@@ -1,3 +1,5 @@
+import { i18n } from '@/i18n';
+
 // Native modules have no JS implementation under Jest; replace them with
 // minimal stand-ins so screens render hermetically (no network, no device).
 
@@ -54,3 +56,6 @@ jest.mock('@sentry/react-native', () => ({
   init: jest.fn(),
   wrap: (component: unknown) => component,
 }));
+
+// French is the app's default; tests pin English so they read the same on any default.
+void i18n.changeLanguage('en');

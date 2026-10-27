@@ -15,6 +15,7 @@ import { expect, type Page, type Route, test, type WebSocketRoute } from '@playw
 // http://localhost:3000. The map shows live tiles only when the app has a
 // Mapbox token; without one the map area is empty.
 import { stubMap } from './mapStub';
+import { useShotLocale } from './shotLocale';
 import { VIEWPORT } from './viewport';
 
 const CUSTOMER_URL = (process.env.E2E_CUSTOMER_URL ?? 'http://localhost:8081').replace(/\/$/, '');
@@ -274,6 +275,7 @@ for (const scheme of ['light', 'dark'] as const) {
     });
     const page = await context.newPage();
     await stubMap(page, scheme);
+    await useShotLocale(page);
     // Every window.confirm in the app (accept offer) is answered with OK.
     page.on('dialog', (dialog) => void dialog.accept());
     const state: ApiState = { active: openRequest(), offers: [], history: [] };

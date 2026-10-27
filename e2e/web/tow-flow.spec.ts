@@ -77,7 +77,9 @@ const shown = (page: Page, text: string | RegExp, options?: { exact?: boolean })
   page.getByText(text, { exact: typeof text === 'string', ...options }).locator('visible=true');
 
 async function newUser(browser: Browser): Promise<{ context: BrowserContext; page: Page }> {
+  // English on purpose: the selectors read the English copy (the app follows the browser language).
   const context = await browser.newContext({
+    locale: 'en-US',
     geolocation: TUNIS,
     permissions: ['geolocation'],
     viewport: { width: 420, height: 1300 },

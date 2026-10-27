@@ -1,0 +1,21 @@
+{
+  "finish": "Terminer",
+  "save": "Enregistrer",
+  "next": "Suivant",
+  "back": "Retour",
+  "continue": "Continuer",
+  "step1": "Étape 1 sur 2 : vos informations",
+  "step2": "Étape 2 sur 2 : votre camion",
+  "truckType": "Type de camion",
+  "plateNumber": "Immatriculation",
+  "platePlaceholder": "123 TU 4567",
+  "fullName": "Nom complet",
+  "phone": "Téléphone",
+  "phonePlaceholder": "+216 98 123 456",
+  "saveFailed": "Impossible d'enregistrer vos informations. Vérifiez votre connexion et réessayez.",
+  "driverSetupTitle": "Configurez votre profil chauffeur",
+  "driverSetupSubtitle": "Les clients voient votre nom, votre téléphone et votre camion quand vous prenez leur dépannage.",
+  "customerSetupTitle": "Parlez-nous de vous",
+  "customerSetupSubtitle": "Les chauffeurs utilisent votre nom et votre téléphone pour vous joindre pendant le dépannage.",
+  "detailsTitle": "Vos informations"
+}
