@@ -17,6 +17,7 @@ import { useVerificationStrings } from '@/features/verification/strings';
 import { REQUEST_CANCELLED_NOTICE } from '@/push/routing';
 import { useTheme } from '@/theme/theme';
 import { Button } from '@/ui/Button';
+import { DirectionalGlyph } from '@/ui/DirectionalGlyph';
 import { Num } from '@/ui/Num';
 import { Pill } from '@/ui/Pill';
 import { Text } from '@/ui/Text';
@@ -289,8 +290,7 @@ function RequestRow({ request, first }: { request: NearbyRequest; first: boolean
         </View>
       </View>
       <Num size="small" value={request.proposedFare} unit="TND" />
-      {/* Phase 9 (RTL): swap for a flipping chevron icon. */}
-      <Text tone="muted">›</Text>
+      <DirectionalGlyph tone="muted">›</DirectionalGlyph>
     </Pressable>
   );
 }

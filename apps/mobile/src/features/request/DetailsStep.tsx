@@ -112,5 +112,5 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   note: { gap: 4 },
   noteInput: { minHeight: 90, textAlignVertical: 'top' },
-  counter: { textAlign: 'right' },
+  counter: { alignSelf: 'flex-end' },
 });

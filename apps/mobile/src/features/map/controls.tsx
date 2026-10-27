@@ -2,6 +2,7 @@ import { View } from 'react-native';
 
 import { useTranslation } from '@/i18n';
 import { useTheme } from '@/theme/theme';
+import { DirectionalGlyph } from '@/ui/DirectionalGlyph';
 import { RoundButton } from '@/ui/RoundButton';
 import { Text } from '@/ui/Text';
 
@@ -10,9 +11,9 @@ export function BackButton({ onPress }: { onPress: () => void }) {
   const { t } = useTranslation();
   return (
     <RoundButton accessibilityLabel={t('common:back')} onPress={onPress}>
-      <Text variant="title" style={{ lineHeight: 30 }}>
+      <DirectionalGlyph variant="title" style={{ lineHeight: 30 }}>
         ‹
-      </Text>
+      </DirectionalGlyph>
     </RoundButton>
   );
 }
